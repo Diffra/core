@@ -1,0 +1,25 @@
+{
+  "name": "@diffra/action",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "GitHub Action for Diffra visual regression testing",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && vite build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actions/core": "^3.0.1",
+    "@actions/github": "^9.1.1",
+    "@diffra/core": "workspace:*",
+    "@diffra/diff": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}

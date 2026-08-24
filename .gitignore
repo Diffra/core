@@ -1,0 +1,12 @@
+node_modules/
+dist/
+target/
+.diffra/
+.pnpm-store
+storybook-static/
+*.log
+.DS_Store
+*.tsbuildinfo
+coverage/
+packages/diff/*.node
+packages/diff/index.d.ts

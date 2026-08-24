@@ -1,0 +1,76 @@
+name: Visual Regression Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  visual-tests:
+    name: Visual Regression (Storybook)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full git history required for merge-base baseline discovery
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore visual regression baselines cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .diffra/baselines
+          key: diffra-baselines-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            diffra-baselines-${{ runner.os }}-main-
+            diffra-baselines-${{ runner.os }}-
+
+      - name: Build Storybook
+        run: pnpm --filter @diffra/storybook build-storybook || pnpm build-storybook
+
+      - name: Run Diffra Visual Regression
+        id: diffra
+        uses: Rawlings/diffra@v1
+        with:
+          storybookBuildDir: 'packages/storybook/storybook-static'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          autoAcceptChanges: 'main'
+          exitZeroOnChanges: 'true'
+
+      - name: Save updated baselines cache on main
+        if: github.ref == 'refs/heads/main' && always()
+        uses: actions/cache/save@v4
+        with:
+          path: .diffra/baselines
+          key: diffra-baselines-${{ runner.os }}-main-${{ github.sha }}
+
+      - name: Upload Visual Regression Report Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-report
+          path: |
+            .diffra/runs/**/index.html
+            .diffra/runs/**/report.json
+            .diffra/runs/**/diffs/
+            .diffra/runs/**/candidates/
+          retention-days: 14

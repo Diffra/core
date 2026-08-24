@@ -1,0 +1,87 @@
+name: 'Diffra Visual Regression Testing'
+description: 'Automated visual regression testing and review reports for Storybook and modern design systems'
+author: 'Rawlings'
+
+inputs:
+  projectToken:
+    description: 'The unique token for your project or storage authentication'
+    required: false
+  token:
+    description: 'GitHub token for pull request sticky comments and commit status checks'
+    required: false
+    default: ${{ github.token }}
+  driver:
+    description: "Visual driver to run: 'storybook', 'url', or 'image'"
+    required: false
+  urls:
+    description: 'Comma-separated list or JSON array of web URLs to test'
+    required: false
+  storybookBuildDir:
+    description: 'Path to a pre-built static Storybook directory (e.g. storybook-static)'
+    required: false
+  storybookUrl:
+    description: 'URL of a running Storybook server (e.g. http://localhost:6006)'
+    required: false
+  storybookPort:
+    description: 'Port to run the local preview server on if using storybookBuildDir'
+    required: false
+    default: '6006'
+  exitZeroOnChanges:
+    description: 'Pass the action step (exit 0) even if visual differences are detected, or specify a branch name'
+    required: false
+    default: 'false'
+  autoAcceptChanges:
+    description: 'Automatically promote candidate screenshots as the new baseline on main or a specific branch'
+    required: false
+    default: 'false'
+  exitOnceUploaded:
+    description: 'Exit with code 0 as soon as the candidate snapshots and diffs are persisted'
+    required: false
+    default: 'false'
+  onlyChanged:
+    description: 'Only capture and test stories whose underlying component files have changed'
+    required: false
+    default: 'false'
+  diffThreshold:
+    description: 'Perceptual pixel delta threshold (from 0.00 strict to 1.00 permissive)'
+    required: false
+    default: '0.063'
+  threshold:
+    description: 'Alias for diffThreshold'
+    required: false
+  concurrency:
+    description: 'Number of parallel browser workers'
+    required: false
+    default: '4'
+  workingDir:
+    description: 'Working directory for projects in a monorepo'
+    required: false
+    default: '.'
+  debug:
+    description: 'Enable verbose debug output in CI logs'
+    required: false
+    default: 'false'
+
+outputs:
+  url:
+    description: 'Shorthand alias for the visual report build URL'
+  buildUrl:
+    description: 'Full URL to the visual regression review report'
+  storybookUrl:
+    description: 'URL of the Storybook preview server used during capture'
+  code:
+    description: 'Process exit status code'
+  changeCount:
+    description: 'Number of visual differences detected'
+  storyCount:
+    description: 'Total number of stories and viewport combinations tested'
+  status:
+    description: 'Final execution status (passed, changes_found, or failed)'
+
+runs:
+  using: 'node20'
+  main: 'dist/action.js'
+
+branding:
+  icon: 'eye'
+  color: 'blue'

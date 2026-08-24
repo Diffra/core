@@ -1,0 +1,55 @@
+{
+  "name": "diffra-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ultra-fast, self-hosted visual regression testing suite for Storybook and modern design systems",
+  "author": "Rawlings",
+  "license": "MIT",
+  "homepage": "https://github.com/Rawlings/diffra#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rawlings/diffra.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Rawlings/diffra/issues"
+  },
+  "keywords": [
+    "visual-regression",
+    "visual-testing",
+    "storybook",
+    "design-system",
+    "playwright",
+    "simd",
+    "diff",
+    "testing",
+    "ui-testing"
+  ],
+  "engines": {
+    "node": ">=20.18.0",
+    "pnpm": ">=10.0.0"
+  },
+  "packageManager": "pnpm@11.11.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter @diffra/viewer dev",
+    "viewer:dev": "pnpm --filter @diffra/viewer dev",
+    "storybook": "pnpm --filter @diffra/storybook storybook",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "test:visual": "pnpm --filter @diffra/storybook test:visual",
+    "test:visual:approve": "pnpm --filter @diffra/storybook test:visual:approve",
+    "test:visual:serve": "pnpm --filter @diffra/storybook test:visual:serve",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "clean": "pnpm -r run clean"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.10",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

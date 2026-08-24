@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diffra Visual Regression Report</title>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script id="diffra-data" type="application/json">
+  {
+    "runId": "run-preview-local",
+    "timestamp": "2026-08-24T08:00:00.000Z",
+    "branch": "main",
+    "commit": "c4d5e6f",
+    "baselineBranch": "main",
+    "baselineCommit": "a1b2c3d",
+    "baselineReportUrl": "../../branches/main/latest/index.html",
+    "branchLatestUrl": "../../branches/main/latest/index.html",
+    "summary": {
+      "total": 4,
+      "changed": 2,
+      "added": 1,
+      "removed": 0,
+      "unchanged": 1
+    },
+    "results": [
+      {
+        "id": "components-button--primary",
+        "name": "Primary",
+        "component": "Button",
+        "status": "changed",
+        "diffPercentage": 0.45,
+        "diffCount": 128,
+        "viewport": {
+          "name": "desktop",
+          "width": 1280,
+          "height": 800
+        },
+        "baselineUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='100'><rect width='320' height='100' fill='%23f8fafc' rx='8'/><rect x='20' y='26' width='280' height='48' fill='%230f172a' rx='8'/><text x='160' y='56' fill='%23ffffff' font-family='sans-serif' font-size='14' font-weight='600' text-anchor='middle'>Primary Action Button</text></svg>",
+        "candidateUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='100'><rect width='320' height='100' fill='%23f8fafc' rx='8'/><rect x='20' y='26' width='280' height='48' fill='%232563eb' rx='8'/><text x='160' y='56' fill='%23ffffff' font-family='sans-serif' font-size='14' font-weight='600' text-anchor='middle'>Primary Action Button</text></svg>",
+        "diffUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='100'><rect width='320' height='100' fill='%23ffffff' rx='8'/><rect x='20' y='26' width='280' height='48' fill='%23e11d48' opacity='0.75' rx='8'/></svg>",
+        "boundingBoxes": [
+          {
+            "minX": 20,
+            "minY": 26,
+            "maxX": 300,
+            "maxY": 74
+          }
+        ]
+      },
+      {
+        "id": "components-modal--confirmation-dialog",
+        "name": "ConfirmationDialog",
+        "component": "Modal",
+        "status": "changed",
+        "diffPercentage": 1.15,
+        "diffCount": 460,
+        "viewport": {
+          "name": "desktop",
+          "width": 1280,
+          "height": 800
+        },
+        "baselineUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='440' height='200'><rect width='440' height='200' fill='%23ffffff' stroke='%23e2e8f0' stroke-width='1.5' rx='12'/><text x='24' y='44' fill='%230f172a' font-family='sans-serif' font-size='16' font-weight='600'>Confirm Project Deletion</text><text x='24' y='76' fill='%2364748b' font-family='sans-serif' font-size='13'>Are you sure you want to delete this repository?</text><rect x='24' y='132' width='100' height='38' fill='%23f1f5f9' rx='6'/><text x='74' y='156' fill='%23475569' font-family='sans-serif' font-size='13' font-weight='500' text-anchor='middle'>Cancel</text><rect x='136' y='132' width='100' height='38' fill='%23e11d48' rx='6'/><text x='186' y='156' fill='%23ffffff' font-family='sans-serif' font-size='13' font-weight='600' text-anchor='middle'>Delete</text></svg>",
+        "candidateUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='440' height='200'><rect width='440' height='200' fill='%23ffffff' stroke='%23cbd5e1' stroke-width='1.5' rx='12'/><text x='24' y='44' fill='%230f172a' font-family='sans-serif' font-size='16' font-weight='700'>Confirm Project Deletion</text><text x='24' y='76' fill='%2364748b' font-family='sans-serif' font-size='13'>Are you sure you want to delete this repository?</text><rect x='24' y='132' width='100' height='38' fill='%23f8fafc' stroke='%23e2e8f0' stroke-width='1' rx='8'/><text x='74' y='156' fill='%23475569' font-family='sans-serif' font-size='13' font-weight='500' text-anchor='middle'>Cancel</text><rect x='136' y='132' width='100' height='38' fill='%23e11d48' rx='8'/><text x='186' y='156' fill='%23ffffff' font-family='sans-serif' font-size='13' font-weight='600' text-anchor='middle'>Delete</text></svg>",
+        "diffUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='440' height='200'><rect width='440' height='200' fill='%23ffffff' rx='12'/><rect x='20' y='28' width='220' height='24' fill='%23e11d48' opacity='0.75' rx='4'/><rect x='24' y='132' width='212' height='38' fill='%23e11d48' opacity='0.6' rx='6'/></svg>",
+        "boundingBoxes": [
+          {
+            "minX": 20,
+            "minY": 28,
+            "maxX": 240,
+            "maxY": 52
+          },
+          {
+            "minX": 24,
+            "minY": 132,
+            "maxX": 236,
+            "maxY": 170
+          }
+        ]
+      },
+      {
+        "id": "components-badge--status",
+        "name": "Status",
+        "component": "Badge",
+        "status": "added",
+        "diffPercentage": 0,
+        "diffCount": 0,
+        "viewport": {
+          "name": "desktop",
+          "width": 1280,
+          "height": 800
+        },
+        "candidateUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='80'><rect width='240' height='80' fill='%23f8fafc' rx='8'/><rect x='20' y='24' width='120' height='32' fill='%23ecfdf5' stroke='%23a7f3d0' stroke-width='1' rx='16'/><text x='80' y='45' fill='%23059669' font-family='sans-serif' font-size='12' font-weight='600' text-anchor='middle'>VERIFIED</text></svg>"
+      },
+      {
+        "id": "components-card--standard",
+        "name": "Standard",
+        "component": "Card",
+        "status": "unchanged",
+        "diffPercentage": 0,
+        "diffCount": 0,
+        "viewport": {
+          "name": "desktop",
+          "width": 1280,
+          "height": 800
+        },
+        "baselineUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='160'><rect width='360' height='160' fill='%23ffffff' stroke='%23e2e8f0' stroke-width='1.5' rx='12'/><text x='24' y='44' fill='%230f172a' font-family='sans-serif' font-size='15' font-weight='600'>Standard Card</text><text x='24' y='72' fill='%2364748b' font-family='sans-serif' font-size='13'>Component card description preview.</text></svg>",
+        "candidateUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='160'><rect width='360' height='160' fill='%23ffffff' stroke='%23e2e8f0' stroke-width='1.5' rx='12'/><text x='24' y='44' fill='%230f172a' font-family='sans-serif' font-size='15' font-weight='600'>Standard Card</text><text x='24' y='72' fill='%2364748b' font-family='sans-serif' font-size='13'>Component card description preview.</text></svg>"
+      }
+    ]
+  }
+  </script>
+
+  <script type="module" src="./src/index.tsx"></script>
+</body>
+
+</html>

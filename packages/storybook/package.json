@@ -1,0 +1,34 @@
+{
+  "name": "@diffra/storybook",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Showcase design system and real Storybook 8 instance for visual regression testing",
+  "scripts": {
+    "storybook": "STORYBOOK_DISABLE_TELEMETRY=1 storybook dev -p 6006 --ci",
+    "build-storybook": "STORYBOOK_DISABLE_TELEMETRY=1 storybook build --quiet",
+    "test:visual": "diffra test",
+    "test:visual:approve": "diffra approve",
+    "test:visual:serve": "diffra serve",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@diffra/core": "workspace:*",
+    "@diffra/diff": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@storybook/addon-essentials": "8.6.14",
+    "@storybook/react": "8.6.14",
+    "@storybook/react-vite": "8.6.14",
+    "@storybook/builder-vite": "8.6.14",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "storybook": "8.6.14",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "@diffra/diff",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Hardware-accelerated Rust SIMD pixel diff engine with Node-API bindings and pure TypeScript fallback",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "author": "Rawlings",
+  "license": "MIT",
+  "homepage": "https://github.com/Rawlings/diffra/tree/main/packages/diff#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rawlings/diffra.git",
+    "directory": "packages/diff"
+  },
+  "bugs": {
+    "url": "https://github.com/Rawlings/diffra/issues"
+  },
+  "keywords": [
+    "pixel-diff",
+    "simd",
+    "rust",
+    "napi",
+    "image-comparison",
+    "visual-regression"
+  ],
+  "files": [
+    "dist",
+    "src",
+    "native"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

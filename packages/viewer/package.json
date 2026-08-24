@@ -1,0 +1,54 @@
+{
+  "name": "@diffra/viewer",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Minimalist Scandinavian visual regression review interface and report viewer",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "author": "Rawlings",
+  "license": "MIT",
+  "homepage": "https://github.com/Rawlings/diffra/tree/main/packages/viewer#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rawlings/diffra.git",
+    "directory": "packages/viewer"
+  },
+  "bugs": {
+    "url": "https://github.com/Rawlings/diffra/issues"
+  },
+  "keywords": [
+    "diff-viewer",
+    "visual-regression",
+    "ui-report",
+    "design-system",
+    "storybook",
+    "testing"
+  ],
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}

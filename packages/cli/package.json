@@ -1,0 +1,48 @@
+{
+  "name": "@diffra/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Zero-dependency command-line interface for Diffra visual regression engine",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "diffra": "./bin/diffra.js"
+  },
+  "author": "Rawlings",
+  "license": "MIT",
+  "homepage": "https://github.com/Rawlings/diffra/tree/main/packages/cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rawlings/diffra.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/Rawlings/diffra/issues"
+  },
+  "keywords": [
+    "diffra",
+    "cli",
+    "visual-regression",
+    "visual-testing",
+    "storybook",
+    "design-system"
+  ],
+  "engines": {
+    "node": ">=20.18.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@diffra/core": "workspace:*",
+    "@diffra/diff": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

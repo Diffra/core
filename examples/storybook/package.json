@@ -1,0 +1,20 @@
+{
+  "name": "@diffra/example-storybook",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Showcase design system and Storybook instance using Diffra visual regression testing",
+  "scripts": {
+    "test:visual": "diffra test",
+    "test:visual:approve": "diffra approve",
+    "test:visual:serve": "diffra serve",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@diffra/core": "workspace:*",
+    "@diffra/diff": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}
