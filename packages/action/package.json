@@ -5,6 +5,17 @@
   "private": true,
   "description": "GitHub Action for Diffra visual regression testing",
   "main": "./dist/index.js",
+  "author": "Diffra",
+  "license": "MIT",
+  "homepage": "https://github.com/Diffra/core/tree/main/packages/action#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Diffra/core.git",
+    "directory": "packages/action"
+  },
+  "bugs": {
+    "url": "https://github.com/Diffra/core/issues"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json && vite build",
     "test": "vitest run",

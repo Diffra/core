@@ -16,8 +16,8 @@ Thank you for your interest in contributing to Diffra. We welcome contributions,
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Rawlings/diffra.git
-cd diffra
+git clone https://github.com/Diffra/core.git
+cd core
 
 # 2. Install workspace dependencies
 pnpm install

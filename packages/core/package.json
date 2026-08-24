@@ -5,16 +5,16 @@
   "description": "Visual regression execution pipeline and driver engine for Storybook",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "author": "Rawlings",
+  "author": "Diffra",
   "license": "MIT",
-  "homepage": "https://github.com/Rawlings/diffra/tree/main/packages/core#readme",
+  "homepage": "https://github.com/Diffra/core/tree/main/packages/core#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Rawlings/diffra.git",
+    "url": "https://github.com/Diffra/core.git",
     "directory": "packages/core"
   },
   "bugs": {
-    "url": "https://github.com/Rawlings/diffra/issues"
+    "url": "https://github.com/Diffra/core/issues"
   },
   "keywords": [
     "visual-regression",

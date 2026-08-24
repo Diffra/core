@@ -1,16 +1,12 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useViewer } from '../../../context/ViewerContext.js';
-import { IconButton } from '../../ui/IconButton.js';
-import { IconBlink, IconPause } from '../../ui/Icons.js';
 
 export const DiffMaskView: React.FC = () => {
   const {
     activeStory,
     highlightBoxes,
-    setHighlightBoxes,
     isBlinking,
-    toggleBlink,
   } = useViewer();
 
   const [blinkShowCandidate, setBlinkShowCandidate] = useState(false);
@@ -43,40 +39,8 @@ export const DiffMaskView: React.FC = () => {
     : diff;
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full p-6 gap-4 overflow-auto select-none">
-      {/* Controls Bar */}
-      <div className="flex items-center gap-3 bg-white/90 backdrop-blur border border-zinc-200/80 rounded-full px-4 py-1.5 text-xs text-zinc-700 font-medium shadow-xs">
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={highlightBoxes}
-            onChange={(e) => setHighlightBoxes(e.target.checked)}
-            className="cursor-pointer accent-rose-600 rounded"
-          />
-          <span className="font-semibold text-zinc-800">
-            Diff Regions ({boxes.length})
-          </span>
-        </label>
-
-        {baseline && candidate ? (
-          <IconButton
-            icon={
-              isBlinking ? (
-                <IconPause className="w-3.5 h-3.5" />
-              ) : (
-                <IconBlink className="w-3.5 h-3.5" />
-              )
-            }
-            label={isBlinking ? 'Stop Blink' : 'Blink Mode'}
-            shortcut="Space"
-            active={isBlinking}
-            onClick={toggleBlink}
-          />
-        ) : null}
-      </div>
-
-      {/* Image Stage */}
-      <div className="relative inline-block overflow-hidden rounded-xl border border-zinc-200/80 bg-white canvas-backdrop max-w-full shadow-xs">
+    <div className="flex-1 flex items-center justify-center p-4 bg-white border border-zinc-200/80 rounded-2xl overflow-auto canvas-backdrop min-h-0 w-full h-full select-none text-ui-base shadow-xs">
+      <div className="relative inline-block overflow-hidden rounded-xl max-w-full">
         <img
           src={displaySrc}
           alt="Diff Mask"

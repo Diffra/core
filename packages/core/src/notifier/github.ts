@@ -8,6 +8,7 @@ export interface GitHubNotifierOptions {
   prNumber?: number;
   commitSha?: string;
   reportUrl?: string;
+  viewerUrl?: string;
 }
 
 /**
@@ -66,7 +67,11 @@ export async function notifyGitHub(
   }
 
   const prNumber = await resolvePullRequestNumber(options.prNumber);
-  const markdown = formatMarkdownSummary(report, options.reportUrl);
+  const markdown = formatMarkdownSummary(
+    report,
+    options.reportUrl,
+    options.viewerUrl,
+  );
 
   const headers: Record<string, string> = {
     Authorization: `token ${token}`,

@@ -2,9 +2,9 @@ name: Visual Regression Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
 
 permissions:
   contents: read
@@ -41,6 +41,7 @@ jobs:
           path: .diffra/baselines
           key: diffra-baselines-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
+            diffra-baselines-${{ runner.os }}-master-
             diffra-baselines-${{ runner.os }}-main-
             diffra-baselines-${{ runner.os }}-
 
@@ -49,19 +50,19 @@ jobs:
 
       - name: Run Diffra Visual Regression
         id: diffra
-        uses: Rawlings/diffra@v1
+        uses: Diffra/core@v1
         with:
           storybookBuildDir: 'packages/storybook/storybook-static'
           token: ${{ secrets.GITHUB_TOKEN }}
-          autoAcceptChanges: 'main'
+          autoAcceptChanges: 'master'
           exitZeroOnChanges: 'true'
 
-      - name: Save updated baselines cache on main
-        if: github.ref == 'refs/heads/main' && always()
+      - name: Save updated baselines cache on master or main
+        if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && always()
         uses: actions/cache/save@v4
         with:
           path: .diffra/baselines
-          key: diffra-baselines-${{ runner.os }}-main-${{ github.sha }}
+          key: diffra-baselines-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
 
       - name: Upload Visual Regression Report Artifact
         if: always()

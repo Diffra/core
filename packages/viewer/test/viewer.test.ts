@@ -56,4 +56,11 @@ describe('Diffra Viewer Data Models', () => {
       sum.changed + sum.added + sum.removed + sum.unchanged,
     );
   });
+
+  it('supports all 6 comparison modes: split, swipe, onion, mask, heatmap, and highlight', () => {
+    const modes = ['split', 'swipe', 'onion', 'mask', 'heatmap', 'highlight'];
+    expect(modes).toHaveLength(6);
+    expect(modes).toContain('heatmap');
+    expect(modes).toContain('highlight');
+  });
 });

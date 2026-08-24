@@ -2,7 +2,7 @@
 name = "diffra-diff"
 version = "0.1.0"
 edition = "2021"
-authors = ["Rawlings"]
+authors = ["Diffra"]
 description = "Ultra-fast Rust SIMD pixel diff engine for Diffra visual regression testing"
 license = "MIT"
 

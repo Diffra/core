@@ -40,6 +40,7 @@ export interface TestRunReport {
   commit: string;
   baselineCommit?: string;
   baselineBranch?: string;
+  repositoryUrl?: string;
   baselineReportUrl?: string;
   branchLatestUrl?: string;
   summary: ReportSummary;
@@ -47,7 +48,12 @@ export interface TestRunReport {
 }
 
 export type ViewMode = 'overview' | 'detail';
-export type DiffMode = 'split' | 'swipe' | 'onion' | 'mask';
+export type DiffMode =
+  | 'highlight'
+  | 'split'
+  | 'swipe'
+  | 'onion'
+  | 'mask';
 export type FilterStatus =
   | 'all'
   | 'changed'

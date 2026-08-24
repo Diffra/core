@@ -21,7 +21,7 @@ If you discover a security vulnerability within Diffra, please **do not open a p
 
 Instead, please report vulnerabilities through one of the following channels:
 
-1. **GitHub Security Advisories**: Submit a private advisory via [GitHub Security Advisories](https://github.com/Rawlings/diffra/security/advisories/new).
+1. **GitHub Security Advisories**: Submit a private advisory via [GitHub Security Advisories](https://github.com/Diffra/core/security/advisories/new).
 2. **Email**: Contact the security team directly at `security@diffra.dev`.
 
 ### Report contents

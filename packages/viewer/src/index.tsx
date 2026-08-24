@@ -9,35 +9,12 @@ export * from './context/ViewerContext.js';
 export * from './types/index.js';
 
 /**
- * Bootstrap function to mount the Diffra Viewer into DOM.
+ * Clean React 19 bootstrap function to mount the Diffra Viewer into the DOM.
  */
 export function initDiffraViewer(
   container?: HTMLElement | null,
   data?: TestRunReport,
 ): void {
-  let manifest = data;
-
-  if (!manifest) {
-    const dataScript = document.getElementById('diffra-data');
-    if (dataScript?.textContent) {
-      try {
-        manifest = JSON.parse(dataScript.textContent);
-      } catch (err) {
-        console.error('[diffra-viewer] Failed to parse report JSON:', err);
-      }
-    } else {
-      const win = window as unknown as {
-        __DIFFRA_DATA__?: TestRunReport;
-        __SYNDETIC_DATA__?: TestRunReport;
-      };
-      if (win.__DIFFRA_DATA__) {
-        manifest = win.__DIFFRA_DATA__;
-      } else if (win.__SYNDETIC_DATA__) {
-        manifest = win.__SYNDETIC_DATA__;
-      }
-    }
-  }
-
   const target =
     container ||
     document.getElementById('root') ||
@@ -48,11 +25,11 @@ export function initDiffraViewer(
       return el;
     })();
 
-  if (target && manifest) {
+  if (target) {
     const root = createRoot(target);
     root.render(
       <React.StrictMode>
-        <App manifest={manifest} />
+        <App initialData={data} />
       </React.StrictMode>,
     );
   }

@@ -177,15 +177,26 @@ export async function run(): Promise<void> {
     }
 
     // 3. GitHub PR Comment & Commit Status Configuration
-    const repoOwner = github.context.repo.owner;
+    const repoOwner = github.context.repo.repo ? github.context.repo.owner : undefined;
     const repoName = github.context.repo.repo;
     const repoString =
-      repoOwner && repoName ? `${repoOwner}/${repoName}` : undefined;
+      repoOwner && repoName ? `${repoOwner}/${repoName}` : process.env.GITHUB_REPOSITORY;
     const prNumber =
       github.context.payload.pull_request?.number ||
       (process.env.GITHUB_REF?.match(/^refs\/pull\/(\d+)\/(merge|head)$/)
         ? parseInt(process.env.GITHUB_REF.split('/')[2], 10)
         : undefined);
+
+    const viewerUrlInput = core.getInput('viewerUrl');
+    const autoPagesUrl =
+      repoOwner && repoName
+        ? `https://${repoOwner}.github.io/${repoName}`
+        : undefined;
+    const viewerUrl = viewerUrlInput || process.env.DIFFRA_VIEWER_URL || autoPagesUrl;
+
+    if (viewerUrl) {
+      configOverrides.viewerUrl = viewerUrl;
+    }
 
     if (token && repoString) {
       configOverrides.notifier = {
@@ -193,6 +204,7 @@ export async function run(): Promise<void> {
           token,
           repo: repoString,
           prNumber,
+          viewerUrl,
         },
       };
     }
@@ -230,7 +242,11 @@ export async function run(): Promise<void> {
 
     // 6. GitHub Actions Job Step Summary
     try {
-      const summaryMarkdown = formatMarkdownSummary(report, reportUrl);
+      const summaryMarkdown = formatMarkdownSummary(
+        report,
+        reportUrl,
+        viewerUrl,
+      );
       await core.summary.addRaw(summaryMarkdown).write();
     } catch {}
 

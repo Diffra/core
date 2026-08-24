@@ -7,6 +7,7 @@ export interface GitInfo {
   branch: string;
   commit: string;
   baselineCommit: string;
+  repositoryUrl?: string;
 }
 
 /**
@@ -19,6 +20,26 @@ async function runGit(args: string[], cwd = process.cwd()): Promise<string> {
   } catch {
     return '';
   }
+}
+
+function parseGithubUrl(rawUrl: string): string | undefined {
+  if (!rawUrl) return undefined;
+  // Handle git@github.com:owner/repo.git
+  const sshMatch = rawUrl.match(/^git@github\.com:([^/]+)\/(.+?)(\.git)?$/);
+  if (sshMatch) {
+    return `https://github.com/${sshMatch[1]}/${sshMatch[2]}`;
+  }
+  // Handle https://github.com/owner/repo.git
+  const httpMatch = rawUrl.match(
+    /^https?:\/\/github\.com\/([^/]+)\/(.+?)(\.git)?$/,
+  );
+  if (httpMatch) {
+    return `https://github.com/${httpMatch[1]}/${httpMatch[2]}`;
+  }
+  if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+    return rawUrl.replace(/\.git$/, '');
+  }
+  return undefined;
 }
 
 /**
@@ -42,6 +63,15 @@ export async function getGitInfo(
       process.env.GITHUB_REF_NAME ||
       process.env.CI_COMMIT_REF_NAME ||
       'HEAD';
+  }
+
+  // Discover repository URL
+  let repositoryUrl: string | undefined;
+  if (process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY) {
+    repositoryUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}`;
+  } else {
+    const remoteUrl = await runGit(['config', '--get', 'remote.origin.url'], cwd);
+    repositoryUrl = parseGithubUrl(remoteUrl);
   }
 
   // Candidate branches to attempt merge-base resolution
@@ -82,5 +112,6 @@ export async function getGitInfo(
     branch,
     commit,
     baselineCommit,
+    repositoryUrl,
   };
 }

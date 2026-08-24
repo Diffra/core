@@ -73,6 +73,7 @@ export async function generateHtmlReport(
     commit: report.commit,
     baselineCommit: report.baselineCommit,
     baselineBranch: report.baselineBranch || 'main',
+    repositoryUrl: report.repositoryUrl,
     baselineReportUrl,
     branchLatestUrl,
     summary: report.summary,
@@ -130,6 +131,9 @@ export async function generateHtmlReport(
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Diffra Visual Regression Report - ${report.runId}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
 ${viewerCss}
   </style>

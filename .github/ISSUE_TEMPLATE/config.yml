@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security Vulnerability Reports
-    url: https://github.com/Rawlings/diffra/security/advisories/new
+    url: https://github.com/Diffra/core/security/advisories/new
     about: Please report security vulnerabilities privately.
   - name: Documentation
-    url: https://github.com/Rawlings/diffra/tree/main/docs
+    url: https://github.com/Diffra/core/tree/main/docs
     about: Read the official Diffra documentation.

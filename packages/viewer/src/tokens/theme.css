@@ -1,5 +1,71 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap");
 @import "tailwindcss";
+
+html {
+  font-size: 1rem;
+}
+
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea,
+code,
+pre,
+kbd {
+  font-family:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 1rem;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Premium Typography Variants - Refined Scandinavian Light/Medium Scale */
+.text-ui-base {
+  font-size: 1rem;
+  line-height: 1.5;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+}
+
+.text-ui-medium {
+  font-size: 1rem;
+  line-height: 1.5;
+  letter-spacing: -0.015em;
+  font-weight: 450;
+}
+
+.text-ui-semibold {
+  font-size: 1rem;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+}
+
+.text-ui-heading {
+  font-size: 1.125rem;
+  line-height: 1.35;
+  letter-spacing: -0.025em;
+  font-weight: 500;
+}
+
+.text-ui-title {
+  font-size: 1.25rem;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+  font-weight: 550;
+}
+
+.text-ui-label {
+  font-size: 1rem;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  font-weight: 500;
+}
 
 html,
 body,
@@ -9,11 +75,6 @@ body,
   width: 100%;
   height: 100%;
   overflow: hidden;
-  font-family:
-    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  letter-spacing: -0.011em;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 *,

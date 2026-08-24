@@ -1,10 +1,10 @@
 import type React from 'react';
 import { useRef, useState } from 'react';
+import { SlidersHorizontal } from 'lucide-react';
 import { useViewer } from '../../../context/ViewerContext.js';
-import { IconSwipe } from '../../ui/Icons.js';
 
 export const SwipeSlider: React.FC = () => {
-  const { manifest, activeStory, swipePos, setSwipePos } = useViewer();
+  const { activeStory, swipePos, setSwipePos } = useViewer();
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -12,8 +12,6 @@ export const SwipeSlider: React.FC = () => {
 
   const baseline = activeStory.baselineUrl || '';
   const candidate = activeStory.candidateUrl || '';
-  const baselineBranch = manifest.baselineBranch || 'main';
-  const candidateBranch = manifest.branch || 'current';
 
   const handleUpdate = (clientX: number) => {
     if (!containerRef.current) return;
@@ -43,20 +41,7 @@ export const SwipeSlider: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full p-6 gap-4 overflow-auto select-none">
-      {/* Position Pill */}
-      <div className="flex items-center gap-3 bg-white/90 backdrop-blur border border-zinc-200/80 rounded-full px-4 py-1.5 text-xs text-zinc-700 font-medium shadow-xs">
-        <span className="font-semibold text-zinc-800">
-          Baseline ({baselineBranch})
-        </span>
-        <span className="font-mono text-zinc-800 bg-zinc-100 px-2 py-0.5 rounded text-xs font-semibold border border-zinc-200/60">
-          {swipePos}%
-        </span>
-        <span className="font-semibold text-zinc-800">
-          Candidate ({candidateBranch})
-        </span>
-      </div>
-
+    <div className="flex-1 flex items-center justify-center p-4 bg-white border border-zinc-200/80 rounded-2xl overflow-auto canvas-backdrop min-h-0 w-full h-full select-none text-ui-base shadow-xs">
       <div
         ref={containerRef}
         role="slider"
@@ -73,7 +58,7 @@ export const SwipeSlider: React.FC = () => {
             setSwipePos(Math.min(100, swipePos + 5));
           }
         }}
-        className={`relative inline-block overflow-hidden rounded-xl border border-zinc-200/80 bg-white canvas-backdrop outline-none max-w-full shadow-xs ${
+        className={`relative inline-block overflow-hidden rounded-xl outline-none max-w-full ${
           isDragging ? 'cursor-ew-resize' : 'cursor-default'
         }`}
         style={
@@ -102,8 +87,8 @@ export const SwipeSlider: React.FC = () => {
 
         {/* Slider Divider Handle */}
         <div className="swipe-divider-line">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-zinc-900 text-white flex items-center justify-center pointer-events-auto cursor-ew-resize shadow-md hover:bg-zinc-800 transition-colors">
-            <IconSwipe className="w-3.5 h-3.5" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center pointer-events-auto cursor-ew-resize border border-zinc-700 hover:bg-zinc-800 transition-colors shadow-sm">
+            <SlidersHorizontal className="w-4 h-4" />
           </div>
         </div>
       </div>

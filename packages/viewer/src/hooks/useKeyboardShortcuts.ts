@@ -48,15 +48,18 @@ export function useKeyboardShortcuts(
           openOverview();
           break;
         case '1':
-          setActiveMode('split');
+          setActiveMode('highlight');
           break;
         case '2':
-          setActiveMode('swipe');
+          setActiveMode('split');
           break;
         case '3':
-          setActiveMode('onion');
+          setActiveMode('swipe');
           break;
         case '4':
+          setActiveMode('onion');
+          break;
+        case '5':
           setActiveMode('mask');
           break;
         case 'ArrowDown':

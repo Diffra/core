@@ -10,6 +10,7 @@ export interface GitHubNotifierOptions {
   repo?: string;
   prNumber?: number;
   reportUrl?: string;
+  viewerUrl?: string;
 }
 
 export class GitHubNotifier implements NotifierAdapter {
@@ -18,12 +19,14 @@ export class GitHubNotifier implements NotifierAdapter {
   private repo?: string;
   private prNumber?: number;
   private reportUrl?: string;
+  private viewerUrl?: string;
 
   constructor(options: GitHubNotifierOptions = {}) {
     this.token = options.token || process.env.GITHUB_TOKEN;
     this.repo = options.repo || process.env.GITHUB_REPOSITORY;
     this.prNumber = options.prNumber;
     this.reportUrl = options.reportUrl;
+    this.viewerUrl = options.viewerUrl || process.env.DIFFRA_VIEWER_URL;
   }
 
   async notify(report: TestRunReport): Promise<void> {
@@ -65,7 +68,11 @@ export class GitHubNotifier implements NotifierAdapter {
     const prNumber = await resolvePullRequestNumber(this.prNumber);
     if (prNumber) {
       try {
-        const body = formatMarkdownSummary(report, this.reportUrl);
+        const body = formatMarkdownSummary(
+          report,
+          this.reportUrl,
+          this.viewerUrl,
+        );
         const commentsUrl = `https://api.github.com/repos/${this.repo}/issues/${prNumber}/comments`;
 
         const listRes = await fetch(commentsUrl, { headers });

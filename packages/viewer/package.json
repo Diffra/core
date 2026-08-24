@@ -5,16 +5,16 @@
   "description": "Minimalist Scandinavian visual regression review interface and report viewer",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "author": "Rawlings",
+  "author": "Diffra",
   "license": "MIT",
-  "homepage": "https://github.com/Rawlings/diffra/tree/main/packages/viewer#readme",
+  "homepage": "https://github.com/Diffra/core/tree/main/packages/viewer#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Rawlings/diffra.git",
+    "url": "https://github.com/Diffra/core.git",
     "directory": "packages/viewer"
   },
   "bugs": {
-    "url": "https://github.com/Rawlings/diffra/issues"
+    "url": "https://github.com/Diffra/core/issues"
   },
   "keywords": [
     "diff-viewer",
@@ -37,8 +37,10 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "lucide-react": "^1.33.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "wouter": "^3.10.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",

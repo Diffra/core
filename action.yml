@@ -1,6 +1,6 @@
 name: 'Diffra Visual Regression Testing'
 description: 'Automated visual regression testing and review reports for Storybook and modern design systems'
-author: 'Rawlings'
+author: 'Diffra'
 
 inputs:
   projectToken:
@@ -57,6 +57,9 @@ inputs:
     description: 'Working directory for projects in a monorepo'
     required: false
     default: '.'
+  viewerUrl:
+    description: 'Hosted viewer URL (e.g. GitHub Pages https://<org>.github.io/<repo>/)'
+    required: false
   debug:
     description: 'Enable verbose debug output in CI logs'
     required: false

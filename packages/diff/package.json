@@ -5,16 +5,16 @@
   "description": "Hardware-accelerated Rust SIMD pixel diff engine with Node-API bindings and pure TypeScript fallback",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "author": "Rawlings",
+  "author": "Diffra",
   "license": "MIT",
-  "homepage": "https://github.com/Rawlings/diffra/tree/main/packages/diff#readme",
+  "homepage": "https://github.com/Diffra/core/tree/main/packages/diff#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Rawlings/diffra.git",
+    "url": "https://github.com/Diffra/core.git",
     "directory": "packages/diff"
   },
   "bugs": {
-    "url": "https://github.com/Rawlings/diffra/issues"
+    "url": "https://github.com/Diffra/core/issues"
   },
   "keywords": [
     "pixel-diff",

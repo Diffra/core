@@ -45,3 +45,17 @@ This document records architectural principles, conventions, and operational lea
 * **Path traversal**: Any internal preview or static server must validate that requested paths canonicalize within the designated root directory using `path.resolve` boundary verification.
 * **Secret masking**: Always register tokens with `core.setSecret` in GitHub Actions.
 * **Teardown**: Always ensure background HTTP servers, browser pools, and file descriptors are closed inside `finally` blocks to prevent hanging CI worker processes.
+
+### 7. Review UI and Scandinavian design standards
+* **Aesthetics**: Premium Scandinavian minimalism with flat tonal surfaces, zero drop-shadows, and minimal border complexity. Visual hierarchy is defined by calm surface shifts (`bg-zinc-50`, `bg-zinc-100`, `bg-zinc-200/50`, `bg-white`) rather than borders around every button and tag.
+* **Typography system**: Exclusively use Inter with proper font loading preconnects and imports (`wght@300..600`). The root and minimum font size is `1rem` across all text (`html { font-size: 1rem; }`). Never use monospace, sub-1rem text sizes, or uppercase headlines/buttons. Section headlines use natural case and a larger variant (`.text-ui-heading`). Always use `rem` units for typography, spacing, and sizing. Standardize typography on designated light-to-medium UI variants:
+  * `.text-ui-base`: `1rem`, regular (weight `400`), line-height `1.5`, letter-spacing `-0.015em`.
+  * `.text-ui-medium`: `1rem`, medium-light (weight `450`), line-height `1.5`, letter-spacing `-0.015em`.
+  * `.text-ui-semibold`: `1rem`, medium (weight `500`), line-height `1.4`, letter-spacing `-0.02em`.
+  * `.text-ui-heading`: `1.125rem`, medium (weight `500`), line-height `1.35`, letter-spacing `-0.025em`.
+  * `.text-ui-title`: `1.25rem`, semibold-light (weight `550`), line-height `1.3`, letter-spacing `-0.03em`.
+  * `.text-ui-label`: `1rem`, medium (weight `500`), line-height `1.35`, letter-spacing `-0.015em`.
+* **Noise elimination & balanced contrast**: Never display diff percentages (`0.5%`), pixel dimensions (`1280×800`), pixel diff counts (`50 px diff`), or tally numbers on navigation tabs. Maintain rich, legible contrast on flat, borderless status badges and primary labels.
+* **Layout hierarchy**: A unified top header bar integrates the Diffra brand and exactly two clean breadcrumb buttons (`[ LayoutGrid Overview ]` and `[ Component / StoryName ]`) with no separator characters. A DRY shared stage bar sits above all comparison modes with baseline/candidate branch and commit tags linked to GitHub. The sidebar positions directly below the header starting with a clean white search input and native HTML Popover API filter, followed by natural-case component headlines and interactive snapshot buttons.
+* **Iconography**: Exclusively import icons directly from `lucide-react` (e.g. `LayoutGrid`, `ScanEye`, `Columns2`, `SlidersHorizontal`, `Layers`, `SquareDashed`, `ListFilter`, `Search`, `X`, `Check`). Avoid custom intermediate icon wrapper files.
+* **Comparison defaults**: Pixel movement (`ScanEye` icon, neon green highlight over desaturated candidate backdrop) is the default inspection mode with zero-config instant rendering.

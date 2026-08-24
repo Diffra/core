@@ -77,7 +77,7 @@ jobs:
         run: pnpm build-storybook
 
       - name: Run Diffra visual tests
-        uses: Rawlings/diffra@v1
+        uses: Diffra/core@v1
         with:
           storybookBuildDir: 'storybook-static'
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -144,7 +144,7 @@ jobs:
 ### Monorepo setup with custom diff threshold
 ```yaml
 - name: Run visual tests for UI package
-  uses: Rawlings/diffra@v1
+  uses: Diffra/core@v1
   with:
     workingDir: 'packages/ui'
     storybookBuildDir: 'packages/ui/storybook-static'

@@ -97,6 +97,7 @@ export interface TestRunReport {
   commit: string;
   baselineCommit?: string;
   baselineBranch?: string;
+  repositoryUrl?: string;
   baselineReportUrl?: string;
   branchLatestUrl?: string;
   summary: {
@@ -286,11 +287,13 @@ export interface DiffraConfig {
   notifiers?: NotifierAdapter[];
   diffEngine?: DiffEngineAdapter;
   plugins?: DiffraPlugin[];
+  viewerUrl?: string;
   notifier?: {
     github?: {
       token?: string;
       repo?: string;
       prNumber?: number;
+      viewerUrl?: string;
     };
   };
 }

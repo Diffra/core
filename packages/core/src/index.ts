@@ -286,6 +286,8 @@ export async function runVisualRegression(
     branch: gitInfo.branch,
     commit: gitInfo.commit,
     baselineCommit: gitInfo.baselineCommit,
+    baselineBranch: config.baselineBranch || 'main',
+    repositoryUrl: gitInfo.repositoryUrl,
     summary,
     results: testResults,
   };
