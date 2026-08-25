@@ -36,6 +36,8 @@ export * from './report/merger.js';
 export * from './types/index.js';
 
 import {
+  DEFAULT_CONCURRENCY,
+  DEFAULT_DELAY_MS,
   DEFAULT_DIFF_THRESHOLD,
   DEFAULT_VIEWPORTS,
 } from './config/schema.js';
@@ -101,7 +103,8 @@ export async function runVisualRegression(
   const pluginRunner = new PluginRunner(config.plugins || []);
   await pluginRunner.hookSetup(config);
 
-  const gitInfo = await getGitInfo(config.baselineBranch, cwd);
+  const baselineBranch = config.runner?.baselineBranch;
+  const gitInfo = await getGitInfo(baselineBranch, cwd);
   const storage = resolveStorageAdapter(config, cwd);
   if (storage.init) {
     await storage.init();
@@ -134,20 +137,17 @@ export async function runVisualRegression(
 
   // 2. Build task matrix (targets x viewports / projects)
   const defaultViewports = (
-    config.viewports || DEFAULT_VIEWPORTS
+    config.snapshot?.viewports || DEFAULT_VIEWPORTS
   ).map(normalizeViewport);
   const projects: Project[] =
-    config.projects && config.projects.length > 0
-      ? config.projects
+    config.runner?.projects && config.runner.projects.length > 0
+      ? config.runner.projects
       : [{ name: 'chromium', browser: 'chromium' }];
 
   let tasks: CaptureTask[] = [];
 
   for (const target of allTargets) {
-    const rawViewports =
-      target.parameters?.snapshot?.viewports ||
-      target.parameters?.visual?.viewports ||
-      target.parameters?.diffra?.viewports;
+    const rawViewports = target.snapshot?.viewports;
     const viewports: Viewport[] = rawViewports
       ? rawViewports.map(normalizeViewport)
       : defaultViewports;
@@ -157,7 +157,9 @@ export async function runVisualRegression(
         ? normalizeViewport(project.use.viewport)
         : undefined;
 
-      const effectiveViewports = projectViewport ? [projectViewport] : viewports;
+      const effectiveViewports = projectViewport
+        ? [projectViewport]
+        : viewports;
 
       for (const vp of effectiveViewports) {
         tasks.push({ target, viewport: vp, project });
@@ -166,27 +168,25 @@ export async function runVisualRegression(
   }
 
   // Apply Sharding if specified
-  const shardConfig = options.shard || config.shard;
+  const shardConfig = options.shard || config.runner?.shard;
   if (shardConfig) {
     const match = shardConfig.match(/^(\d+)\/(\d+)$/);
     if (match) {
       const shardIndex = parseInt(match[1], 10);
       const shardTotal = parseInt(match[2], 10);
       if (shardIndex >= 1 && shardTotal >= 1 && shardIndex <= shardTotal) {
-        tasks = tasks.filter((_, i) => i % shardTotal === (shardIndex - 1));
+        tasks = tasks.filter((_, i) => i % shardTotal === shardIndex - 1);
       }
     }
   }
 
   // 3. Capture Candidate Screenshots
-  const activeBaseUrl =
-    config.baseUrl || config.previewUrl || config.storybookUrl;
   let rawCaptures: CaptureResult[] = [];
   try {
-    rawCaptures = await captureTargets(tasks, activeBaseUrl, {
-      concurrency: config.concurrency,
-      delay: config.delay,
-      pauseAnimationAtEnd: config.pauseAnimationAtEnd ?? true,
+    rawCaptures = await captureTargets(tasks, undefined, {
+      concurrency: config.runner?.concurrency ?? DEFAULT_CONCURRENCY,
+      delay: config.snapshot?.delay ?? DEFAULT_DELAY_MS,
+      pauseAnimationAtEnd: config.snapshot?.pauseAnimationAtEnd ?? true,
       cwd,
     });
   } finally {
@@ -216,9 +216,12 @@ export async function runVisualRegression(
 
   for (let i = 0; i < captures.length; i++) {
     const { target, viewport, project, buffer } = captures[i];
-    const groupName = target.group || target.component || 'General';
+    const groupName = target.group || 'General';
     const browserName = project?.browser || project?.name || 'chromium';
-    const candidateHash = crypto.createHash('sha256').update(buffer).digest('hex');
+    const candidateHash = crypto
+      .createHash('sha256')
+      .update(buffer)
+      .digest('hex');
 
     options.onProgress?.(
       `Comparing ${groupName} / ${target.name} [${browserName}]`,
@@ -226,21 +229,23 @@ export async function runVisualRegression(
       captures.length,
     );
 
+    const snapshotKey = {
+      targetId: target.id,
+      viewport,
+      browser: browserName,
+    };
+
     // Save candidate
     const candidatePath = await storage.uploadCandidate(
       runId,
-      target.id,
-      viewport,
+      snapshotKey,
       buffer,
-      { browser: browserName },
     );
 
     // Fetch baseline
     const baselineBuffer = await storage.downloadBaseline(
       gitInfo.baselineCommit,
-      target.id,
-      viewport,
-      { browser: browserName },
+      snapshotKey,
     );
 
     if (!baselineBuffer) {
@@ -248,18 +253,19 @@ export async function runVisualRegression(
         id: target.id,
         name: target.name,
         group: groupName,
-        component: groupName,
         viewport,
         browser: browserName,
-        blobHash: candidateHash,
         status: 'added',
-        candidatePath,
+        candidate: { path: candidatePath, hash: candidateHash },
         metadata: target.metadata,
       });
       continue;
     }
 
-    const baselineHash = crypto.createHash('sha256').update(baselineBuffer).digest('hex');
+    const baselineHash = crypto
+      .createHash('sha256')
+      .update(baselineBuffer)
+      .digest('hex');
 
     // CAS $O(1)$ fast-path match: identical image hash -> 0 diff
     if (candidateHash === baselineHash) {
@@ -267,13 +273,10 @@ export async function runVisualRegression(
         id: target.id,
         name: target.name,
         group: groupName,
-        component: groupName,
         viewport,
         browser: browserName,
-        blobHash: candidateHash,
-        baselineBlobHash: baselineHash,
         status: 'unchanged',
-        diffResult: {
+        diff: {
           diffCount: 0,
           diffPercentage: 0,
           isSameDimensions: true,
@@ -282,20 +285,17 @@ export async function runVisualRegression(
           boundingBoxes: [],
           hasDiff: false,
         },
-        candidatePath,
+        baseline: { hash: baselineHash },
+        candidate: { path: candidatePath, hash: candidateHash },
         metadata: target.metadata,
       });
       continue;
     }
 
-    // Compare with pluggable diff engine using parameters.snapshot diffThreshold
+    // Compare with pluggable diff engine
     const diffThreshold =
-      target.parameters?.snapshot?.diffThreshold ??
-      target.parameters?.snapshot?.threshold ??
-      target.parameters?.visual?.threshold ??
-      target.parameters?.diffra?.threshold ??
-      config.diffThreshold ??
-      config.threshold ??
+      target.snapshot?.diffThreshold ??
+      config.snapshot?.diffThreshold ??
       DEFAULT_DIFF_THRESHOLD;
 
     const diffResult = await diffEngine.compare(baselineBuffer, buffer, {
@@ -309,10 +309,8 @@ export async function runVisualRegression(
       if (diffResult.diffImage) {
         diffPath = await storage.uploadDiff(
           runId,
-          target.id,
-          viewport,
+          snapshotKey,
           diffResult.diffImage,
-          { browser: browserName },
         );
       }
 
@@ -320,15 +318,13 @@ export async function runVisualRegression(
         id: target.id,
         name: target.name,
         group: groupName,
-        component: groupName,
         viewport,
         browser: browserName,
-        blobHash: candidateHash,
-        baselineBlobHash: baselineHash,
         status: 'changed',
-        diffResult,
-        candidatePath,
-        diffPath,
+        diff: diffResult,
+        baseline: { hash: baselineHash },
+        candidate: { path: candidatePath, hash: candidateHash },
+        diffImage: diffPath ? { path: diffPath } : undefined,
         metadata: target.metadata,
       });
     } else {
@@ -336,37 +332,42 @@ export async function runVisualRegression(
         id: target.id,
         name: target.name,
         group: groupName,
-        component: groupName,
         viewport,
         browser: browserName,
-        blobHash: candidateHash,
-        baselineBlobHash: baselineHash,
         status: 'unchanged',
-        diffResult,
-        candidatePath,
+        diff: diffResult,
+        baseline: { hash: baselineHash },
+        candidate: { path: candidatePath, hash: candidateHash },
         metadata: target.metadata,
       });
     }
   }
 
   // 5. Build Final Report
+  const unchangedCount = testResults.filter((r) => r.status === 'unchanged').length;
+  const changedCount = testResults.filter((r) => r.status === 'changed').length;
+  const addedCount = testResults.filter((r) => r.status === 'added').length;
+  const removedCount = testResults.filter((r) => r.status === 'removed').length;
+
   const summary = {
     total: testResults.length,
-    changed: testResults.filter((r) => r.status === 'changed').length,
-    added: testResults.filter((r) => r.status === 'added').length,
-    removed: testResults.filter((r) => r.status === 'removed').length,
-    unchanged: testResults.filter((r) => r.status === 'unchanged').length,
+    passed: unchangedCount,
+    changed: changedCount,
+    added: addedCount,
+    removed: removedCount,
+    unchanged: unchangedCount,
   };
 
   const report: TestRunReport = {
     runId,
     timestamp,
-    branch: gitInfo.branch,
-    commit: gitInfo.commit,
-    baselineCommit: gitInfo.baselineCommit,
-    baselineBranch: config.baselineBranch || 'main',
-    repositoryUrl: gitInfo.repositoryUrl,
-    viewerUrl: config.viewerUrl,
+    git: {
+      branch: gitInfo.branch,
+      commit: gitInfo.commit,
+      baselineBranch: gitInfo.baselineBranch,
+      baselineCommit: gitInfo.baselineCommit,
+      repositoryUrl: gitInfo.repositoryUrl,
+    },
     summary,
     results: testResults,
   };
@@ -404,7 +405,8 @@ export async function approveBaselines(
 ): Promise<{ count: number }> {
   const cwd = options.cwd || process.cwd();
   const config = await loadConfig(cwd, options.config);
-  const gitInfo = await getGitInfo(config.baselineBranch, cwd);
+  const baselineBranch = config.runner?.baselineBranch;
+  const gitInfo = await getGitInfo(baselineBranch, cwd);
   const storage = resolveStorageAdapter(config, cwd);
   if (storage.init) {
     await storage.init();
@@ -412,7 +414,9 @@ export async function approveBaselines(
 
   let report = options.report;
   if (!report) {
-    const outputDir = path.resolve(cwd, config.outputDir || '.diffra');
+    const storageConfig = typeof config.storage === 'object' ? config.storage : {};
+    const outDir = (storageConfig as any).outputDir || (storageConfig as any).dir || '.diffra';
+    const outputDir = path.resolve(cwd, outDir);
     const reportPath = options.runId
       ? path.join(outputDir, 'runs', options.runId, 'report.json')
       : path.join(outputDir, 'latest-report.json');
@@ -427,15 +431,18 @@ export async function approveBaselines(
 
   let approvedCount = 0;
   for (const res of report.results) {
-    if (res.candidatePath) {
+    const candidatePath = res.candidate?.path;
+    if (candidatePath) {
       try {
-        const candidateBuf = await fs.readFile(res.candidatePath);
+        const candidateBuf = await fs.readFile(candidatePath);
         await storage.uploadBaseline(
           gitInfo.commit,
-          res.id,
-          res.viewport,
+          {
+            targetId: res.id,
+            viewport: res.viewport,
+            browser: res.browser,
+          },
           candidateBuf,
-          { browser: res.browser },
         );
         approvedCount++;
       } catch (err) {

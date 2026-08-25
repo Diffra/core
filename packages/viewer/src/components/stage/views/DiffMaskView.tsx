@@ -3,11 +3,7 @@ import { useEffect, useState } from 'react';
 import { useViewer } from '../../../context/ViewerContext.js';
 
 export const DiffMaskView: React.FC = () => {
-  const {
-    activeStory,
-    highlightBoxes,
-    isBlinking,
-  } = useViewer();
+  const { activeStory, highlightBoxes, isBlinking } = useViewer();
 
   const [blinkShowCandidate, setBlinkShowCandidate] = useState(false);
 

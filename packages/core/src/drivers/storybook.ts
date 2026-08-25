@@ -8,16 +8,18 @@ import type {
 
 export class StorybookDriver implements VisualDriver {
   name = 'storybook';
+  private options?: { url?: string; buildDir?: string };
+
+  constructor(options?: { url?: string; buildDir?: string }) {
+    this.options = options;
+  }
 
   async discover(context: DriverContext): Promise<VisualTarget[]> {
     const cwd = context.cwd || process.cwd();
-    const config = context.config;
-    const baseUrl =
-      config.baseUrl || config.previewUrl || config.storybookUrl || 'http://localhost:6006';
+    const baseUrl = this.options?.url || 'http://localhost:6006';
 
     // 1. Try reading index.json / stories.json from pre-built directory if available
-    const buildDirCandidate =
-      config.storybookBuildDir || 'storybook-static';
+    const buildDirCandidate = this.options?.buildDir || 'storybook-static';
     const staticDirPath = path.resolve(cwd, buildDirCandidate);
 
     for (const indexFileName of ['index.json', 'stories.json']) {
@@ -40,7 +42,9 @@ export class StorybookDriver implements VisualDriver {
       for (const indexEndpoint of ['/index.json', '/stories.json']) {
         try {
           const indexUrl = `${baseUrl.replace(/\/$/, '')}${indexEndpoint}`;
-          const res = await fetch(indexUrl, { signal: AbortSignal.timeout(3000) });
+          const res = await fetch(indexUrl, {
+            signal: AbortSignal.timeout(3000),
+          });
           if (res.ok) {
             const data = (await res.json()) as any;
             const targets = this.parseStoryIndex(data, baseUrl);
@@ -66,7 +70,6 @@ export class StorybookDriver implements VisualDriver {
     const targets: VisualTarget[] = [];
 
     for (const entry of entriesList as any[]) {
-      // Exclude docs-only entries unless they represent testable story components
       if (entry.type && entry.type !== 'story') {
         continue;
       }
@@ -79,7 +82,6 @@ export class StorybookDriver implements VisualDriver {
       const name = entry.name || entry.story || 'Default';
       const parameters = entry.parameters || {};
 
-      // Check if snapshot is disabled
       const snapshotParams =
         parameters.snapshot || parameters.visual || parameters.diffra || {};
       if (
@@ -93,17 +95,16 @@ export class StorybookDriver implements VisualDriver {
         id,
         name,
         group: cleanComponent,
-        component: cleanComponent,
-        title,
         filePath: entry.importPath,
-        parameters,
+        snapshot: {
+          ...snapshotParams,
+          selector: snapshotParams.selector || '#storybook-root, #root',
+        },
         url: baseUrl
           ? `${baseUrl.replace(/\/$/, '')}/iframe.html?id=${encodeURIComponent(
               id,
             )}&viewMode=story`
           : undefined,
-        selector:
-          snapshotParams.selector || '#storybook-root, #root',
       });
     }
 
@@ -111,6 +112,9 @@ export class StorybookDriver implements VisualDriver {
   }
 }
 
-export function createStorybookDriver(): VisualDriver {
-  return new StorybookDriver();
+export function createStorybookDriver(options?: {
+  url?: string;
+  buildDir?: string;
+}): VisualDriver {
+  return new StorybookDriver(options);
 }

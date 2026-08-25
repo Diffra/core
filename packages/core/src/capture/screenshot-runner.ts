@@ -1,9 +1,7 @@
-import type {
-  Locator,
-  PageScreenshotOptions,
-} from 'playwright';
+import type { Locator, PageScreenshotOptions } from 'playwright';
 import type {
   Project,
+  SnapshotConfig,
   TargetParameters,
   Viewport,
   VisualDriver,
@@ -96,13 +94,9 @@ export async function captureTargets(
       const target = task.target;
       const { viewport, project } = task;
 
-      const targetParams: TargetParameters = (target.parameters?.snapshot ||
-        target.parameters?.visual ||
-        target.parameters?.diffra ||
-        {}) as TargetParameters;
+      const targetParams: SnapshotConfig = target.snapshot || {};
 
       const workerPage = await pool.acquirePage(viewport, project, {
-        animations: targetParams.animations,
         pauseAnimationAtEnd: targetParams.pauseAnimationAtEnd,
       });
 
@@ -123,8 +117,8 @@ export async function captureTargets(
           timeout: DEFAULT_NAVIGATION_TIMEOUT,
         });
 
-        // Wait for element selector if specified by target or snapshot parameters
-        const selector = target.selector || targetParams.selector;
+        // Wait for element selector if specified by target snapshot parameters
+        const selector = targetParams.selector;
 
         if (selector) {
           try {
@@ -141,9 +135,13 @@ export async function captureTargets(
         }
 
         // Collect mask locators (accepts CSS selector strings or Playwright Locator instances)
-        const maskItems = (target.mask || targetParams.mask || []) as Array<string | Locator>;
+        const maskItems = (targetParams.mask || []) as Array<
+          string | Locator
+        >;
         const maskLocators: Locator[] = maskItems
-          .map((item) => (typeof item === 'string' ? workerPage.page.locator(item) : item))
+          .map((item) =>
+            typeof item === 'string' ? workerPage.page.locator(item) : item,
+          )
           .filter(Boolean);
 
         // Build standard Playwright PageScreenshotOptions
@@ -160,12 +158,18 @@ export async function captureTargets(
         if (selector) {
           const el = await workerPage.page.$(selector);
           if (el) {
-            screenshotBuffer = (await el.screenshot(screenshotOptions)) as Buffer;
+            screenshotBuffer = (await el.screenshot(
+              screenshotOptions,
+            )) as Buffer;
           } else {
-            screenshotBuffer = (await workerPage.page.screenshot(screenshotOptions)) as Buffer;
+            screenshotBuffer = (await workerPage.page.screenshot(
+              screenshotOptions,
+            )) as Buffer;
           }
         } else {
-          screenshotBuffer = (await workerPage.page.screenshot(screenshotOptions)) as Buffer;
+          screenshotBuffer = (await workerPage.page.screenshot(
+            screenshotOptions,
+          )) as Buffer;
         }
 
         results.push({

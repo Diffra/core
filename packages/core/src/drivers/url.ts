@@ -7,12 +7,22 @@ import type {
 
 export class UrlDriver implements VisualDriver {
   name = 'url';
+  private options?: {
+    baseUrl?: string;
+    urls?: Array<string | UrlTargetConfig>;
+  };
+
+  constructor(options?: {
+    baseUrl?: string;
+    urls?: Array<string | UrlTargetConfig>;
+  }) {
+    this.options = options;
+  }
 
   async discover(context: DriverContext): Promise<VisualTarget[]> {
-    const { config } = context;
-    const rawUrls = config.urls || [];
+    const rawUrls = this.options?.urls || [];
     const targets: VisualTarget[] = [];
-    const baseUrl = config.storybookUrl || '';
+    const baseUrl = this.options?.baseUrl || '';
 
     for (let i = 0; i < rawUrls.length; i++) {
       const item = rawUrls[i];
@@ -35,7 +45,11 @@ export class UrlDriver implements VisualDriver {
 
       let urlPath = urlStr;
       try {
-        const parsed = new URL(fullUrl.startsWith('http') ? fullUrl : `http://localhost${fullUrl.startsWith('/') ? '' : '/'}${fullUrl}`);
+        const parsed = new URL(
+          fullUrl.startsWith('http')
+            ? fullUrl
+            : `http://localhost${fullUrl.startsWith('/') ? '' : '/'}${fullUrl}`,
+        );
         urlPath = parsed.pathname || '/';
       } catch {}
 
@@ -56,7 +70,6 @@ export class UrlDriver implements VisualDriver {
               .replace(/-/g, ' '));
 
       const id =
-        configObj?.id ||
         (urlPath === '/' || urlPath === ''
           ? 'route--home'
           : `route--${urlPath
@@ -68,20 +81,8 @@ export class UrlDriver implements VisualDriver {
         id,
         name: derivedName,
         group: derivedGroup,
-        component: derivedGroup,
-        title: derivedGroup,
         url: fullUrl,
-        selector: configObj?.selector,
-        mask: configObj?.mask,
-        parameters: {
-          snapshot: {
-            delay: configObj?.delay ?? config.delay,
-            diffThreshold: configObj?.diffThreshold ?? config.diffThreshold,
-            viewports: configObj?.viewports ?? config.viewports,
-            selector: configObj?.selector,
-            mask: configObj?.mask,
-          },
-        },
+        snapshot: configObj?.snapshot || {},
       });
     }
 
@@ -89,6 +90,9 @@ export class UrlDriver implements VisualDriver {
   }
 }
 
-export function createUrlDriver(): VisualDriver {
-  return new UrlDriver();
+export function createUrlDriver(options?: {
+  baseUrl?: string;
+  urls?: Array<string | UrlTargetConfig>;
+}): VisualDriver {
+  return new UrlDriver(options);
 }

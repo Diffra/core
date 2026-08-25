@@ -1,43 +1,103 @@
 # Diffra
 
-A self-hosted, general-purpose visual regression testing platform for web applications, design systems, and component libraries.
+Automated visual regression testing natively integrated into your GitHub Actions CI/CD pipeline.
 
-Diffra catches visual bugs and unintended layout shifts automatically across your entire UI surface — from production routes and web app pages to design systems and Storybook components. It runs entirely within your existing CI/CD workflow with zero subscription costs, no screenshot limits, and complete data privacy.
+Diffra protects your web applications, design systems, and component libraries from unintended layout shifts and visual breakage on every pull request. It runs directly inside your existing GitHub Actions workflow with zero subscription fees, unlimited snapshots, and complete data privacy in your own cloud storage.
+
+---
+
+## Automated GitHub Actions workflow
+
+Add Diffra to `.github/workflows/visual-regression.yml` to enable automated pull request visual checks in seconds:
+
+```yaml
+name: Visual Regression Testing
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  visual-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed for Git merge-base baseline resolution
+
+      - name: Setup Node.js and pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Storybook
+        run: pnpm build-storybook
+
+      - name: Run Diffra Action
+        uses: Diffra/core@v1
+        with:
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          storybookBuildDir: 'storybook-static'
+          autoAcceptChanges: 'main'
+          exitZeroOnChanges: 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          DIFFRA_STORAGE_BUCKET: 'my-team-visual-baselines'
+          DIFFRA_STORAGE_REGION: 'us-east-1'
+```
+
+### How the automated pull request workflow works
+
+```
+ ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+ │ Developer opens │ ────► │ GitHub Action   │ ────► │ Diff against    │
+ │ Pull Request    │       │ builds assets   │       │ Cloud Baselines │
+ └─────────────────┘       └─────────────────┘       └────────┬────────┘
+                                                              │
+ ┌─────────────────┐       ┌─────────────────┐                │
+ │ PR merged into  │ ◄──── │ Developer views │ ◄──────────────┘
+ │ main: Baselines │       │ review link on  │   PR Comment & Check
+ │ auto-promoted   │       │ Pull Request    │   posted automatically
+ └─────────────────┘       └─────────────────┘
+```
+
+1. **Pull Request trigger**: Every push or PR automatically triggers your GitHub Actions runner.
+2. **Deterministic baseline diffing**: Diffra determines the exact common Git ancestor (`git merge-base`) and streams baseline snapshots on demand from your private cloud bucket (S3, Cloudflare R2, Google Cloud Storage, Azure Blob).
+3. **Automated PR review comment**: Diffra posts a status check and rich sticky comment with a direct link to inspect visual changes in the Scandinavian review UI (`https://viewer.diffra.dev/?report=...`).
+4. **Auto-approval on merge**: When pull requests merge into `main`, candidate snapshots are automatically promoted as the authoritative baseline for future branches.
 
 ---
 
 ## Why choose Diffra?
 
-Traditional cloud-hosted visual testing platforms charge recurring subscription fees per screenshot, impose strict concurrency caps, and require sending proprietary UI mockups and customer data to external servers.
+Traditional cloud-hosted visual testing platforms charge monthly subscription fees per screenshot, throttle concurrency, and transmit proprietary UI source code and customer data to external servers.
 
 Diffra gives you full control and ownership of your visual regression testing pipeline:
 
-* **Zero vendor costs**: Run unlimited visual regression tests without screenshot quotas, per-seat billing, or tier limits.
-* **Complete data privacy**: Screenshots and baselines stay entirely within your infrastructure (local disk or your own private cloud storage bucket).
+* **Automated CI/CD first**: Designed specifically to run seamlessly in GitHub Actions and modern CI providers without manual coordination.
+* **Zero vendor subscription costs**: Run unlimited visual regression tests without screenshot quotas, per-seat licensing, or tier limits.
+* **Complete data privacy**: Screenshots and baselines stay entirely within your infrastructure (local disk or your private cloud storage bucket).
 * **Universal testing scope**: Test live web applications, local development servers, staging routes, custom image sets, or Storybook components with first-class pluggable drivers.
-* **Self-hosted and self-contained**: Built as a lightweight CLI and GitHub Action that runs natively on your existing CI runners.
-* **Interactive local review UI**: Self-contained visual reports with side-by-side, swipe slider, onion skin, and diff mask inspection modes.
-* **Deterministic baseline management**: Automatic Git merge-base baseline discovery and single-command baseline promotion (`diffra approve`).
-
----
-
-## How it works
-
-1. **Target discovery**: Diffra discovers your visual targets — whether web application routes, static pages, custom target lists, or Storybook stories.
-2. **Headless capture**: A parallel browser pool renders each target in clean isolation, freezing CSS animations and waiting for web fonts to stabilize.
-3. **Pixel comparison**: Candidate screenshots are compared against the target branch baselines using perceptual color difference algorithms.
-4. **Interactive report & review**: Diffra compiles a standalone interactive HTML report and posts a summary directly to your pull request.
-5. **Approval**: Approved changes are promoted as the new baseline when pull requests are merged.
+* **Hardware-accelerated engine**: Rust SIMD vectorization (AVX2, SSE4.1, ARM NEON) computes perceptual pixel differences at gigapixel/second throughput.
+* **Interactive review UI**: Flat, Scandinavian minimalism with four instant comparison modes (movement highlight, side-by-side, split slider, onion skin).
 
 ---
 
 ## Getting started
 
-Ready to set up visual testing in your project? Follow our quickstarts and guides:
+Explore the step-by-step CI/CD setup guides for your framework:
 
-* [Storybook quickstart](docs/getting-started/storybook-quickstart.md): 5-minute setup for Storybook 7/8/9.
-* [Web applications quickstart](docs/getting-started/web-apps-quickstart.md): 5-minute setup for Next.js, Remix, Vite, and Astro.
-* [Playwright test runner quickstart](docs/getting-started/playwright-quickstart.md): Visual assertions with `toMatchVisualBaseline`.
+* [Storybook quickstart](docs/getting-started/storybook-quickstart.md): Automated CI/CD setup for Storybook 7/8/9.
+* [Web applications quickstart](docs/getting-started/web-apps-quickstart.md): Automated CI/CD setup for Next.js, Remix, Vite, and Astro.
+* [Playwright test runner quickstart](docs/getting-started/playwright-quickstart.md): Visual assertions in Playwright test suites using `toMatchVisualBaseline`.
+* [GitHub Actions workflow guide](docs/ci-cd/github-actions.md): Complete configuration, secret management, and sharding.
 
 ---
 
@@ -72,10 +132,8 @@ Explore the complete [Diffra documentation hub](docs/index.md):
   * [Command-line interface (CLI)](docs/reference/cli.md)
   * [Storybook snapshot parameters](docs/reference/story-parameters.md)
   * [GitHub Action reference](docs/reference/action-reference.md)
-  * [TypeScript API types](docs/reference/types-reference.md)
   * [Core comparison engine & SIMD](docs/architecture/core-engine.md)
   * [Execution pipeline](docs/architecture/execution-pipeline.md)
-  * [Design system principles](docs/architecture/design-principles.md)
 
 ---
 

@@ -1,7 +1,7 @@
 import type {
+  SnapshotKey,
   StorageAdapter,
   TestRunReport,
-  Viewport,
 } from '../../types/index.js';
 
 export interface S3StorageOptions {
@@ -46,71 +46,61 @@ export class S3StorageAdapter implements StorageAdapter {
     return this.s3Client;
   }
 
-  private getFilename(
-    targetId: string,
-    viewport: Viewport,
-    options?: { browser?: string },
-  ): string {
-    const browserSuffix = options?.browser ? `--${options.browser}` : '';
-    return `${targetId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${viewport.width}x${viewport.height}.png`;
+  private getFilename(key: SnapshotKey): string {
+    const browserSuffix = key.browser ? `--${key.browser}` : '';
+    return `${key.targetId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${key.viewport.width}x${key.viewport.height}.png`;
   }
 
   async uploadCandidate(
     runId: string,
-    targetId: string,
-    viewport: Viewport,
+    key: SnapshotKey,
     imageBuffer: Buffer,
-    options?: { browser?: string },
   ): Promise<string> {
     // @ts-expect-error
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
-    const key = `${this.prefix}/runs/${runId}/candidates/${this.getFilename(targetId, viewport, options)}`;
+    const objectKey = `${this.prefix}/runs/${runId}/candidates/${this.getFilename(key)}`;
     await this.getClient().send(
       new PutObjectCommand({
         Bucket: this.bucket,
-        Key: key,
+        Key: objectKey,
         Body: imageBuffer,
         ContentType: 'image/png',
       }),
     );
-    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
+    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${objectKey}`;
   }
 
   async uploadDiff(
     runId: string,
-    targetId: string,
-    viewport: Viewport,
+    key: SnapshotKey,
     imageBuffer: Buffer,
-    options?: { browser?: string },
   ): Promise<string> {
     // @ts-expect-error
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
-    const key = `${this.prefix}/runs/${runId}/diffs/${this.getFilename(targetId, viewport, options)}`;
+    const objectKey = `${this.prefix}/runs/${runId}/diffs/${this.getFilename(key)}`;
     await this.getClient().send(
       new PutObjectCommand({
         Bucket: this.bucket,
-        Key: key,
+        Key: objectKey,
         Body: imageBuffer,
         ContentType: 'image/png',
       }),
     );
-    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
+    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${objectKey}`;
   }
 
   async downloadBaseline(
     baselineCommit: string,
-    targetId: string,
-    viewport: Viewport,
-    options?: { browser?: string },
+    key: SnapshotKey,
   ): Promise<Buffer | null> {
     // @ts-expect-error
     const { GetObjectCommand } = await import('@aws-sdk/client-s3');
-    const key = `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(targetId, viewport, options)}`;
+    const objectKey = `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(key)}`;
     try {
       const response = await this.getClient().send(
         new GetObjectCommand({
           Bucket: this.bucket,
-          Key: key,
+          Key: objectKey,
         }),
       );
       const chunks: Uint8Array[] = [];
@@ -127,18 +117,16 @@ export class S3StorageAdapter implements StorageAdapter {
 
   async uploadBaseline(
     commitSha: string,
-    targetId: string,
-    viewport: Viewport,
+    key: SnapshotKey,
     imageBuffer: Buffer,
-    options?: { browser?: string },
   ): Promise<void> {
     // @ts-expect-error
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
-    const key = `${this.prefix}/baselines/${commitSha}/${this.getFilename(targetId, viewport, options)}`;
+    const objectKey = `${this.prefix}/baselines/${commitSha}/${this.getFilename(key)}`;
     await this.getClient().send(
       new PutObjectCommand({
         Bucket: this.bucket,
-        Key: key,
+        Key: objectKey,
         Body: imageBuffer,
         ContentType: 'image/png',
       }),

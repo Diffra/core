@@ -21,13 +21,13 @@ Set `driver: 'image'` in `diffra.config.ts`:
 import { defineConfig } from '@diffra/core/config';
 
 export default defineConfig({
-  driver: 'image',
-
-  // Directory containing candidate image files
-  imagesDir: './screenshots/candidates',
-
-  // Perceptual sensitivity threshold
-  diffThreshold: 0.05,
+  drivers: {
+    driver: 'image',
+    dir: './screenshots/candidates',
+  },
+  snapshot: {
+    diffThreshold: 0.05,
+  },
 });
 ```
 
@@ -35,7 +35,7 @@ export default defineConfig({
 
 ## Directory structure
 
-Diffra recursively scans `imagesDir` for `.png`, `.jpg`, `.jpeg`, and `.webp` files. Subdirectories are automatically mapped to component groups in the review interface:
+Diffra recursively scans `imagesDir` for `.png` files. Subdirectories are automatically mapped to component groups in the review interface:
 
 ```
 screenshots/candidates/

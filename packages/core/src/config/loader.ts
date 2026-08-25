@@ -13,7 +13,7 @@ const MODULE_NAME = 'diffra';
 export async function loadConfig(
   cwd = process.cwd(),
   overrides: Partial<DiffraConfig> = {},
-): Promise<DiffraConfigResolved> {
+): Promise<DiffraConfig> {
   let rawConfig: Record<string, unknown> = {};
 
   // 1. Check for TypeScript config files directly
@@ -70,5 +70,5 @@ export async function loadConfig(
     throw new Error(`Invalid Diffra configuration: ${parsed.error.message}`);
   }
 
-  return parsed.data;
+  return parsed.data as unknown as DiffraConfig;
 }

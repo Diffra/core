@@ -1,12 +1,12 @@
 # @diffra/cli
 
-Zero-dependency command-line binary (`diffra`) for executing visual regression test runs, approving baselines, merging shard reports, and reviewing visual differences.
+Zero-dependency command-line binary (`diffra`) for executing visual regression test runs in CI workers and local environments.
 
 ---
 
 ## Overview
 
-`@diffra/cli` provides the standard `diffra` executable for terminal and CI workflows. Built strictly with standard Node.js APIs (`node:util` `parseArgs`, standard ANSI escape sequences), it introduces zero runtime dependencies.
+`@diffra/cli` provides the `diffra` binary executed inside CI worker containers (such as GitHub Actions) and local terminal environments. Built strictly with standard Node.js APIs (`node:util` `parseArgs`, standard ANSI escape sequences), it introduces zero external runtime dependencies.
 
 ---
 

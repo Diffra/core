@@ -10,7 +10,10 @@ describe('LocalFilesystemAdapter', () => {
   let adapter: LocalFilesystemAdapter;
 
   beforeEach(async () => {
-    adapter = new LocalFilesystemAdapter(testOutputDir, testBaselineDir);
+    adapter = new LocalFilesystemAdapter({
+      outputDir: testOutputDir,
+      baselineDir: testBaselineDir,
+    });
     await adapter.init();
   });
 
@@ -22,23 +25,24 @@ describe('LocalFilesystemAdapter', () => {
   });
 
   it('uploads candidates and retrieves baselines correctly', async () => {
-    const storyId = 'button--primary';
-    const viewport: Viewport = { width: 800, height: 600, name: 'desktop' };
+    const key = {
+      targetId: 'button--primary',
+      viewport: { width: 800, height: 600, name: 'desktop' },
+    };
     const sampleBuffer = Buffer.from('fake-png-data');
 
     // 1. Upload baseline for commit 'c1'
-    await adapter.uploadBaseline('c1', storyId, viewport, sampleBuffer);
+    await adapter.uploadBaseline('c1', key, sampleBuffer);
 
     // 2. Download baseline
-    const downloaded = await adapter.downloadBaseline('c1', storyId, viewport);
+    const downloaded = await adapter.downloadBaseline('c1', key);
     expect(downloaded).not.toBeNull();
     expect(downloaded?.toString()).toBe('fake-png-data');
 
     // 3. Upload candidate
     const candidatePath = await adapter.uploadCandidate(
       'run-123',
-      storyId,
-      viewport,
+      key,
       sampleBuffer,
     );
     expect(candidatePath).toContain('run-123');
@@ -49,11 +53,14 @@ describe('LocalFilesystemAdapter', () => {
     const report: TestRunReport = {
       runId: 'run-999',
       timestamp: new Date().toISOString(),
-      branch: 'feature/dark-mode',
-      commit: 'abc1234',
-      baselineCommit: 'main567',
+      git: {
+        branch: 'feature/dark-mode',
+        commit: 'abc1234',
+        baselineCommit: 'main567',
+      },
       summary: {
         total: 1,
+        passed: 0,
         changed: 1,
         added: 0,
         removed: 0,
@@ -63,7 +70,7 @@ describe('LocalFilesystemAdapter', () => {
         {
           id: 'card--hover',
           name: 'Hover',
-          component: 'Card',
+          group: 'Card',
           viewport: { width: 800, height: 600 },
           status: 'changed',
         },

@@ -46,7 +46,9 @@ export const Stage: React.FC = () => {
 
   const baselineBranch = manifest?.baselineBranch || 'main';
   const candidateBranch = manifest?.branch || 'current';
-  const repoUrl = (manifest?.repositoryUrl || 'https://github.com/Diffra/core').replace(/\/$/, '');
+  const repoUrl = (
+    manifest?.repositoryUrl || 'https://github.com/Diffra/core'
+  ).replace(/\/$/, '');
 
   const baselineBranchHref = `${repoUrl}/tree/${baselineBranch}`;
   const candidateBranchHref = `${repoUrl}/tree/${candidateBranch}`;

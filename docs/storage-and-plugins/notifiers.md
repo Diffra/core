@@ -13,7 +13,7 @@ import { defineConfig } from '@diffra/core/config';
 import { createGitHubNotifier } from '@diffra/core/plugins';
 
 export default defineConfig({
-  notifiers: [
+  reporters: [
     createGitHubNotifier({
       token: process.env.GITHUB_TOKEN,
       repo: process.env.GITHUB_REPOSITORY,
@@ -38,7 +38,7 @@ import { defineConfig } from '@diffra/core/config';
 import { createSlackNotifier } from '@diffra/core/plugins';
 
 export default defineConfig({
-  notifiers: [
+  reporters: [
     createSlackNotifier({
       webhookUrl: process.env.SLACK_WEBHOOK_URL!,
       channel: '#design-system-ci',
@@ -64,18 +64,18 @@ const customWebhookNotifier: NotifierAdapter = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        branch: report.branch,
-        commit: report.commit,
+        branch: report.git?.branch,
+        commit: report.git?.commit,
         total: report.summary.total,
         changed: report.summary.changed,
-        passed: report.summary.unchanged,
-        reportUrl: report.viewerUrl,
+        passed: report.summary.passed ?? report.summary.unchanged,
+        reportUrl: report.links?.reportUrl,
       }),
     });
   },
 };
 
 export default defineConfig({
-  notifiers: [customWebhookNotifier],
+  reporters: [customWebhookNotifier],
 });
 ```

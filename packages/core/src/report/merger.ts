@@ -25,7 +25,9 @@ export async function mergeReports(
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.warn(`[diffra] Warning: Could not read shard report at ${input}: ${msg}`);
+        console.warn(
+          `[diffra] Warning: Could not read shard report at ${input}: ${msg}`,
+        );
       }
     } else if (input && typeof input === 'object') {
       reports.push(input);
@@ -50,23 +52,27 @@ export async function mergeReports(
     }
   }
 
+  const unchangedCount = allResults.filter(
+    (r) => r.status === 'unchanged',
+  ).length;
+  const changedCount = allResults.filter((r) => r.status === 'changed').length;
+  const addedCount = allResults.filter((r) => r.status === 'added').length;
+  const removedCount = allResults.filter((r) => r.status === 'removed').length;
+
   const summary = {
     total: allResults.length,
-    changed: allResults.filter((r) => r.status === 'changed').length,
-    added: allResults.filter((r) => r.status === 'added').length,
-    removed: allResults.filter((r) => r.status === 'removed').length,
-    unchanged: allResults.filter((r) => r.status === 'unchanged').length,
+    passed: unchangedCount,
+    changed: changedCount,
+    added: addedCount,
+    removed: removedCount,
+    unchanged: unchangedCount,
   };
 
   const mergedReport: TestRunReport = {
     runId: primary.runId,
     timestamp: primary.timestamp,
-    branch: primary.branch,
-    commit: primary.commit,
-    baselineCommit: primary.baselineCommit,
-    baselineBranch: primary.baselineBranch,
-    repositoryUrl: primary.repositoryUrl,
-    viewerUrl: primary.viewerUrl,
+    git: primary.git,
+    links: primary.links,
     summary,
     results: allResults,
   };
@@ -75,10 +81,18 @@ export async function mergeReports(
     const outDir = path.resolve(process.cwd(), options.outputDir);
     await fs.mkdir(outDir, { recursive: true });
     const reportPath = path.join(outDir, 'report.json');
-    await fs.writeFile(reportPath, JSON.stringify(mergedReport, null, 2), 'utf-8');
+    await fs.writeFile(
+      reportPath,
+      JSON.stringify(mergedReport, null, 2),
+      'utf-8',
+    );
 
     const latestPath = path.join(outDir, 'latest-report.json');
-    await fs.writeFile(latestPath, JSON.stringify(mergedReport, null, 2), 'utf-8');
+    await fs.writeFile(
+      latestPath,
+      JSON.stringify(mergedReport, null, 2),
+      'utf-8',
+    );
   }
 
   return mergedReport;

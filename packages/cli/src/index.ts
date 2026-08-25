@@ -108,29 +108,66 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       const startTime = Date.now();
 
       try {
-        const overrides: Record<string, unknown> = {};
-        if (values.driver) overrides.driver = values.driver as string;
-        if (values.url) overrides.storybookUrl = values.url as string;
-        if (values.urls) {
-          overrides.urls = (values.urls as string)
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean);
-        }
-        if (values.branch) overrides.baselineBranch = values.branch as string;
+        const snapshotOverrides: Record<string, unknown> = {};
+        const runnerOverrides: Record<string, unknown> = {};
+        const storageOverrides: Record<string, unknown> = {};
+
         const rawThreshold =
           (values['diff-threshold'] as string) || (values.threshold as string);
         if (rawThreshold) {
-          overrides.diffThreshold = parseFloat(rawThreshold);
-          overrides.threshold = parseFloat(rawThreshold);
+          snapshotOverrides.diffThreshold = parseFloat(rawThreshold);
         }
-        if (values.delay)
-          overrides.delay = parseInt(values.delay as string, 10);
-        if (values['output-dir'])
-          overrides.outputDir = values['output-dir'] as string;
-        if (values.concurrency)
-          overrides.concurrency = parseInt(values.concurrency as string, 10);
-        if (values.shard) overrides.shard = values.shard as string;
+        if (values.delay) {
+          snapshotOverrides.delay = parseInt(values.delay as string, 10);
+        }
+        if (values.branch) {
+          runnerOverrides.baselineBranch = values.branch as string;
+        }
+        if (values.concurrency) {
+          runnerOverrides.concurrency = parseInt(values.concurrency as string, 10);
+        }
+        if (values.shard) {
+          runnerOverrides.shard = values.shard as string;
+        }
+        if (values['output-dir']) {
+          storageOverrides.outputDir = values['output-dir'] as string;
+        }
+
+        const overrides: Record<string, unknown> = {};
+        if (values.driver) {
+          if (values.driver === 'storybook' && values.url) {
+            overrides.drivers = {
+              driver: 'storybook',
+              url: values.url as string,
+            };
+          } else if (values.driver === 'url') {
+            const urlList = values.urls
+              ? (values.urls as string)
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : ['/'];
+            overrides.drivers = {
+              driver: 'url',
+              baseUrl: values.url as string | undefined,
+              urls: urlList,
+            };
+          } else {
+            overrides.drivers = values.driver as string;
+          }
+        } else if (values.url) {
+          overrides.drivers = {
+            driver: 'storybook',
+            url: values.url as string,
+          };
+        }
+
+        if (Object.keys(snapshotOverrides).length > 0)
+          overrides.snapshot = snapshotOverrides;
+        if (Object.keys(runnerOverrides).length > 0)
+          overrides.runner = runnerOverrides;
+        if (Object.keys(storageOverrides).length > 0)
+          overrides.storage = storageOverrides;
 
         const report = await runVisualRegression({
           config: overrides,
@@ -148,14 +185,18 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         console.log(
           `${colors.bold('Test Run Summary')} ${colors.gray(`(${elapsed}s)`)}:`,
         );
+        const branch = report.git?.branch || 'main';
+        const commit = report.git?.commit || '';
+        const baselineCommit = report.git?.baselineCommit;
+
         console.log(
-          `  ${colors.bold('Branch:')}    ${colors.cyan(report.branch)}`,
+          `  ${colors.bold('Branch:')}    ${colors.cyan(branch)}`,
         );
         console.log(
-          `  ${colors.bold('Commit:')}    ${colors.gray(report.commit.slice(0, 8))}`,
+          `  ${colors.bold('Commit:')}    ${colors.gray(commit.slice(0, 8))}`,
         );
         console.log(
-          `  ${colors.bold('Baseline:')}  ${colors.gray(report.baselineCommit ? report.baselineCommit.slice(0, 8) : 'None')}`,
+          `  ${colors.bold('Baseline:')}  ${colors.gray(baselineCommit ? baselineCommit.slice(0, 8) : 'None')}`,
         );
         console.log('');
 
@@ -169,7 +210,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           `  ${colors.red('●')} Removed:   ${colors.bold(report.summary.removed)}`,
         );
         console.log(
-          `  ${colors.gray('●')} Passed:    ${colors.bold(report.summary.unchanged)}`,
+          `  ${colors.gray('●')} Passed:    ${colors.bold(report.summary.passed ?? report.summary.unchanged)}`,
         );
         console.log(`  ${colors.bold('Total:')}      ${report.summary.total}`);
         console.log('');
@@ -179,13 +220,13 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           for (const item of report.results.filter(
             (r) => r.status === 'changed',
           )) {
-            const diffPct = item.diffResult
-              ? `${item.diffResult.diffPercentage.toFixed(2)}%`
+            const diffPct = item.diff
+              ? `${item.diff.diffPercentage.toFixed(2)}%`
               : '';
-            const diffCount = item.diffResult
-              ? `(${item.diffResult.diffCount.toLocaleString()} px)`
+            const diffCount = item.diff
+              ? `(${item.diff.diffCount.toLocaleString()} px)`
               : '';
-            const groupName = item.group || item.component;
+            const groupName = item.group || 'Component';
             console.log(
               `  ${colors.yellow('×')} ${colors.bold(groupName)} / ${item.name} [${item.viewport.width}x${item.viewport.height}] ${colors.gray(diffPct)} ${colors.gray(diffCount)}`,
             );
@@ -272,7 +313,9 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
 
       if (shardDirs.length === 0) {
         console.error(
-          colors.red('Usage: diffra merge-reports <shardPaths...> -o <outputDir>'),
+          colors.red(
+            'Usage: diffra merge-reports <shardPaths...> -o <outputDir>',
+          ),
         );
         return 1;
       }
@@ -296,10 +339,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       let reportPath = values.report as string;
 
       if (!reportPath) {
-        reportPath = path.resolve(
-          process.cwd(),
-          '.diffra/latest-report.json',
-        );
+        reportPath = path.resolve(process.cwd(), '.diffra/latest-report.json');
       }
 
       const viewerUrl = buildViewerUrl(

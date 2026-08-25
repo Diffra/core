@@ -7,8 +7,8 @@ describe('Demo App Diffra Configuration', () => {
   it('loads diffra.config.ts correctly with URL driver and routes', async () => {
     const appDir = path.resolve(import.meta.dirname, '..');
     const config = await loadConfig(appDir);
-    expect(config.driver).toBe('url');
-    expect(config.urls).toHaveLength(2);
+    expect((config.drivers as any).driver).toBe('url');
+    expect((config.drivers as any).urls).toHaveLength(2);
 
     const drivers = resolveDrivers(config, appDir);
     expect(drivers).toHaveLength(1);
@@ -19,6 +19,6 @@ describe('Demo App Diffra Configuration', () => {
     expect(targets).toHaveLength(2);
     expect(targets[0].name).toBe('Landing Page');
     expect(targets[1].name).toBe('Analytics Dashboard');
-    expect(targets[1].mask).toEqual(['.timestamp-badge']);
+    expect(targets[1].snapshot?.mask).toEqual(['.timestamp-badge']);
   });
 });

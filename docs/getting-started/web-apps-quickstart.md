@@ -1,21 +1,34 @@
 # Web applications quickstart
 
-This guide walks you through setting up automated route-level visual regression testing for web applications (Next.js, Remix, Vite, Astro, Nuxt, or any running HTTP server) without needing Storybook.
+Set up automated route-level visual regression testing for web applications (Next.js, Remix, Vite, Astro, Nuxt) in your GitHub Actions CI/CD pipeline in under 5 minutes.
 
 ---
 
-## Step 1: Install dependencies
+## The automated CI/CD workflow
+
+Diffra tests your production build or preview server directly inside GitHub Actions on every pull request:
+
+```
+ ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+ │ Developer opens │ ────► │ GitHub Action   │ ────► │ Diff against    │
+ │ Pull Request    │       │ builds app routes│      │ Cloud Baselines │
+ └─────────────────┘       └─────────────────┘       └────────┬────────┘
+                                                              │
+ ┌─────────────────┐       ┌─────────────────┐                │
+ │ PR merged into  │ ◄──── │ Developer views │ ◄──────────────┘
+ │ main: Baselines │       │ review link on  │   PR Comment & Check
+ │ auto-promoted   │       │ Pull Request    │   posted automatically
+ └─────────────────┘       └─────────────────┘
+```
+
+---
+
+## Step 1: Install packages
 
 Install Diffra in your web application repository:
 
 ```bash
 pnpm add -D @diffra/cli @diffra/core @diffra/engine
-```
-
-Ensure Playwright browser binaries are installed:
-
-```bash
-pnpm exec playwright install chromium
 ```
 
 ---
@@ -28,71 +41,96 @@ Create a `diffra.config.ts` in your project root:
 import { defineConfig } from '@diffra/core/config';
 
 export default defineConfig({
-  // Visual driver for web applications
-  driver: 'url',
+  // Domain 1: Driver & Routes
+  drivers: {
+    driver: 'url',
+    baseUrl: 'http://localhost:4173',
+    urls: [
+      '/',
+      '/pricing',
+      {
+        url: '/dashboard',
+        name: 'Analytics Dashboard',
+        group: 'App Routes',
+        snapshot: {
+          selector: '#main-content', // Optional selector isolation
+          delay: 200,                // Extra wait time for client-side rendering
+          mask: ['.user-timestamp'], // Mask dynamic timestamps
+        },
+      },
+    ],
+  },
 
-  // Base URL of your local dev or preview server
-  storybookUrl: 'http://localhost:3000',
-
-  // Route paths or custom target configurations
-  urls: [
-    '/',
-    '/pricing',
-    {
-      url: '/dashboard',
-      name: 'Analytics Dashboard',
-      group: 'App Routes',
-      selector: '#main-content', // Optional selector isolation
-      delay: 200,                // Extra time for client-side charts to render
-      mask: ['.user-timestamp'], // Mask dynamic DOM elements
-    },
-  ],
-
-  // Viewport sizes to test
-  viewports: [
-    { name: 'mobile', width: 375, height: 667 },
-    { name: 'desktop', width: 1280, height: 800 },
-  ],
+  // Domain 2: Viewport and capture rules
+  snapshot: {
+    viewports: [
+      { name: 'mobile', width: 375, height: 667 },
+      { name: 'desktop', width: 1280, height: 800 },
+    ],
+  },
 });
 ```
 
 ---
 
-## Step 3: Run route tests
+## Step 3: Add GitHub Actions workflow
 
-Start your web application local development or preview server:
+Create `.github/workflows/visual-regression.yml`:
 
-```bash
-pnpm dev
-```
+```yaml
+name: Web App Visual Regression
 
-In a separate terminal, execute Diffra:
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
 
-```bash
-pnpm diffra test
-```
+jobs:
+  visual-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history needed for Git merge-base baseline discovery
 
-You can also run ad-hoc route tests directly from the CLI without modifying your configuration file:
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10
 
-```bash
-pnpm diffra test --driver url --url http://localhost:3000 --urls "/,/pricing,/blog,/contact"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      # Start production preview server in background
+      - name: Start preview server
+        run: pnpm preview --port 4173 &
+        env:
+          PORT: 4173
+
+      - name: Wait for preview server
+        run: npx wait-on http://localhost:4173 --timeout 30000
+
+      - name: Run Diffra Action
+        uses: Diffra/core@v1
+        with:
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          storybookUrl: 'http://localhost:4173'
+          autoAcceptChanges: 'main'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          DIFFRA_STORAGE_BUCKET: 'my-app-baselines'
+          DIFFRA_STORAGE_REGION: 'us-east-1'
 ```
 
 ---
 
-## Step 4: Approve and review baselines
+## Step 4: Open a pull request
 
-Approve your initial candidate screenshots:
-
-```bash
-pnpm diffra approve
-```
-
-Launch the local interactive review viewer to verify rendering across viewports:
-
-```bash
-pnpm diffra serve
-```
+1. Push your branch to GitHub and open a Pull Request.
+2. The GitHub Action executes, captures screenshots across all configured routes and viewports, and compares them against `main` baselines in your cloud storage.
+3. A status check and PR comment are automatically posted with a direct link to the visual review UI (`https://viewer.diffra.dev/?report=...`).
+4. Merging the PR into `main` automatically promotes candidate screenshots to cloud storage as the new baseline.
 
 ---
 
@@ -100,4 +138,4 @@ pnpm diffra serve
 
 * Deep dive into route configuration, selectors, and masks in [Testing web applications and routes](../guides/testing-web-applications.md).
 * Learn how to eliminate font and animation flakiness in [Flakiness and determinism](../guides/flakiness-and-determinism.md).
-* Configure CI pull request testing in [GitHub Actions workflow](../ci-cd/github-actions.md).
+* Configure cloud storage providers in [Storage adapters](../storage-and-plugins/storage-adapters.md).

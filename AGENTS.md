@@ -71,3 +71,7 @@ This document records architectural principles, conventions, and operational lea
 ### 9. Zero legacy terminology and modern API purity
 * **No legacy mentions or baggage**: Never use the term "legacy" in code comments, type definitions, docstrings, or user documentation. 
 * **First-principles API design**: Always design and reference clean, canonical modern interfaces directly without preserving obsolete conventions or backward-facing terminology.
+
+### 10. CI/CD first product narrative
+* **Automated workflow over manual CLI**: Diffra is engineered primarily as an automated visual regression engine embedded directly in GitHub Actions and CI/CD pipelines. All documentation, quickstarts, and promotional material must lead with the automated CI/CD lifecycle (GitHub Action, automated PR status checks, PR comments with review links, cloud storage baselines, auto-accept on merge).
+* **CLI as supporting utility**: Position local CLI execution as a secondary, supporting utility for debugging or local approvals, never as the primary day-to-day workflow.

@@ -1,7 +1,7 @@
 import type {
+  SnapshotKey,
   StorageAdapter,
   TestRunReport,
-  Viewport,
 } from '../../types/index.js';
 
 export interface GCSStorageOptions {
@@ -10,10 +10,7 @@ export interface GCSStorageOptions {
 }
 
 interface GCSFileLike {
-  save: (
-    data: Buffer | string,
-    options?: { contentType?: string },
-  ) => Promise<unknown>;
+  save: (data: Buffer | string, options?: unknown) => Promise<void>;
   download: () => Promise<[Buffer]>;
   name: string;
 }
@@ -50,26 +47,20 @@ export class GCSStorageAdapter implements StorageAdapter {
     return this.gcsStorage;
   }
 
-  private getFilename(
-    targetId: string,
-    viewport: Viewport,
-    options?: { browser?: string },
-  ): string {
-    const browserSuffix = options?.browser ? `--${options.browser}` : '';
-    return `${targetId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${viewport.width}x${viewport.height}.png`;
+  private getFilename(key: SnapshotKey): string {
+    const browserSuffix = key.browser ? `--${key.browser}` : '';
+    return `${key.targetId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${key.viewport.width}x${key.viewport.height}.png`;
   }
 
   async uploadCandidate(
     runId: string,
-    targetId: string,
-    viewport: Viewport,
+    key: SnapshotKey,
     imageBuffer: Buffer,
-    options?: { browser?: string },
   ): Promise<string> {
     const file = this.getClient()
       .bucket(this.bucket)
       .file(
-        `${this.prefix}/runs/${runId}/candidates/${this.getFilename(targetId, viewport, options)}`,
+        `${this.prefix}/runs/${runId}/candidates/${this.getFilename(key)}`,
       );
     await file.save(imageBuffer, { contentType: 'image/png' });
     return `https://storage.googleapis.com/${this.bucket}/${file.name}`;
@@ -77,15 +68,13 @@ export class GCSStorageAdapter implements StorageAdapter {
 
   async uploadDiff(
     runId: string,
-    targetId: string,
-    viewport: Viewport,
+    key: SnapshotKey,
     imageBuffer: Buffer,
-    options?: { browser?: string },
   ): Promise<string> {
     const file = this.getClient()
       .bucket(this.bucket)
       .file(
-        `${this.prefix}/runs/${runId}/diffs/${this.getFilename(targetId, viewport, options)}`,
+        `${this.prefix}/runs/${runId}/diffs/${this.getFilename(key)}`,
       );
     await file.save(imageBuffer, { contentType: 'image/png' });
     return `https://storage.googleapis.com/${this.bucket}/${file.name}`;
@@ -93,14 +82,12 @@ export class GCSStorageAdapter implements StorageAdapter {
 
   async downloadBaseline(
     baselineCommit: string,
-    targetId: string,
-    viewport: Viewport,
-    options?: { browser?: string },
+    key: SnapshotKey,
   ): Promise<Buffer | null> {
     const file = this.getClient()
       .bucket(this.bucket)
       .file(
-        `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(targetId, viewport, options)}`,
+        `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(key)}`,
       );
     try {
       const [contents] = await file.download();
@@ -112,15 +99,13 @@ export class GCSStorageAdapter implements StorageAdapter {
 
   async uploadBaseline(
     commitSha: string,
-    targetId: string,
-    viewport: Viewport,
+    key: SnapshotKey,
     imageBuffer: Buffer,
-    options?: { browser?: string },
   ): Promise<void> {
     const file = this.getClient()
       .bucket(this.bucket)
       .file(
-        `${this.prefix}/baselines/${commitSha}/${this.getFilename(targetId, viewport, options)}`,
+        `${this.prefix}/baselines/${commitSha}/${this.getFilename(key)}`,
       );
     await file.save(imageBuffer, { contentType: 'image/png' });
   }

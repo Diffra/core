@@ -2,22 +2,22 @@ import type {
   DriverCaptureResult,
   DriverCaptureTask,
   DriverContext,
-  FigmaDriverOptions,
+  FigmaDriverConfig,
   VisualDriver,
   VisualTarget,
 } from '../types/index.js';
 
 export class FigmaDriver implements VisualDriver {
   name = 'figma';
-  private options?: FigmaDriverOptions;
+  private options?: FigmaDriverConfig;
   private imageCache = new Map<string, Buffer>();
 
-  constructor(options?: FigmaDriverOptions) {
+  constructor(options?: FigmaDriverConfig) {
     this.options = options;
   }
 
   async discover(context: DriverContext): Promise<VisualTarget[]> {
-    const figmaConfig = this.options || context.config.figma;
+    const figmaConfig = this.options;
     if (!figmaConfig || !figmaConfig.fileKey) {
       return [];
     }
@@ -28,7 +28,8 @@ export class FigmaDriver implements VisualDriver {
       process.env.FIGMA_TOKEN;
 
     const targets: VisualTarget[] = [];
-    const diffThreshold = figmaConfig.diffThreshold ?? context.config.diffThreshold ?? 0.063;
+    const diffThreshold =
+      figmaConfig.snapshot?.diffThreshold ?? context.config.snapshot?.diffThreshold ?? 0.063;
 
     // 1. Explicit components mapping { 'Components/Button/Primary': '123:45' }
     if (figmaConfig.components) {
@@ -42,12 +43,8 @@ export class FigmaDriver implements VisualDriver {
           id: `figma--${nodeId.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
           name: cleanName,
           group: groupName,
-          component: groupName,
-          title: groupName,
-          parameters: {
-            snapshot: {
-              diffThreshold,
-            },
+          snapshot: {
+            diffThreshold,
           },
           metadata: {
             figmaNodeId: nodeId,
@@ -66,12 +63,8 @@ export class FigmaDriver implements VisualDriver {
           id: `figma--${nodeId.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
           name: `Frame ${nodeId}`,
           group: 'Figma',
-          component: 'Figma',
-          title: 'Figma',
-          parameters: {
-            snapshot: {
-              diffThreshold,
-            },
+          snapshot: {
+            diffThreshold,
           },
           metadata: {
             figmaNodeId: nodeId,
@@ -115,12 +108,8 @@ export class FigmaDriver implements VisualDriver {
                   id: `figma--${frame.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
                   name: frame.name,
                   group: pageName,
-                  component: pageName,
-                  title: pageName,
-                  parameters: {
-                    snapshot: {
-                      diffThreshold,
-                    },
+                  snapshot: {
+                    diffThreshold,
                   },
                   metadata: {
                     figmaNodeId: frame.id,
@@ -143,9 +132,9 @@ export class FigmaDriver implements VisualDriver {
 
   async captureAll(
     tasks: DriverCaptureTask[],
-    context: DriverContext,
+    _context: DriverContext,
   ): Promise<DriverCaptureResult[]> {
-    const figmaConfig = this.options || context.config.figma;
+    const figmaConfig = this.options;
     if (!figmaConfig || !figmaConfig.fileKey) {
       return [];
     }
@@ -164,7 +153,6 @@ export class FigmaDriver implements VisualDriver {
 
     const results: DriverCaptureResult[] = [];
     const scale = figmaConfig.scale || 1;
-    const format = figmaConfig.format || 'png';
 
     // Batch node IDs in chunks of 50 to respect Figma API rate limits
     const BATCH_SIZE = 50;
@@ -184,7 +172,7 @@ export class FigmaDriver implements VisualDriver {
       try {
         let apiUrl = `https://api.figma.com/v1/images/${figmaConfig.fileKey}?ids=${encodeURIComponent(
           nodeIdsParam,
-        )}&scale=${scale}&format=${format}`;
+        )}&scale=${scale}&format=png`;
         if (figmaConfig.version) {
           apiUrl += `&version=${encodeURIComponent(figmaConfig.version)}`;
         }
@@ -250,8 +238,6 @@ export class FigmaDriver implements VisualDriver {
   }
 }
 
-export function createFigmaDriver(
-  options?: FigmaDriverOptions,
-): VisualDriver {
+export function createFigmaDriver(options?: FigmaDriverConfig): VisualDriver {
   return new FigmaDriver(options);
 }

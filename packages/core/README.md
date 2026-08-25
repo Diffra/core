@@ -6,10 +6,11 @@ Core test execution pipeline, Playwright orchestration, Git merge-base resolutio
 
 ## Overview
 
-`@diffra/core` is the central orchestration package for Diffra. It manages:
+`@diffra/core` is the central orchestration engine for Diffra. Engineered for automated CI/CD pipelines, it manages:
+* **Automated CI/CD lifecycle**: Headless screenshot capture, Git merge-base baseline discovery, and automated status reporting.
 * **Target discovery**: Automated discovery of stories from Storybook `index.json`, live web application URLs, local image directories, or Figma design components.
 * **Hermetic browser pool**: Dynamic allocation and reuse of Playwright browser instances, contexts, and isolated pages with automatic teardown.
-* **Git merge-base resolution**: Deterministic discovery of common Git ancestor commits (`git merge-base`) and baseline snapshot coordinates.
+* **Git merge-base resolution**: Deterministic discovery of common Git ancestor commits (`git merge-base`) and cloud-based Content-Addressed Storage (CAS) baseline streaming.
 * **Storage and notification plugins**: Pluggable storage providers (S3, Cloudflare R2, Google Cloud Storage, Azure Blob, Local) and notifiers (GitHub Commit Statuses / PR comments, Slack webhooks).
 * **Playwright visual matcher**: Custom Playwright matcher `expect(page).toMatchVisualBaseline(name, options)` for seamless end-to-end integration.
 
@@ -32,10 +33,16 @@ import { runVisualRegression } from '@diffra/core';
 
 const report = await runVisualRegression({
   config: {
-    driver: 'storybook',
-    storybookUrl: 'http://localhost:6006',
-    diffThreshold: 0.05,
-    concurrency: 4,
+    drivers: {
+      driver: 'storybook',
+      url: 'http://localhost:6006',
+    },
+    snapshot: {
+      diffThreshold: 0.05,
+    },
+    runner: {
+      concurrency: 4,
+    },
   },
   onProgress: (step, current, total) => {
     console.log(`[${current}/${total}] ${step}`);

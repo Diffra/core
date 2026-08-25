@@ -26,22 +26,25 @@ export async function saveReportManifest(
   const dir = path.dirname(outputReportJsonPath);
   await fs.mkdir(dir, { recursive: true });
 
-  const safeBranch = (report.branch || 'main').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const safeBaselineBranch = (report.baselineBranch || 'main').replace(
-    /[^a-zA-Z0-9_-]/g,
-    '_',
-  );
+  const branch = report.git?.branch || 'main';
+  const baselineBranch = report.git?.baselineBranch || 'main';
+  const safeBranch = branch.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeBaselineBranch = baselineBranch.replace(/[^a-zA-Z0-9_-]/g, '_');
 
   const baselineReportUrl =
-    report.baselineReportUrl ||
+    report.links?.baselineReport ||
     `../../branches/${safeBaselineBranch}/latest/report.json`;
   const branchLatestUrl =
-    report.branchLatestUrl || `../../branches/${safeBranch}/latest/report.json`;
+    report.links?.branchLatest ||
+    `../../branches/${safeBranch}/latest/report.json`;
 
   const manifest: TestRunReport = {
     ...report,
-    baselineReportUrl,
-    branchLatestUrl,
+    links: {
+      ...report.links,
+      baselineReport: baselineReportUrl,
+      branchLatest: branchLatestUrl,
+    },
   };
 
   await fs.writeFile(

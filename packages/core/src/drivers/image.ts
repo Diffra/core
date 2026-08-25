@@ -10,12 +10,17 @@ import type {
 
 export class ImageDriver implements VisualDriver {
   name = 'image';
+  private options?: { dir?: string };
+
+  constructor(options?: { dir?: string }) {
+    this.options = options;
+  }
 
   async discover(context: DriverContext): Promise<VisualTarget[]> {
-    const { config, cwd } = context;
+    const { cwd } = context;
     const imagesDir = path.resolve(
       cwd || process.cwd(),
-      config.imagesDir || 'screenshots',
+      this.options?.dir || 'screenshots',
     );
     const targets: VisualTarget[] = [];
 
@@ -31,10 +36,7 @@ export class ImageDriver implements VisualDriver {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
           await scan(fullPath);
-        } else if (
-          entry.isFile() &&
-          /\.(png|jpg|jpeg|webp)$/i.test(entry.name)
-        ) {
+        } else if (entry.isFile() && /\.png$/i.test(entry.name)) {
           const relPath = path.relative(imagesDir, fullPath);
           const ext = path.extname(entry.name);
           const baseName = path.basename(entry.name, ext);
@@ -47,8 +49,6 @@ export class ImageDriver implements VisualDriver {
             id,
             name: baseName,
             group: groupName,
-            component: groupName,
-            title: groupName,
             filePath: fullPath,
             metadata: {
               imagePath: fullPath,
@@ -96,6 +96,6 @@ export class ImageDriver implements VisualDriver {
   }
 }
 
-export function createImageDriver(): VisualDriver {
-  return new ImageDriver();
+export function createImageDriver(options?: { dir?: string }): VisualDriver {
+  return new ImageDriver(options);
 }

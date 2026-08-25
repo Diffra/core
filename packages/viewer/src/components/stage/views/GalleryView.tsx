@@ -5,7 +5,9 @@ import { Badge } from '../../ui/Badge.js';
 export const GalleryView: React.FC = () => {
   const { manifest, filteredResults, selectStoryById } = useViewer();
   const baselineBranch = manifest?.baselineBranch || 'main';
-  const repoUrl = (manifest?.repositoryUrl || 'https://github.com/Diffra/core').replace(/\/$/, '');
+  const repoUrl = (
+    manifest?.repositoryUrl || 'https://github.com/Diffra/core'
+  ).replace(/\/$/, '');
 
   const handleCardClick = (id: string) => {
     selectStoryById(id);
@@ -43,7 +45,8 @@ export const GalleryView: React.FC = () => {
 
               {manifest?.timestamp ? (
                 <span className="text-zinc-400 ml-2">
-                  · {new Date(manifest.timestamp).toLocaleDateString(undefined, {
+                  ·{' '}
+                  {new Date(manifest.timestamp).toLocaleDateString(undefined, {
                     year: 'numeric',
                     month: 'short',
                     day: 'numeric',
@@ -72,7 +75,9 @@ export const GalleryView: React.FC = () => {
                     <span className="text-zinc-500 font-normal">
                       {item.component} /{' '}
                     </span>
-                    <span className="font-medium text-zinc-900">{item.name}</span>
+                    <span className="font-medium text-zinc-900">
+                      {item.name}
+                    </span>
                   </div>
                 </div>
 
@@ -85,9 +90,7 @@ export const GalleryView: React.FC = () => {
               <div className="h-48 bg-zinc-50/50 flex items-center justify-center p-4 overflow-hidden relative canvas-backdrop">
                 {item.candidateUrl || item.baselineUrl || item.diffUrl ? (
                   <img
-                    src={
-                      item.diffUrl || item.candidateUrl || item.baselineUrl
-                    }
+                    src={item.diffUrl || item.candidateUrl || item.baselineUrl}
                     alt={`${item.component} - ${item.name}`}
                     className="max-h-full max-w-full object-contain transition-transform duration-200 group-hover:scale-[1.02]"
                     loading="lazy"

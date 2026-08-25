@@ -25,9 +25,7 @@ export const customE2EDriver: VisualDriver = {
         id: 'checkout--payment-modal',
         name: 'Payment Modal',
         group: 'Checkout Flows',
-        parameters: {
-          snapshot: { diffThreshold: 0.04 },
-        },
+        snapshot: { diffThreshold: 0.04 },
       },
     ];
   },
@@ -43,7 +41,7 @@ export const customE2EDriver: VisualDriver = {
 };
 
 export default defineConfig({
-  driver: customE2EDriver,
+  drivers: customE2EDriver,
 });
 ```
 
@@ -64,9 +62,9 @@ const customAuditPlugin: DiffraPlugin = {
     console.log('Diffra runner initializing...');
   },
 
-  async onDiscoverStories(stories: VisualTarget[]) {
+  async onDiscoverTargets(targets: VisualTarget[]) {
     // Filter or dynamically modify discovered targets
-    return stories.filter((story) => !story.filePath?.includes('draft'));
+    return targets.filter((target) => !target.filePath?.includes('draft'));
   },
 
   async onBeforeCapture(target: VisualTarget, viewport: Viewport) {

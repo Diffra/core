@@ -8,49 +8,52 @@ Core interfaces and types exported by `@diffra/core`, `@diffra/core/types`, and 
 
 ```typescript
 export interface DiffraConfig {
-  /** Driver name or custom VisualDriver implementation */
-  driver?: 'storybook' | 'url' | 'image' | 'figma' | VisualDriver;
-  /** Multiple drivers to run in a single test pass */
-  drivers?: (VisualDriver | string)[];
+  /** Domain 1: Target discovery, preview server hosting, and URL/Figma drivers */
+  drivers?: DriverInput | DriverInput[];
 
-  /** Explicit in-memory target list or target provider function */
+  /** Domain 2: Universal visual capture and pixel comparison rules */
+  snapshot?: SnapshotConfig;
+
+  /** Domain 3: Browser worker pools, Playwright projects, sharding, and CI baseline branch */
+  runner?: RunnerConfig;
+
+  /** Domain 4: Baseline image and report manifest persistence */
+  storage?: StorageConfig | StorageAdapter;
+
+  /** Domain 5: PR sticky comments, status checks, and messaging notifications */
+  reporters?: ReporterInput[];
+
+  /** Lifecycle plugins and extensions */
+  plugins?: DiffraPlugin[];
+
+  /** Custom diff engine adapter */
+  diffEngine?: DiffEngineAdapter;
+
+  /** In-memory custom target provider */
   targets?: VisualTarget[] | (() => Promise<VisualTarget[]> | VisualTarget[]);
+}
 
-  /** URL list for the URL driver */
-  urls?: Array<string | UrlTargetConfig>;
-
-  /** Directory for direct image comparison */
-  imagesDir?: string;
-
-  /** Figma driver configuration options */
-  figma?: FigmaDriverOptions;
-
-  /** Storybook server URL */
-  storybookUrl?: string;
-  storybookPort?: number;
-  storybookBuildDir?: string;
-  stories?: string[];
-
-  /** Playwright multi-engine projects and device configuration */
-  projects?: Project[];
-
-  /** CI Sharding configuration (e.g. "1/4") */
-  shard?: string;
-
-  /** Global testing options */
-  viewports?: ViewportInput[];
+export interface SnapshotConfig {
   diffThreshold?: number;
-  threshold?: number;
   delay?: number;
   pauseAnimationAtEnd?: boolean;
+  viewports?: ViewportInput[];
+  selector?: string;
+  mask?: (string | Locator)[];
+  fullPage?: boolean;
+  disable?: boolean;
+  clip?: PageScreenshotOptions['clip'];
+  omitBackground?: boolean;
+  modes?: Record<string, SnapshotConfig>;
+  screenshotOptions?: PageScreenshotOptions;
+}
+
+export interface RunnerConfig {
   concurrency?: number;
-  outputDir?: string;
   baselineBranch?: string;
-  storage?: StorageAdapter | StorageConfig;
-  notifiers?: NotifierAdapter[];
-  diffEngine?: DiffEngineAdapter;
-  plugins?: DiffraPlugin[];
-  viewerUrl?: string;
+  shard?: string;
+  projects?: Project[];
+  launchOptions?: LaunchOptions;
 }
 ```
 
@@ -63,16 +66,9 @@ export interface VisualTarget {
   id: string;
   name: string;
   group?: string;
-  component?: string;
-  title?: string;
   url?: string;
   filePath?: string;
-  selector?: string;
-  mask?: (string | Locator)[];
-  parameters?: {
-    snapshot?: TargetParameters;
-    [key: string]: unknown;
-  };
+  snapshot?: SnapshotConfig;
   metadata?: Record<string, unknown>;
 }
 
@@ -80,20 +76,13 @@ export interface VisualTestResult {
   id: string;
   name: string;
   group?: string;
-  component: string;
   viewport: Viewport;
   browser?: string;
-  colorScheme?: string;
-  blobHash?: string;
-  baselineBlobHash?: string;
-  status: 'changed' | 'added' | 'removed' | 'unchanged';
-  diffResult?: DiffResult;
-  baselinePath?: string;
-  candidatePath?: string;
-  diffPath?: string;
-  baselineUrl?: string;
-  candidateUrl?: string;
-  diffUrl?: string;
+  status: 'added' | 'changed' | 'removed' | 'unchanged';
+  diff?: DiffResult;
+  baseline?: ImageArtifact;
+  candidate: ImageArtifact;
+  diffImage?: ImageArtifact;
   metadata?: Record<string, unknown>;
 }
 ```

@@ -82,7 +82,10 @@ export class BrowserPool {
   async acquirePage(
     viewport: Viewport,
     project?: Project,
-    options?: { animations?: 'disabled' | 'allow'; pauseAnimationAtEnd?: boolean },
+    options?: {
+      animations?: 'disabled' | 'allow';
+      pauseAnimationAtEnd?: boolean;
+    },
   ): Promise<WorkerPage> {
     const browserType = project?.browser || 'chromium';
     const browser = await this.getBrowser(browserType, project?.launchOptions);

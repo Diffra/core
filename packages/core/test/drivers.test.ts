@@ -17,17 +17,23 @@ describe('Pluggable Driver Ecosystem', () => {
     expect(drivers[0].name).toBe('storybook');
   });
 
-  it('resolves UrlDriver when urls array is provided', () => {
+  it('resolves UrlDriver when typed url driver config is provided', () => {
     const drivers = resolveDrivers({
-      urls: ['/home', '/pricing'],
+      drivers: {
+        driver: 'url',
+        urls: ['/home', '/pricing'],
+      },
     });
     expect(drivers).toHaveLength(1);
     expect(drivers[0].name).toBe('url');
   });
 
-  it('resolves ImageDriver when imagesDir is provided', () => {
+  it('resolves ImageDriver when typed image driver config is provided', () => {
     const drivers = resolveDrivers({
-      imagesDir: './fixtures/screenshots',
+      drivers: {
+        driver: 'image',
+        dir: './fixtures/screenshots',
+      },
     });
     expect(drivers).toHaveLength(1);
     expect(drivers[0].name).toBe('image');
@@ -67,13 +73,13 @@ describe('Pluggable Driver Ecosystem', () => {
     };
 
     const drivers = resolveDrivers({
-      driver: customDriver,
+      drivers: customDriver,
     });
     expect(drivers).toHaveLength(1);
     expect(drivers[0].name).toBe('playwright-e2e');
 
     const discovered = await drivers[0].discover!({
-      config: { driver: customDriver },
+      config: { drivers: customDriver },
       cwd: process.cwd(),
     });
     expect(discovered).toHaveLength(1);
@@ -96,22 +102,24 @@ describe('Pluggable Driver Ecosystem', () => {
   });
 
   it('UrlDriver discovers clean normalized visual targets from routes', async () => {
-    const driver = createUrlDriver();
-    const targets = await driver.discover!({
-      config: {
-        storybookUrl: 'https://example.com',
-        urls: [
-          '/',
-          '/pricing-table',
-          {
-            url: '/dashboard',
-            name: 'Analytics Dashboard',
-            group: 'App',
+    const driver = createUrlDriver({
+      baseUrl: 'https://example.com',
+      urls: [
+        '/',
+        '/pricing-table',
+        {
+          url: '/dashboard',
+          name: 'Analytics Dashboard',
+          group: 'App',
+          snapshot: {
             selector: '#analytics-grid',
             delay: 150,
           },
-        ],
-      },
+        },
+      ],
+    });
+    const targets = await driver.discover!({
+      config: {},
       cwd: process.cwd(),
     });
 
@@ -127,8 +135,8 @@ describe('Pluggable Driver Ecosystem', () => {
     expect(targets[2].id).toBe('route--dashboard');
     expect(targets[2].name).toBe('Analytics Dashboard');
     expect(targets[2].group).toBe('App');
-    expect(targets[2].selector).toBe('#analytics-grid');
-    expect(targets[2].parameters?.snapshot?.delay).toBe(150);
+    expect(targets[2].snapshot?.selector).toBe('#analytics-grid');
+    expect(targets[2].snapshot?.delay).toBe(150);
   });
 
   it('StorybookDriver parseStoryIndex parses canonical index.json entries accurately', () => {
@@ -180,12 +188,11 @@ describe('Pluggable Driver Ecosystem', () => {
     expect(targets).toHaveLength(2);
     expect(targets[0].id).toBe('components-button--primary');
     expect(targets[0].name).toBe('Primary');
-    expect(targets[0].component).toBe('Button');
-    expect(targets[0].title).toBe('Components/Button');
+    expect(targets[0].group).toBe('Button');
     expect(targets[0].url).toBe(
       'http://localhost:6006/iframe.html?id=components-button--primary&viewMode=story',
     );
-    expect(targets[0].parameters.snapshot.delay).toBe(200);
+    expect(targets[0].snapshot?.delay).toBe(200);
 
     expect(targets[1].id).toBe('components-button--disabled');
     expect(targets[1].name).toBe('Disabled');

@@ -43,10 +43,13 @@ See [`diffra.config.ts`](./diffra.config.ts) for sample configuration:
 import { defineConfig } from '@diffra/core/config';
 
 export default defineConfig({
-  driver: 'storybook',
-  storybookUrl: 'http://localhost:6006',
-  diffThreshold: 0.05,
-  concurrency: 4,
+  drivers: 'storybook',
+  snapshot: {
+    diffThreshold: 0.05,
+  },
+  runner: {
+    concurrency: 4,
+  },
 });
 ```
 

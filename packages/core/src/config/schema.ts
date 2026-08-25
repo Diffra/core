@@ -4,58 +4,65 @@ export const DEFAULT_DIFF_THRESHOLD = 0.063;
 export const DEFAULT_DELAY_MS = 100;
 export const DEFAULT_CONCURRENCY = 4;
 export const DEFAULT_OUTPUT_DIR = '.diffra';
-export const DEFAULT_BASELINE_BRANCH = 'origin/main';
-export const DEFAULT_VIEWPORTS = [{ width: 1280, height: 800, name: 'desktop' }];
-export const DEFAULT_STORY_GLOBS = ['src/**/*.stories.@(js|jsx|ts|tsx)'];
+export const DEFAULT_BASELINE_DIR = '.diffra/baselines';
+export const DEFAULT_VIEWPORTS = [
+  { width: 1280, height: 800, name: 'desktop' },
+];
 
-export const ViewportSchema = z.object({
-  name: z.string().optional(),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
-});
+export const ViewportSchema = z.union([
+  z.number().int().positive(),
+  z.object({
+    name: z.string().optional(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
+]);
 
-export const StorageSchema = z.any();
-
-export const DiffraConfigSchema = z.object({
-  driver: z.any().optional(),
-  drivers: z.array(z.any()).optional(),
-  targets: z.any().optional(),
-  urls: z.array(z.any()).optional(),
-  imagesDir: z.string().optional(),
-  figma: z.any().optional(),
-  projects: z.array(z.any()).optional(),
-  shard: z.string().optional(),
-  viewerUrl: z.string().optional(),
-  baseUrl: z.string().optional(),
-  previewUrl: z.string().optional(),
-  storybookUrl: z.string().optional(),
-  storybookPort: z.number().int().optional(),
-  stories: z.array(z.string()).default(DEFAULT_STORY_GLOBS),
-  viewports: z.array(ViewportSchema).default(DEFAULT_VIEWPORTS),
+export const SnapshotConfigSchema = z.object({
   diffThreshold: z.number().min(0).max(1).default(DEFAULT_DIFF_THRESHOLD),
-  threshold: z.number().min(0).max(1).default(DEFAULT_DIFF_THRESHOLD),
   delay: z.number().nonnegative().default(DEFAULT_DELAY_MS),
   pauseAnimationAtEnd: z.boolean().default(true),
-  animations: z.enum(['disabled', 'allow']).default('disabled').optional(),
-  launchOptions: z.any().optional(),
+  viewports: z.array(ViewportSchema).default(DEFAULT_VIEWPORTS),
+  selector: z.string().optional(),
+  mask: z.array(z.any()).optional(),
+  fullPage: z.boolean().optional(),
+  disable: z.boolean().optional(),
+  clip: z.any().optional(),
+  omitBackground: z.boolean().optional(),
+  modes: z.record(z.string(), z.any()).optional(),
+  screenshotOptions: z.any().optional(),
+});
+
+export const RunnerConfigSchema = z.object({
   concurrency: z.number().int().positive().default(DEFAULT_CONCURRENCY),
-  outputDir: z.string().default(DEFAULT_OUTPUT_DIR),
-  baselineBranch: z.string().default(DEFAULT_BASELINE_BRANCH),
-  storage: StorageSchema.default({ type: 'local' }).optional(),
-  notifiers: z.array(z.any()).optional(),
+  baselineBranch: z.string().optional(),
+  shard: z.string().optional(),
+  projects: z.array(z.any()).optional(),
+  launchOptions: z.any().optional(),
+});
+
+export const StorageConfigSchema = z.any();
+
+export const DiffraConfigSchema = z.object({
+  drivers: z.union([z.any(), z.array(z.any())]).default('storybook'),
+  snapshot: SnapshotConfigSchema.default({
+    diffThreshold: DEFAULT_DIFF_THRESHOLD,
+    delay: DEFAULT_DELAY_MS,
+    pauseAnimationAtEnd: true,
+    viewports: DEFAULT_VIEWPORTS,
+  }),
+  runner: RunnerConfigSchema.default({
+    concurrency: DEFAULT_CONCURRENCY,
+  }),
+  storage: StorageConfigSchema.default({
+    provider: 'local',
+    dir: DEFAULT_BASELINE_DIR,
+    outputDir: DEFAULT_OUTPUT_DIR,
+  }),
+  reporters: z.array(z.any()).default([]),
+  plugins: z.array(z.any()).default([]),
   diffEngine: z.any().optional(),
-  plugins: z.array(z.any()).optional(),
-  notifier: z
-    .object({
-      github: z
-        .object({
-          token: z.string().optional(),
-          repo: z.string().optional(),
-          prNumber: z.number().optional(),
-        })
-        .optional(),
-    })
-    .optional(),
+  targets: z.any().optional(),
 });
 
 export type DiffraConfigInput = z.input<typeof DiffraConfigSchema>;

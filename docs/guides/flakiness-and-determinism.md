@@ -20,7 +20,9 @@ If you have a component that specifically requires live animations during captur
 ```typescript
 // diffra.config.ts
 export default defineConfig({
-  pauseAnimationAtEnd: true, // Default: freezes animations at final frame
+  snapshot: {
+    pauseAnimationAtEnd: true, // Default: freezes animations at final frame
+  },
 });
 ```
 
@@ -30,7 +32,7 @@ Or per-story:
 export const LivePulseIndicator: Story = {
   parameters: {
     snapshot: {
-      animations: 'allow', // Do not freeze animations
+      pauseAnimationAtEnd: false, // Do not freeze animations
     },
   },
 };
@@ -47,7 +49,9 @@ Add a `delay` parameter to allow `@font-face` definitions and icon font files to
 
 ```typescript
 export default defineConfig({
-  delay: 150, // Global wait time in ms before taking screenshots
+  snapshot: {
+    delay: 150, // Global wait time in ms before taking screenshots
+  },
 });
 ```
 
@@ -70,7 +74,9 @@ export const ActivityFeed: Story = {
 // In URL Driver config
 {
   url: '/dashboard',
-  mask: ['#live-ticker', '.timestamp'],
+  snapshot: {
+    mask: ['#live-ticker', '.timestamp'],
+  },
 }
 ```
 
@@ -88,7 +94,9 @@ Font rendering engines differ across operating systems (macOS CoreText vs Linux 
 
 ```typescript
 export default defineConfig({
-  diffThreshold: 0.08,
+  snapshot: {
+    diffThreshold: 0.08,
+  },
 });
 ```
 

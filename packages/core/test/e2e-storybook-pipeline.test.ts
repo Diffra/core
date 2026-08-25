@@ -68,9 +68,9 @@ describe('Real End-to-End Visual Regression Pipeline on Real Storybook 8', () =>
     const report = await runVisualRegression({
       cwd: storybookPackageDir,
       config: {
-        storybookUrl: `http://127.0.0.1:${PORT}`,
-        concurrency: 2,
-        delay: 150,
+        drivers: { driver: 'storybook', url: `http://127.0.0.1:${PORT}` },
+        runner: { concurrency: 2 },
+        snapshot: { delay: 150 },
       },
     });
 
@@ -79,10 +79,10 @@ describe('Real End-to-End Visual Regression Pipeline on Real Storybook 8', () =>
     expect(report.summary.added).toBe(report.summary.total);
 
     for (const res of report.results) {
-      expect(res.candidatePath).toBeDefined();
-      if (res.candidatePath) {
+      expect(res.candidate?.path).toBeDefined();
+      if (res.candidate?.path) {
         const exists = await fs
-          .stat(res.candidatePath)
+          .stat(res.candidate.path)
           .then(() => true)
           .catch(() => false);
         expect(exists).toBe(true);
@@ -107,9 +107,9 @@ describe('Real End-to-End Visual Regression Pipeline on Real Storybook 8', () =>
     const secondReport = await runVisualRegression({
       cwd: storybookPackageDir,
       config: {
-        storybookUrl: `http://127.0.0.1:${PORT}`,
-        concurrency: 2,
-        delay: 150,
+        drivers: { driver: 'storybook', url: `http://127.0.0.1:${PORT}` },
+        runner: { concurrency: 2 },
+        snapshot: { delay: 150 },
       },
     });
 

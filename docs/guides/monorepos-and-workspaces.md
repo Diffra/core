@@ -37,9 +37,10 @@ Each package maintains its own `diffra.config.ts` and test script:
 import { defineConfig } from '@diffra/core/config';
 
 export default defineConfig({
-  storybookUrl: 'http://localhost:6006',
-  stories: ['src/**/*.stories.@(js|jsx|ts|tsx)'],
-  outputDir: '.diffra',
+  drivers: {
+    driver: 'storybook',
+    url: 'http://localhost:6006',
+  },
 });
 ```
 

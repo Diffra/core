@@ -1,7 +1,7 @@
 import type {
+  SnapshotKey,
   StorageAdapter,
   TestRunReport,
-  Viewport,
 } from '../../types/index.js';
 
 export interface AzureStorageOptions {
@@ -59,23 +59,17 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
     return this.containerClient;
   }
 
-  private getFilename(
-    targetId: string,
-    viewport: Viewport,
-    options?: { browser?: string },
-  ): string {
-    const browserSuffix = options?.browser ? `--${options.browser}` : '';
-    return `${targetId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${viewport.width}x${viewport.height}.png`;
+  private getFilename(key: SnapshotKey): string {
+    const browserSuffix = key.browser ? `--${key.browser}` : '';
+    return `${key.targetId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${key.viewport.width}x${key.viewport.height}.png`;
   }
 
   async uploadCandidate(
     runId: string,
-    targetId: string,
-    viewport: Viewport,
+    key: SnapshotKey,
     imageBuffer: Buffer,
-    options?: { browser?: string },
   ): Promise<string> {
-    const blobName = `${this.prefix}/runs/${runId}/candidates/${this.getFilename(targetId, viewport, options)}`;
+    const blobName = `${this.prefix}/runs/${runId}/candidates/${this.getFilename(key)}`;
     const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
     await blockBlobClient.upload(imageBuffer, imageBuffer.length, {
       blobHTTPHeaders: { blobContentType: 'image/png' },
@@ -85,12 +79,10 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
 
   async uploadDiff(
     runId: string,
-    targetId: string,
-    viewport: Viewport,
+    key: SnapshotKey,
     imageBuffer: Buffer,
-    options?: { browser?: string },
   ): Promise<string> {
-    const blobName = `${this.prefix}/runs/${runId}/diffs/${this.getFilename(targetId, viewport, options)}`;
+    const blobName = `${this.prefix}/runs/${runId}/diffs/${this.getFilename(key)}`;
     const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
     await blockBlobClient.upload(imageBuffer, imageBuffer.length, {
       blobHTTPHeaders: { blobContentType: 'image/png' },
@@ -100,11 +92,9 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
 
   async downloadBaseline(
     baselineCommit: string,
-    targetId: string,
-    viewport: Viewport,
-    options?: { browser?: string },
+    key: SnapshotKey,
   ): Promise<Buffer | null> {
-    const blobName = `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(targetId, viewport, options)}`;
+    const blobName = `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(key)}`;
     const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
     try {
       return await blockBlobClient.downloadToBuffer();
@@ -115,12 +105,10 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
 
   async uploadBaseline(
     commitSha: string,
-    targetId: string,
-    viewport: Viewport,
+    key: SnapshotKey,
     imageBuffer: Buffer,
-    options?: { browser?: string },
   ): Promise<void> {
-    const blobName = `${this.prefix}/baselines/${commitSha}/${this.getFilename(targetId, viewport, options)}`;
+    const blobName = `${this.prefix}/baselines/${commitSha}/${this.getFilename(key)}`;
     const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
     await blockBlobClient.upload(imageBuffer, imageBuffer.length, {
       blobHTTPHeaders: { blobContentType: 'image/png' },

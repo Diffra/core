@@ -31,7 +31,8 @@ async function getPlaywrightContext(cwd: string) {
     return cachedContext;
   }
   const config = await loadConfig(cwd);
-  const gitInfo = await getGitInfo(config.baselineBranch, cwd);
+  const baselineBranch = config.runner?.baselineBranch;
+  const gitInfo = await getGitInfo(baselineBranch, cwd);
   const storage = resolveStorageAdapter(config, cwd);
   if (storage.init) await storage.init();
   const runId = `playwright-${Date.now()}`;
@@ -64,27 +65,33 @@ export async function toMatchVisualBaselineMatcher(
   const { config, gitInfo, storage, runId } = await getPlaywrightContext(cwd);
 
   let viewport = { width: 1280, height: 800 };
-  if ('viewportSize' in received && typeof (received as any).viewportSize === 'function') {
+  if (
+    'viewportSize' in received &&
+    typeof (received as any).viewportSize === 'function'
+  ) {
     const vp = (received as Page).viewportSize();
     if (vp) viewport = vp;
-  } else if ('page' in received && typeof (received as any).page === 'function') {
+  } else if (
+    'page' in received &&
+    typeof (received as any).page === 'function'
+  ) {
     const vp = (received as Locator).page().viewportSize();
     if (vp) viewport = vp;
   }
 
+  const snapshotKey = { targetId: snapshotId, viewport };
+
   const baselineBuffer = await storage.downloadBaseline(
     gitInfo.baselineCommit,
-    snapshotId,
-    viewport,
+    snapshotKey,
   );
 
-  await storage.uploadCandidate(runId, snapshotId, viewport, buffer);
+  await storage.uploadCandidate(runId, snapshotKey, buffer);
 
   if (!baselineBuffer) {
     await storage.uploadBaseline(
       gitInfo.commit || 'HEAD',
-      snapshotId,
-      viewport,
+      snapshotKey,
       buffer,
     );
     return {
@@ -95,7 +102,10 @@ export async function toMatchVisualBaselineMatcher(
 
   const diffEngine = resolveDiffEngine(config);
   const threshold =
-    options.diffThreshold ?? options.threshold ?? config.diffThreshold ?? 0.063;
+    options.diffThreshold ??
+    options.threshold ??
+    config.snapshot?.diffThreshold ??
+    0.063;
 
   const diffResult = await diffEngine.compare(baselineBuffer, buffer, {
     threshold,
@@ -104,7 +114,7 @@ export async function toMatchVisualBaselineMatcher(
   });
 
   if (diffResult.hasDiff && diffResult.diffImage) {
-    await storage.uploadDiff(runId, snapshotId, viewport, diffResult.diffImage);
+    await storage.uploadDiff(runId, snapshotKey, diffResult.diffImage);
   }
 
   const pass = !diffResult.hasDiff;

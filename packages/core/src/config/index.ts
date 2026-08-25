@@ -1,7 +1,7 @@
 export {
   type DiffraConfig,
   defineConfig,
-  type SnapshotModeConfig,
+  type SnapshotConfig,
   type TargetParameters,
   type UrlTargetConfig,
   type Viewport,
@@ -12,6 +12,6 @@ export {
   type DiffraConfigInput,
   type DiffraConfigResolved,
   DiffraConfigSchema,
-  StorageSchema,
+  StorageConfigSchema,
   ViewportSchema,
 } from './schema.js';

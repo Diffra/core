@@ -8,105 +8,119 @@ Diffra supports type-safe configuration via `diffra.config.ts`, `diffra.config.j
 
 ```typescript
 import { defineConfig } from '@diffra/core/config';
-import {
-  createLocalStorage,
-  createS3Storage,
-  createGitHubNotifier,
-  createSlackNotifier,
-} from '@diffra/core/plugins';
 import { devices } from 'playwright';
 
 export default defineConfig({
-  // Visual target driver ('storybook', 'url', 'image', 'figma', or custom VisualDriver)
-  driver: 'storybook',
-
-  // Running server URL
-  storybookUrl: 'http://localhost:6006',
-
-  // Glob patterns matching story files
-  stories: ['src/**/*.stories.@(js|jsx|ts|tsx)'],
-
-  // Playwright multi-engine projects and device descriptors
-  projects: [
+  // Domain 1: Drivers & Preview Servers
+  drivers: [
     {
-      name: 'desktop-chromium',
-      browser: 'chromium',
-      use: { ...devices['Desktop Chrome'], colorScheme: 'light' },
-    },
-    {
-      name: 'mobile-safari',
-      browser: 'webkit',
-      use: { ...devices['iPhone 15'], colorScheme: 'light' },
+      driver: 'storybook',
+      url: 'http://localhost:6006',
     },
   ],
 
-  // Default viewports when projects are not explicitly defined
-  viewports: [
-    { name: 'mobile', width: 375, height: 667 },
-    { name: 'tablet', width: 768, height: 1024 },
-    { name: 'desktop', width: 1280, height: 800 },
-  ],
+  // Domain 2: Snapshot & Comparison Rules
+  snapshot: {
+    diffThreshold: 0.063,
+    delay: 100,
+    pauseAnimationAtEnd: true,
+    viewports: [
+      { name: 'mobile', width: 375, height: 667 },
+      { name: 'tablet', width: 768, height: 1024 },
+      { name: 'desktop', width: 1280, height: 800 },
+    ],
+  },
 
-  // Perceptual sensitivity threshold (0.00 strict to 1.00 permissive)
-  diffThreshold: 0.063,
+  // Domain 3: Browser Workers & CI Execution
+  runner: {
+    concurrency: 4,
+    baselineBranch: 'origin/main',
+    projects: [
+      {
+        name: 'desktop-chromium',
+        browser: 'chromium',
+        use: { ...devices['Desktop Chrome'], colorScheme: 'light' },
+      },
+      {
+        name: 'mobile-safari',
+        browser: 'webkit',
+        use: { ...devices['iPhone 15'], colorScheme: 'light' },
+      },
+    ],
+  },
 
-  // Settle wait time (ms) before taking screenshot
-  delay: 100,
+  // Domain 4: Baseline Persistence
+  storage: {
+    provider: 's3',
+    bucket: 'my-visual-baselines',
+    region: 'us-east-1',
+  },
 
-  // Automatically pause CSS animations at final frame
-  pauseAnimationAtEnd: true,
-
-  // Number of parallel Playwright browser instances
-  concurrency: 4,
-
-  // Target Git branch for merge-base baseline discovery
-  baselineBranch: 'origin/main',
-
-  // Output directory for reports and candidate screenshots
-  outputDir: '.diffra',
-
-  // Storage adapter configuration
-  storage: createLocalStorage({
-    baselineDir: '.diffra/baselines',
-  }),
-
-  // Notifiers
-  notifiers: [
-    createGitHubNotifier(),
-    createSlackNotifier({
+  // Domain 5: Notifications & PR Status Checks
+  reporters: [
+    'github',
+    {
+      type: 'slack',
       webhookUrl: process.env.SLACK_WEBHOOK_URL,
       channel: '#design-system-ci',
-    }),
+    },
   ],
 });
 ```
 
 ---
 
-## Configuration schema options
+## 5-domain configuration reference
+
+### Domain 1: `drivers`
+Defines visual targets and preview server endpoints. Accepts single driver names (`'storybook'`, `'url'`, `'image'`, `'figma'`), driver configuration objects, or custom `VisualDriver` implementations:
+
+| Driver Config | Options | Description |
+| :--- | :--- | :--- |
+| `StorybookDriverConfig` | `{ driver: 'storybook', url?: string, buildDir?: string }` | Discovers and captures Storybook component stories. |
+| `UrlDriverConfig` | `{ driver: 'url', baseUrl?: string, urls: Array<string \| UrlTargetConfig> }` | Discovers and captures static or SPA web routes. |
+| `ImageDriverConfig` | `{ driver: 'image', dir: string }` | Loads pre-rendered screenshots from disk. |
+| `FigmaDriverConfig` | `{ driver: 'figma', fileKey: string, token?: string, components?: Record<string, string> }` | Fetches frames directly from Figma REST API. |
+
+### Domain 2: `snapshot`
+Configures visual comparison and screenshot parameters:
 
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `driver` | `'storybook' \| 'url' \| 'image' \| 'figma' \| VisualDriver` | `'storybook'` | Visual target discovery and capture driver. |
-| `drivers` | `(VisualDriver \| string)[]` | `undefined` | Multiple drivers to run sequentially in a single test pass. |
-| `storybookUrl` | `string` | `'http://localhost:6006'` | Base preview URL or running Storybook dev server URL. |
-| `stories` | `string[]` | `['src/**/*.stories.@(js\|jsx\|ts\|tsx)']` | Glob patterns for CSF story files. |
-| `urls` | `Array<string \| UrlTargetConfig>` | `[]` | Route URLs to test with the URL driver. |
-| `imagesDir` | `string` | `undefined` | Directory of candidate screenshots for the Image driver. |
-| `figma` | `FigmaDriverOptions` | `undefined` | Figma driver options (fileKey, token, components map, mode, scale). |
-| `targets` | `VisualTarget[] \| (() => Promise<VisualTarget[]>)` | `undefined` | Explicit in-memory target list or async target provider. |
-| `projects` | `Project[]` | `[{ name: 'chromium', browser: 'chromium' }]` | Playwright projects (`chromium`, `firefox`, `webkit`) and devices. |
-| `viewports` | `(number \| Viewport)[]` | `[{ width: 1280, height: 800, name: 'desktop' }]` | Viewports to capture when `projects` are not defined. |
-| `diffThreshold` / `threshold` | `number` | `0.063` | Perceptual sensitivity threshold (`0.0` strict to `1.0` permissive). |
-| `delay` | `number` | `100` | Settle wait time (ms) after page load before taking screenshot. |
-| `pauseAnimationAtEnd` | `boolean` | `true` | When `true`, freezes CSS animations and transitions at final frame. |
-| `animations` | `'disabled' \| 'allow'` | `'disabled'` | Playwright animation handling mode. |
-| `concurrency` | `number` | `4` | Number of parallel browser workers in the Playwright pool. |
-| `shard` | `string` | `undefined` | CI sharding slice (e.g. `'1/4'`). |
-| `outputDir` | `string` | `'.diffra'` | Output directory for reports and candidate screenshots. |
-| `baselineBranch` | `string` | `'origin/main'` | Target Git branch for merge-base baseline discovery. |
-| `storage` | `StorageAdapter \| object` | `{ type: 'local' }` | Storage driver or custom storage adapter. |
-| `notifiers` | `NotifierAdapter[]` | `[]` | Notification drivers (GitHub, Slack, or custom). |
-| `diffEngine` | `DiffEngineAdapter` | Native Rust SIMD | Custom perceptual diff comparison engine. |
-| `plugins` | `DiffraPlugin[]` | `[]` | Lifecycle plugins for custom pipeline hooks. |
-| `viewerUrl` | `string` | `undefined` | Base URL of deployed review viewer (e.g. GitHub Pages). |
+| `diffThreshold` | `number` | `0.063` | Perceptual sensitivity threshold (`0.0` strict to `1.0` permissive). |
+| `delay` | `number` | `100` | Post-render wait delay in milliseconds before taking screenshot. |
+| `pauseAnimationAtEnd` | `boolean` | `true` | Freezes CSS transitions and animations at final frame. |
+| `viewports` | `(number \| Viewport)[]` | `[{ width: 1280, height: 800, name: 'desktop' }]` | Viewport dimensions to capture. |
+| `selector` | `string` | `undefined` | CSS selector of specific element to capture. |
+| `mask` | `(string \| Locator)[]` | `[]` | Selectors or Playwright Locators to mask with solid pink. |
+| `fullPage` | `boolean` | `false` | Whether to take a full-page scroll screenshot. |
+
+### Domain 3: `runner`
+Configures parallel browser worker execution and CI integration:
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `concurrency` | `number` | `4` | Number of parallel browser workers. |
+| `baselineBranch` | `string` | `undefined` (auto) | Optional target branch override. When omitted, automatically discovered via CI PR target (`GITHUB_BASE_REF`), upstream tracking ref, `origin/HEAD`, or topological nearest-neighbor DAG merge base. |
+| `shard` | `string` | `undefined` | Shard coordinate (e.g. `"1/4"`). |
+| `projects` | `Project[]` | `[{ name: 'chromium', browser: 'chromium' }]` | Playwright projects and browser engines (`chromium`, `firefox`, `webkit`). |
+| `launchOptions` | `LaunchOptions` | `undefined` | Custom Playwright browser launch options. |
+
+### Domain 4: `storage`
+Configures baseline and candidate storage:
+
+| Provider | Options | Description |
+| :--- | :--- | :--- |
+| `local` | `{ provider: 'local', dir?: string }` | Local disk storage (default `.diffra/baselines`). |
+| `s3` | `{ provider: 's3', bucket: string, region?: string, prefix?: string }` | AWS S3 or MinIO cloud baseline bucket. |
+| `gcs` | `{ provider: 'gcs', bucket: string, prefix?: string }` | Google Cloud Storage bucket. |
+| `azure` | `{ provider: 'azure', container: string, connectionString?: string }` | Azure Blob Storage container. |
+
+### Domain 5: `reporters`
+Configures PR sticky comments, status checks, and messaging alerts:
+
+| Reporter | Options | Description |
+| :--- | :--- | :--- |
+| `github` | `'github'` or `{ type: 'github', token?: string, repo?: string }` | Posts sticky PR comments and commit status checks. |
+| `slack` | `{ type: 'slack', webhookUrl: string, channel?: string }` | Sends visual test alerts to Slack incoming webhook. |
+| `json` | `{ type: 'json', outputFile?: string }` | Emits structured test run report JSON. |

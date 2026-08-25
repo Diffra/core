@@ -48,12 +48,7 @@ export interface TestRunReport {
 }
 
 export type ViewMode = 'overview' | 'detail';
-export type DiffMode =
-  | 'highlight'
-  | 'split'
-  | 'swipe'
-  | 'onion'
-  | 'mask';
+export type DiffMode = 'highlight' | 'split' | 'swipe' | 'onion' | 'mask';
 export type FilterStatus =
   | 'all'
   | 'changed'

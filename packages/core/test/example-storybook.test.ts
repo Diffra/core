@@ -79,7 +79,7 @@ describe('Real-World Storybook Design System Index Parsing', () => {
       (s: any) => s.name === 'ResponsiveMatrix',
     );
     expect(responsiveStory).toBeDefined();
-    expect(responsiveStory?.parameters?.snapshot?.viewports).toEqual([
+    expect(responsiveStory?.snapshot?.viewports).toEqual([
       { name: 'mobile', width: 375, height: 667 },
       { name: 'tablet', width: 768, height: 1024 },
       { name: 'desktop', width: 1280, height: 800 },
@@ -92,7 +92,7 @@ describe('Real-World Storybook Design System Index Parsing', () => {
       'http://localhost:6006',
     );
     const featuredStory = stories.find((s: any) => s.name === 'Featured');
-    expect(featuredStory?.parameters?.snapshot?.threshold).toBe(0.02);
+    expect(featuredStory?.snapshot?.threshold ?? featuredStory?.snapshot?.diffThreshold).toBe(0.02);
   });
 
   it('parses Modal stories with animation and delay parameters', () => {
@@ -100,9 +100,9 @@ describe('Real-World Storybook Design System Index Parsing', () => {
       mockIndex,
       'http://localhost:6006',
     );
-    const modalStory = stories.find((s: any) => s.component === 'Modal');
-    expect(modalStory?.parameters?.snapshot?.delay).toBe(150);
-    expect(modalStory?.parameters?.snapshot?.pauseAnimationAtEnd).toBe(true);
+    const modalStory = stories.find((s: any) => s.group === 'Modal');
+    expect(modalStory?.snapshot?.delay).toBe(150);
+    expect(modalStory?.snapshot?.pauseAnimationAtEnd).toBe(true);
   });
 
   it('honors disable parameters in Badge stories', () => {
@@ -110,7 +110,7 @@ describe('Real-World Storybook Design System Index Parsing', () => {
       mockIndex,
       'http://localhost:6006',
     );
-    const badgeStories = stories.filter((s: any) => s.component === 'Badge');
+    const badgeStories = stories.filter((s: any) => s.group === 'Badge');
     expect(badgeStories).toHaveLength(1);
     expect(badgeStories[0].name).toBe('LiveIndicator');
   });

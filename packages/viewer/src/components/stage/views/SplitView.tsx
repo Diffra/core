@@ -50,9 +50,7 @@ export const SplitView: React.FC = () => {
             }
           />
         ) : (
-          <div className="text-ui-medium text-zinc-400">
-            No candidate image
-          </div>
+          <div className="text-ui-medium text-zinc-400">No candidate image</div>
         )}
       </div>
     </div>

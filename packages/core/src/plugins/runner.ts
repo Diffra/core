@@ -21,25 +21,14 @@ export class PluginRunner {
     }
   }
 
-  async hookDiscoverTargets(
-    targets: VisualTarget[],
-  ): Promise<VisualTarget[]> {
+  async hookDiscoverTargets(targets: VisualTarget[]): Promise<VisualTarget[]> {
     let currentTargets = [...targets];
     for (const plugin of this.plugins) {
       if (plugin.onDiscoverTargets) {
         currentTargets = await plugin.onDiscoverTargets(currentTargets);
-      } else if (plugin.onDiscoverStories) {
-        currentTargets = await plugin.onDiscoverStories(currentTargets);
       }
     }
     return currentTargets;
-  }
-
-  /** Alias for hookDiscoverTargets */
-  async hookDiscoverStories(
-    stories: VisualTarget[],
-  ): Promise<VisualTarget[]> {
-    return this.hookDiscoverTargets(stories);
   }
 
   async hookBeforeCapture(

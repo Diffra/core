@@ -10,7 +10,7 @@ export function formatMarkdownSummary(
   reportUrl?: string,
   viewerUrl?: string,
 ): string {
-  const { summary, results, branch, commit, baselineCommit } = report;
+  const { summary, results, git } = report;
   const hasChanges = summary.changed > 0 || summary.removed > 0;
   const statusIcon = hasChanges ? '⚠️' : '✅';
   const statusTitle = hasChanges
@@ -22,14 +22,15 @@ export function formatMarkdownSummary(
 
   md += `| Total | Changed | Added | Removed | Passed |\n`;
   md += `| :---: | :---: | :---: | :---: | :---: |\n`;
-  md += `| **${summary.total}** | **${summary.changed > 0 ? `🟠 ${summary.changed}` : '0'}** | **${summary.added > 0 ? `🟢 ${summary.added}` : '0'}** | **${summary.removed > 0 ? `🔴 ${summary.removed}` : '0'}** | **${summary.unchanged}** |\n\n`;
+  md += `| **${summary.total}** | **${summary.changed > 0 ? `🟠 ${summary.changed}` : '0'}** | **${summary.added > 0 ? `🟢 ${summary.added}` : '0'}** | **${summary.removed > 0 ? `🔴 ${summary.removed}` : '0'}** | **${summary.passed ?? summary.unchanged}** |\n\n`;
 
+  const branch = git?.branch || 'main';
+  const commit = git?.commit || '';
+  const baselineCommit = git?.baselineCommit;
   md += `**Branch:** \`${branch}\` | **Commit:** \`${commit.slice(0, 7)}\` | **Baseline:** \`${baselineCommit ? baselineCommit.slice(0, 7) : 'None'}\`\n\n`;
 
   const configuredViewer =
-    viewerUrl ||
-    process.env.DIFFRA_VIEWER_URL ||
-    process.env.GITHUB_PAGES_URL;
+    viewerUrl || process.env.DIFFRA_VIEWER_URL || process.env.GITHUB_PAGES_URL;
 
   let interactiveUrl = reportUrl;
   if (configuredViewer && reportUrl && !reportUrl.startsWith('file://')) {
@@ -52,11 +53,11 @@ export function formatMarkdownSummary(
     md += `| :--- | :--- | :---: | :---: | :---: |\n`;
 
     for (const item of changedStories) {
-      const diffPercent = item.diffResult
-        ? `${item.diffResult.diffPercentage.toFixed(2)}%`
+      const diffPercent = item.diff
+        ? `${item.diff.diffPercentage.toFixed(2)}%`
         : '-';
-      const diffPixels = item.diffResult
-        ? item.diffResult.diffCount.toLocaleString()
+      const diffPixels = item.diff
+        ? item.diff.diffCount.toLocaleString()
         : '-';
       const statusBadge =
         item.status === 'changed'
@@ -65,12 +66,13 @@ export function formatMarkdownSummary(
             ? '🟢 Added'
             : '🔴 Removed';
 
+      const groupName = item.group || 'Component';
       const storyLink = interactiveUrl
         ? `${interactiveUrl}#/story/${encodeURIComponent(item.id)}`
         : undefined;
       const storyLabel = storyLink
-        ? `[**${item.component}** / ${item.name}](${storyLink})`
-        : `**${item.component}** / ${item.name}`;
+        ? `[**${groupName}** / ${item.name}](${storyLink})`
+        : `**${groupName}** / ${item.name}`;
 
       md += `| ${storyLabel} | \`${item.viewport.width}x${item.viewport.height}\` | ${statusBadge} | ${diffPercent} | ${diffPixels} |\n`;
     }

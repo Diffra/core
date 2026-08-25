@@ -45,16 +45,27 @@ export function resolveDrivers(
 ): VisualDriver[] {
   const drivers: VisualDriver[] = [];
 
-  // 1. Explicit multi-driver array
-  if (config.drivers && Array.isArray(config.drivers)) {
-    for (const d of config.drivers) {
+  // 1. Explicit drivers (single driver or array)
+  if (config.drivers) {
+    const rawDrivers = Array.isArray(config.drivers)
+      ? config.drivers
+      : [config.drivers];
+
+    for (const d of rawDrivers) {
       if (typeof d === 'string') {
         if (d === 'storybook') drivers.push(createStorybookDriver());
         else if (d === 'url') drivers.push(createUrlDriver());
         else if (d === 'image') drivers.push(createImageDriver());
-        else if (d === 'figma') drivers.push(createFigmaDriver(config.figma));
-      } else if (d && typeof d === 'object' && 'name' in d) {
-        drivers.push(d);
+        else if (d === 'figma') drivers.push(createFigmaDriver());
+      } else if (d && typeof d === 'object') {
+        if ('driver' in d) {
+          if (d.driver === 'storybook') drivers.push(createStorybookDriver(d));
+          else if (d.driver === 'url') drivers.push(createUrlDriver(d));
+          else if (d.driver === 'image') drivers.push(createImageDriver(d));
+          else if (d.driver === 'figma') drivers.push(createFigmaDriver(d));
+        } else if ('name' in d) {
+          drivers.push(d as VisualDriver);
+        }
       }
     }
     if (drivers.length > 0) {
@@ -62,38 +73,12 @@ export function resolveDrivers(
     }
   }
 
-  // 2. Explicit single driver
-  if (config.driver) {
-    if (typeof config.driver === 'string') {
-      if (config.driver === 'storybook') return [createStorybookDriver()];
-      if (config.driver === 'url') return [createUrlDriver()];
-      if (config.driver === 'image') return [createImageDriver()];
-      if (config.driver === 'figma')
-        return [createFigmaDriver(config.figma)];
-    } else if (typeof config.driver === 'object' && 'name' in config.driver) {
-      return [config.driver];
-    }
-  }
-
-  // 3. Explicit in-memory targets
+  // 2. Explicit in-memory targets
   if (config.targets) {
     drivers.push(new TargetListDriver(config.targets));
     return drivers;
   }
 
-  // 4. Inferred drivers based on options
-  if (config.figma) {
-    return [createFigmaDriver(config.figma)];
-  }
-
-  if (config.urls && config.urls.length > 0) {
-    return [createUrlDriver()];
-  }
-
-  if (config.imagesDir) {
-    return [createImageDriver()];
-  }
-
-  // 5. Default fallback to Storybook driver
+  // 3. Default fallback to Storybook driver
   return [createStorybookDriver()];
 }

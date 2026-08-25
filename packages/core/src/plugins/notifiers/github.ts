@@ -1,8 +1,5 @@
 import fs from 'node:fs/promises';
-import {
-  DIFFRA_COMMENT_MARKER,
-  formatMarkdownSummary,
-} from './summary.js';
+import { DIFFRA_COMMENT_MARKER, formatMarkdownSummary } from './summary.js';
 import type { NotifierAdapter, TestRunReport } from '../../types/index.js';
 
 export interface GitHubNotifierOptions {
@@ -64,7 +61,8 @@ export class GitHubNotifier implements NotifierAdapter {
   private viewerUrl?: string;
 
   constructor(options: GitHubNotifierOptions = {}) {
-    this.token = options.token || process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    this.token =
+      options.token || process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
     this.repo = options.repo || process.env.GITHUB_REPOSITORY;
     this.prNumber = options.prNumber;
     this.commitSha = options.commitSha;
@@ -85,7 +83,7 @@ export class GitHubNotifier implements NotifierAdapter {
     };
 
     // 1. Commit Status Check
-    const sha = this.commitSha || report.commit;
+    const sha = this.commitSha || report.git?.commit;
     if (sha && sha !== 'uncommitted') {
       try {
         const state = report.summary.changed > 0 ? 'failure' : 'success';
@@ -107,7 +105,9 @@ export class GitHubNotifier implements NotifierAdapter {
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.warn(`[diffra] Warning posting GitHub commit status check: ${msg}`);
+        console.warn(
+          `[diffra] Warning posting GitHub commit status check: ${msg}`,
+        );
       }
     }
 

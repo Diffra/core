@@ -56,19 +56,19 @@ describe('3-Tier Parameter Cascade & Snapshot Hierarchy', () => {
 
     const defaultStory = stories.find((s: any) => s.name === 'Default')!;
     expect(defaultStory).toBeDefined();
-    const defaultParams = defaultStory.parameters?.snapshot as TargetParameters;
+    const defaultParams = defaultStory.snapshot as TargetParameters;
     expect(defaultParams.delay).toBe(300);
     expect(defaultParams.diffThreshold).toBe(0.08);
 
     const customStory = stories.find((s: any) => s.name === 'CustomDelay')!;
     expect(customStory).toBeDefined();
-    const customParams = customStory.parameters?.snapshot as TargetParameters;
+    const customParams = customStory.snapshot as TargetParameters;
     expect(customParams.delay).toBe(800);
     expect(customParams.diffThreshold).toBe(0.02);
     expect(customParams.mask).toEqual(['.live-clock']);
   });
 
-  it('supports animations: "allow" and animations: "disabled" parameters', () => {
+  it('supports pauseAnimationAtEnd snapshot parameter', () => {
     const driver = new StorybookDriver();
     const mockIndex = {
       v: 4,
@@ -80,7 +80,7 @@ describe('3-Tier Parameter Cascade & Snapshot Hierarchy', () => {
           type: 'story',
           parameters: {
             snapshot: {
-              animations: 'allow',
+              pauseAnimationAtEnd: false,
             },
           },
         },
@@ -93,7 +93,7 @@ describe('3-Tier Parameter Cascade & Snapshot Hierarchy', () => {
     );
     expect(stories).toHaveLength(1);
     const story = stories[0];
-    const params = story.parameters?.snapshot as TargetParameters;
-    expect(params.animations).toBe('allow');
+    const params = story.snapshot as TargetParameters;
+    expect(params.pauseAnimationAtEnd).toBe(false);
   });
 });

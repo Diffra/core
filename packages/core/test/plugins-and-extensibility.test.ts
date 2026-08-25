@@ -71,7 +71,7 @@ describe('Modular Plugin & Extensibility System', () => {
     };
 
     const notifiers = resolveNotifiers({
-      notifiers: [
+      reporters: [
         customNotifier,
         createSlackNotifier({
           webhookUrl: 'https://hooks.slack.com/services/...',
@@ -86,9 +86,11 @@ describe('Modular Plugin & Extensibility System', () => {
     const dummyReport: TestRunReport = {
       runId: 'run-123',
       timestamp: new Date().toISOString(),
-      branch: 'feature-extensibility',
-      commit: 'abc1234',
-      summary: { total: 10, changed: 1, added: 0, removed: 0, unchanged: 9 },
+      git: {
+        branch: 'feature-extensibility',
+        commit: 'abc1234',
+      },
+      summary: { total: 10, passed: 9, changed: 1, added: 0, removed: 0, unchanged: 9 },
       results: [],
     };
 
@@ -126,10 +128,10 @@ describe('Modular Plugin & Extensibility System', () => {
       setup: () => {
         hookEvents.push('setup');
       },
-      onDiscoverStories: (stories) => {
-        hookEvents.push('onDiscoverStories');
-        // Filter or modify stories
-        return stories.map((s) => ({ ...s, name: `[Audited] ${s.name}` }));
+      onDiscoverTargets: (targets) => {
+        hookEvents.push('onDiscoverTargets');
+        // Filter or modify targets
+        return targets.map((s) => ({ ...s, name: `[Audited] ${s.name}` }));
       },
       onBeforeCapture: () => {
         hookEvents.push('onBeforeCapture');
@@ -146,8 +148,8 @@ describe('Modular Plugin & Extensibility System', () => {
     const runner = new PluginRunner([testPlugin]);
     await runner.hookSetup({});
 
-    const transformedStories = await runner.hookDiscoverStories([
-      { id: '1', name: 'Primary', component: 'Button', title: 'Button' },
+    const transformedStories = await runner.hookDiscoverTargets([
+      { id: '1', name: 'Primary', group: 'Button' },
     ]);
     expect(transformedStories[0].name).toBe('[Audited] Primary');
 
@@ -173,7 +175,7 @@ describe('Modular Plugin & Extensibility System', () => {
 
     expect(hookEvents).toEqual([
       'setup',
-      'onDiscoverStories',
+      'onDiscoverTargets',
       'onBeforeCapture',
       'onAfterCapture',
       'onTestComplete',

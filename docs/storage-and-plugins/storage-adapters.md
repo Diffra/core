@@ -99,36 +99,36 @@ const customInternalStorage: StorageAdapter = {
     // Initialize storage client
   },
 
-  async uploadCandidate(runId, targetId, viewport, buffer, options) {
-    const key = `runs/${runId}/${targetId}-${viewport.name}.png`;
-    await myStorageClient.put(key, buffer);
-    return `https://storage.internal.net/${key}`;
+  async uploadCandidate(runId, key, buffer) {
+    const s3Key = `runs/${runId}/${key.targetId}-${key.viewport.name || `${key.viewport.width}x${key.viewport.height}`}.png`;
+    await myStorageClient.put(s3Key, buffer);
+    return `https://storage.internal.net/${s3Key}`;
   },
 
-  async uploadDiff(runId, targetId, viewport, buffer, options) {
-    const key = `diffs/${runId}/${targetId}-${viewport.name}.png`;
-    await myStorageClient.put(key, buffer);
-    return `https://storage.internal.net/${key}`;
+  async uploadDiff(runId, key, buffer) {
+    const s3Key = `diffs/${runId}/${key.targetId}-${key.viewport.name || `${key.viewport.width}x${key.viewport.height}`}.png`;
+    await myStorageClient.put(s3Key, buffer);
+    return `https://storage.internal.net/${s3Key}`;
   },
 
-  async downloadBaseline(baselineCommit, targetId, viewport, options) {
-    const key = `baselines/${baselineCommit}/${targetId}-${viewport.name}.png`;
+  async downloadBaseline(baselineCommit, key) {
+    const s3Key = `baselines/${baselineCommit}/${key.targetId}-${key.viewport.name || `${key.viewport.width}x${key.viewport.height}`}.png`;
     try {
-      return await myStorageClient.getBuffer(key);
+      return await myStorageClient.getBuffer(s3Key);
     } catch {
       return null;
     }
   },
 
-  async uploadBaseline(commitSha, targetId, viewport, buffer, options) {
-    const key = `baselines/${commitSha}/${targetId}-${viewport.name}.png`;
-    await myStorageClient.put(key, buffer);
+  async uploadBaseline(commitSha, key, buffer) {
+    const s3Key = `baselines/${commitSha}/${key.targetId}-${key.viewport.name || `${key.viewport.width}x${key.viewport.height}`}.png`;
+    await myStorageClient.put(s3Key, buffer);
   },
 
   async saveReport(report) {
-    const key = `runs/${report.runId}/report.json`;
-    await myStorageClient.put(key, Buffer.from(JSON.stringify(report)));
-    return key;
+    const s3Key = `runs/${report.runId}/report.json`;
+    await myStorageClient.put(s3Key, Buffer.from(JSON.stringify(report)));
+    return s3Key;
   },
 };
 

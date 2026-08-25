@@ -22,7 +22,9 @@ export function matchesBranchOrBool(
 
   const currentBranch = currentRef.replace(/^refs\/heads\//, '');
   if (inputValue === 'default-branch') {
-    return defaultBranch ? currentBranch === defaultBranch : currentBranch === 'main' || currentBranch === 'master';
+    return defaultBranch
+      ? currentBranch === defaultBranch
+      : currentBranch === 'main' || currentBranch === 'master';
   }
   return (
     currentBranch === inputValue || currentRef === `refs/heads/${inputValue}`
@@ -55,11 +57,11 @@ export async function run(): Promise<void> {
       core.getInput('diffThreshold') || core.getInput('threshold');
     const concurrencyInput = core.getInput('concurrency');
     const exitZeroInput = core.getInput('exitZeroOnChanges') || 'true';
-    const autoAcceptInput = core.getInput('autoAcceptChanges') || 'default-branch';
+    const autoAcceptInput =
+      core.getInput('autoAcceptChanges') || 'default-branch';
     const exitOnceUploadedInput = core.getInput('exitOnceUploaded');
 
-    const defaultBranch =
-      github.context.payload.repository?.default_branch;
+    const defaultBranch = github.context.payload.repository?.default_branch;
 
     const shouldExitZeroOnChanges = matchesBranchOrBool(
       exitZeroInput,
@@ -142,28 +144,8 @@ export async function run(): Promise<void> {
     core.info('Starting Diffra visual regression test run...');
 
     // 2. Configuration Setup
-    const configOverrides: Record<string, unknown> = {};
-    if (driverInput) {
-      configOverrides.driver = driverInput;
-    }
-    if (urlsInput) {
-      try {
-        configOverrides.urls = urlsInput.startsWith('[')
-          ? JSON.parse(urlsInput)
-          : urlsInput
-              .split(',')
-              .map((s) => s.trim())
-              .filter(Boolean);
-      } catch {
-        configOverrides.urls = urlsInput
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean);
-      }
-    }
-    if (storybookUrl) {
-      configOverrides.storybookUrl = storybookUrl;
-    }
+    const snapshotOverrides: Record<string, unknown> = {};
+    const runnerOverrides: Record<string, unknown> = {};
 
     if (thresholdInput) {
       const parsedThreshold = parseFloat(thresholdInput);
@@ -172,23 +154,67 @@ export async function run(): Promise<void> {
         parsedThreshold >= 0 &&
         parsedThreshold <= 1
       ) {
-        configOverrides.diffThreshold = parsedThreshold;
-        configOverrides.threshold = parsedThreshold;
+        snapshotOverrides.diffThreshold = parsedThreshold;
       }
     }
 
     if (concurrencyInput) {
       const parsedConcurrency = parseInt(concurrencyInput, 10);
       if (!Number.isNaN(parsedConcurrency) && parsedConcurrency > 0) {
-        configOverrides.concurrency = Math.min(parsedConcurrency, MAX_CONCURRENCY);
+        runnerOverrides.concurrency = Math.min(
+          parsedConcurrency,
+          MAX_CONCURRENCY,
+        );
       }
     }
 
+    const configOverrides: Record<string, unknown> = {};
+    if (driverInput === 'storybook' || (!driverInput && !urlsInput)) {
+      configOverrides.drivers = {
+        driver: 'storybook',
+        url: storybookUrl || undefined,
+        buildDir: storybookBuildDir || undefined,
+      };
+    } else if (driverInput === 'url' || urlsInput) {
+      let urls: Array<string> = ['/'];
+      if (urlsInput) {
+        try {
+          urls = urlsInput.startsWith('[')
+            ? JSON.parse(urlsInput)
+            : urlsInput
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean);
+        } catch {
+          urls = urlsInput
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+      }
+      configOverrides.drivers = {
+        driver: 'url',
+        baseUrl: storybookUrl || undefined,
+        urls,
+      };
+    } else {
+      configOverrides.drivers = driverInput;
+    }
+
+    if (Object.keys(snapshotOverrides).length > 0)
+      configOverrides.snapshot = snapshotOverrides;
+    if (Object.keys(runnerOverrides).length > 0)
+      configOverrides.runner = runnerOverrides;
+
     // 3. GitHub PR Comment & Commit Status Configuration
-    const repoOwner = github.context.repo.repo ? github.context.repo.owner : undefined;
+    const repoOwner = github.context.repo.repo
+      ? github.context.repo.owner
+      : undefined;
     const repoName = github.context.repo.repo;
     const repoString =
-      repoOwner && repoName ? `${repoOwner}/${repoName}` : process.env.GITHUB_REPOSITORY;
+      repoOwner && repoName
+        ? `${repoOwner}/${repoName}`
+        : process.env.GITHUB_REPOSITORY;
     const prNumber =
       github.context.payload.pull_request?.number ||
       (process.env.GITHUB_REF?.match(/^refs\/pull\/(\d+)\/(merge|head)$/)
@@ -200,7 +226,8 @@ export async function run(): Promise<void> {
       repoOwner && repoName
         ? `https://${repoOwner}.github.io/${repoName}`
         : undefined;
-    const viewerUrl = viewerUrlInput || process.env.DIFFRA_VIEWER_URL || autoPagesUrl;
+    const viewerUrl =
+      viewerUrlInput || process.env.DIFFRA_VIEWER_URL || autoPagesUrl;
 
     if (viewerUrl) {
       configOverrides.viewerUrl = viewerUrl;
@@ -263,12 +290,13 @@ export async function run(): Promise<void> {
     // 7. Emit GitHub Annotations / Warnings for Changed Targets
     for (const result of report.results) {
       if (result.status === 'changed') {
-        const pct = result.diffResult?.diffPercentage.toFixed(2) ?? '0.00';
-        const count = result.diffResult?.diffCount.toLocaleString() ?? '0';
+        const pct = result.diff?.diffPercentage.toFixed(2) ?? '0.00';
+        const count = result.diff?.diffCount.toLocaleString() ?? '0';
+        const groupName = result.group || 'Component';
         core.warning(
-          `Visual diff detected in "${result.component} / ${result.name}" [${result.viewport.width}x${result.viewport.height}]: ${pct}% change (${count} pixels).`,
+          `Visual diff detected in "${groupName} / ${result.name}" [${result.viewport.width}x${result.viewport.height}]: ${pct}% change (${count} pixels).`,
           {
-            title: `Visual Change: ${result.component} - ${result.name}`,
+            title: `Visual Change: ${groupName} - ${result.name}`,
           },
         );
       }

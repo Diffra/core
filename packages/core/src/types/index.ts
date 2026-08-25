@@ -7,6 +7,7 @@ import type {
   ViewportSize,
 } from 'playwright';
 
+// Re-export standard dependency types directly
 export type {
   BoundingBox,
   DiffOptions,
@@ -17,6 +18,10 @@ export type {
   PageScreenshotOptions,
   ViewportSize,
 };
+
+// ============================================================================
+// Viewport & Mode Types (reusing Playwright ViewportSize)
+// ============================================================================
 
 export type Viewport = ViewportSize & {
   name?: string;
@@ -38,171 +43,114 @@ export interface Project {
   launchOptions?: LaunchOptions;
 }
 
-export interface SnapshotModeConfig {
-  viewport?: number | { width: number; height?: number };
-  theme?: string;
-  [key: string]: unknown;
-}
+// ============================================================================
+// 1. Snapshot & Diffing Domain
+// ============================================================================
 
-export interface TargetParameters {
-  /** Skip taking visual snapshots for this target */
-  disable?: boolean;
-  /** Alias for disable */
-  disableSnapshot?: boolean;
-  /** Perceptual color threshold from 0.0 (strict) to 1.0 (permissive), default 0.063 */
+export interface SnapshotConfig {
+  /** Perceptual color delta threshold from 0.0 (strict) to 1.0 (permissive), default 0.063 */
   diffThreshold?: number;
-  /** Alias for diffThreshold */
-  threshold?: number;
-  /** Milliseconds to wait after render/navigation before taking screenshot */
+
+  /** Settle wait time (ms) after component render before capture (default: 100) */
   delay?: number;
-  /** Playwright animations handling: 'disabled' (default) stops CSS animations, 'allow' keeps them running */
-  animations?: 'disabled' | 'allow';
-  /** Pause CSS animations and transitions at their final frame (default true, alias for animations: 'disabled') */
+
+  /** Freeze CSS animations and transitions at final frame (default: true) */
   pauseAnimationAtEnd?: boolean;
-  /** Multi-mode configurations (e.g. viewports, themes) */
-  modes?: Record<string, SnapshotModeConfig>;
-  /** Specific viewport widths or objects to capture */
+
+  /** Default viewports matrix to capture */
   viewports?: ViewportInput[];
-  /** Optional CSS selector to isolate for screenshot */
+
+  /** CSS selector to isolate for snapshot */
   selector?: string;
-  /** Locators or CSS selectors to mask before taking screenshot */
+
+  /** Locators or CSS selectors to mask */
   mask?: (string | Locator)[];
-  /** Take full scrollable page screenshot */
+
+  /** Capture full scrollable page */
   fullPage?: boolean;
-  /** Optional clipping region */
-  clip?: { x: number; y: number; width: number; height: number };
+
+  /** Skip visual snapshot generation */
+  disable?: boolean;
+
+  /** Clipping rectangle */
+  clip?: PageScreenshotOptions['clip'];
+
   /** Transparent background option */
   omitBackground?: boolean;
+
+  /** Multi-mode configurations (e.g. viewports, themes) */
+  modes?: Record<string, Partial<SnapshotConfig>>;
+
   /** Passthrough raw Playwright screenshot options */
   screenshotOptions?: PageScreenshotOptions;
 }
 
-/**
- * Normalized visual target representing any testable UI unit (story, web route, modal state, static image, figma frame).
- */
+/** Canonical Storybook parameter type (parameters.snapshot) */
+export type TargetParameters = SnapshotConfig;
+
+// ============================================================================
+// 2. Target Drivers Domain
+// ============================================================================
+
+export interface UrlTargetConfig {
+  url: string;
+  name?: string;
+  group?: string;
+  snapshot?: SnapshotConfig;
+}
+
+export interface StorybookDriverConfig {
+  driver: 'storybook';
+  url?: string;
+  buildDir?: string;
+}
+
+export interface UrlDriverConfig {
+  driver: 'url';
+  baseUrl?: string;
+  urls: Array<string | UrlTargetConfig>;
+}
+
+export interface ImageDriverConfig {
+  driver: 'image';
+  dir: string;
+}
+
+export interface FigmaDriverConfig {
+  driver?: 'figma';
+  fileKey: string;
+  personalAccessToken?: string;
+  nodeIds?: string[];
+  components?: Record<string, string>;
+  version?: string;
+  scale?: number;
+  snapshot?: SnapshotConfig;
+}
+
+export type BuiltinDriverConfig =
+  | StorybookDriverConfig
+  | UrlDriverConfig
+  | ImageDriverConfig
+  | FigmaDriverConfig;
+
+export type DriverName = 'storybook' | 'url' | 'image' | 'figma';
+
+export type DriverInput =
+  | DriverName
+  | BuiltinDriverConfig
+  | VisualDriver
+  | string;
+
 export interface VisualTarget {
   id: string;
   name: string;
   group?: string;
-  component?: string;
-  title?: string;
   url?: string;
   filePath?: string;
-  selector?: string;
-  mask?: (string | Locator)[];
-  parameters?: {
-    snapshot?: TargetParameters;
-    visual?: TargetParameters;
-    diffra?: TargetParameters;
-    [key: string]: unknown;
-  };
+  snapshot?: SnapshotConfig;
   metadata?: Record<string, unknown>;
 }
 
-export interface VisualTestResult {
-  id: string;
-  name: string;
-  group?: string;
-  component: string;
-  viewport: Viewport;
-  browser?: string;
-  colorScheme?: string;
-  blobHash?: string;
-  baselineBlobHash?: string;
-  status: 'changed' | 'added' | 'removed' | 'unchanged';
-  diffResult?: DiffResult;
-  baselinePath?: string;
-  candidatePath?: string;
-  diffPath?: string;
-  baselineUrl?: string;
-  candidateUrl?: string;
-  diffUrl?: string;
-  metadata?: Record<string, unknown>;
-}
-
-export interface TestRunReport {
-  runId: string;
-  timestamp: string;
-  branch: string;
-  commit: string;
-  baselineCommit?: string;
-  baselineBranch?: string;
-  repositoryUrl?: string;
-  baselineReportUrl?: string;
-  branchLatestUrl?: string;
-  viewerUrl?: string;
-  summary: {
-    total: number;
-    changed: number;
-    added: number;
-    removed: number;
-    unchanged: number;
-  };
-  results: VisualTestResult[];
-}
-
-/**
- * Storage adapter interface for baseline and candidate screenshot persistence.
- */
-export interface StorageAdapter {
-  name: string;
-  init?(): Promise<void>;
-  uploadCandidate(
-    runId: string,
-    targetId: string,
-    viewport: Viewport,
-    imageBuffer: Buffer,
-    options?: { browser?: string },
-  ): Promise<string>;
-  uploadDiff(
-    runId: string,
-    targetId: string,
-    viewport: Viewport,
-    imageBuffer: Buffer,
-    options?: { browser?: string },
-  ): Promise<string>;
-  downloadBaseline(
-    baselineCommit: string,
-    targetId: string,
-    viewport: Viewport,
-    options?: { browser?: string },
-  ): Promise<Buffer | null>;
-  uploadBaseline(
-    commitSha: string,
-    targetId: string,
-    viewport: Viewport,
-    imageBuffer: Buffer,
-    options?: { browser?: string },
-  ): Promise<void>;
-  uploadBlob?(hash: string, imageBuffer: Buffer): Promise<string>;
-  downloadBlob?(hash: string): Promise<Buffer | null>;
-  hasBlob?(hash: string): Promise<boolean>;
-  saveReport(report: TestRunReport): Promise<string>;
-}
-
-/**
- * Notifier adapter interface for posting CI and status summaries.
- */
-export interface NotifierAdapter {
-  name: string;
-  notify(report: TestRunReport): Promise<void>;
-}
-
-/**
- * Diff engine interface for perceptual comparison.
- */
-export interface DiffEngineAdapter {
-  name: string;
-  compare(
-    baseline: Buffer,
-    candidate: Buffer,
-    options?: DiffOptions,
-  ): Promise<DiffResult>;
-}
-
-/**
- * Context provided to visual drivers during setup, discovery, and capture.
- */
 export interface DriverContext {
   config: DiffraConfig;
   cwd: string;
@@ -221,9 +169,6 @@ export interface DriverCaptureResult {
   project?: Project;
 }
 
-/**
- * Unified driver interface for pluggable target discovery and screenshot capture.
- */
 export interface VisualDriver {
   name: string;
   setup?(context: DriverContext): Promise<void> | void;
@@ -239,17 +184,196 @@ export interface VisualDriver {
   teardown?(context: DriverContext): Promise<void> | void;
 }
 
-/**
- * Unified plugin interface for extending visual testing lifecycle.
- */
+// ============================================================================
+// 3. Runner & CI Domain
+// ============================================================================
+
+export interface RunnerConfig {
+  /** Number of parallel browser workers (default: 4) */
+  concurrency?: number;
+
+  /** Target Git branch for merge-base baseline discovery (default: 'origin/main') */
+  baselineBranch?: string;
+
+  /** CI shard coordinate (e.g. "1/4") */
+  shard?: string;
+
+  /** Playwright browser projects (Chromium, Firefox, WebKit, Mobile devices) */
+  projects?: Project[];
+
+  /** Playwright browser launch options */
+  launchOptions?: LaunchOptions;
+}
+
+export interface GitContext {
+  branch: string;
+  commit: string;
+  baselineBranch?: string;
+  baselineCommit?: string;
+  repositoryUrl?: string;
+}
+
+// ============================================================================
+// 4. Storage Domain
+// ============================================================================
+
+export interface SnapshotKey {
+  targetId: string;
+  viewport: Viewport;
+  browser?: string;
+}
+
+export type StorageConfig =
+  | {
+      provider: 'local';
+      dir?: string;
+      outputDir?: string;
+    }
+  | {
+      provider: 's3';
+      bucket: string;
+      region?: string;
+      prefix?: string;
+      endpoint?: string;
+    }
+  | {
+      provider: 'gcs';
+      bucket: string;
+      prefix?: string;
+    }
+  | {
+      provider: 'azure';
+      container: string;
+      connectionString?: string;
+      prefix?: string;
+    };
+
+export interface StorageAdapter {
+  name: string;
+  init?(): Promise<void>;
+  uploadCandidate(
+    runId: string,
+    key: SnapshotKey,
+    buffer: Buffer,
+  ): Promise<string>;
+  uploadDiff(
+    runId: string,
+    key: SnapshotKey,
+    buffer: Buffer,
+  ): Promise<string>;
+  downloadBaseline(
+    commit: string,
+    key: SnapshotKey,
+  ): Promise<Buffer | null>;
+  uploadBaseline(
+    commit: string,
+    key: SnapshotKey,
+    buffer: Buffer,
+  ): Promise<void>;
+  uploadBlob?(hash: string, buffer: Buffer): Promise<string>;
+  downloadBlob?(hash: string): Promise<Buffer | null>;
+  hasBlob?(hash: string): Promise<boolean>;
+  saveReport(report: TestRunReport): Promise<string>;
+}
+
+// ============================================================================
+// 5. Reporters & Results Domain
+// ============================================================================
+
+export type SnapshotStatus = 'unchanged' | 'changed' | 'added' | 'removed';
+
+export interface ImageArtifact {
+  path?: string;
+  url?: string;
+  hash?: string;
+}
+
+export interface VisualTestResult {
+  id: string;
+  name: string;
+  group?: string;
+  viewport: Viewport;
+  status: SnapshotStatus;
+  browser?: string;
+  diff?: DiffResult;
+  baseline?: ImageArtifact;
+  candidate: ImageArtifact;
+  diffImage?: ImageArtifact;
+  metadata?: Record<string, unknown>;
+}
+
+export interface TestRunSummary {
+  total: number;
+  passed: number;
+  changed: number;
+  added: number;
+  removed: number;
+  unchanged: number;
+}
+
+export interface ReportLinks {
+  viewer?: string;
+  baselineReport?: string;
+  branchLatest?: string;
+}
+
+export interface TestRunReport {
+  runId: string;
+  timestamp: string;
+  git: GitContext;
+  summary: TestRunSummary;
+  links?: ReportLinks;
+  results: VisualTestResult[];
+}
+
+export interface NotifierAdapter {
+  name: string;
+  notify(report: TestRunReport): Promise<void>;
+}
+
+export type ReporterConfig =
+  | {
+      type: 'github';
+      token?: string;
+      repo?: string;
+      prNumber?: number;
+      viewerUrl?: string;
+    }
+  | {
+      type: 'slack';
+      webhookUrl: string;
+      channel?: string;
+    }
+  | {
+      type: 'json';
+      outputFile?: string;
+    };
+
+export type ReporterInput =
+  | 'github'
+  | 'slack'
+  | 'json'
+  | ReporterConfig
+  | NotifierAdapter;
+
+// ============================================================================
+// Diff Engine & Plugins
+// ============================================================================
+
+export interface DiffEngineAdapter {
+  name: string;
+  compare(
+    baseline: Buffer,
+    candidate: Buffer,
+    options?: DiffOptions,
+  ): Promise<DiffResult>;
+}
+
 export interface DiffraPlugin {
   name: string;
   setup?(config: DiffraConfig): Promise<void> | void;
   onDiscoverTargets?(
     targets: VisualTarget[],
-  ): Promise<VisualTarget[]> | VisualTarget[];
-  onDiscoverStories?(
-    stories: VisualTarget[],
   ): Promise<VisualTarget[]> | VisualTarget[];
   onBeforeCapture?(
     target: VisualTarget,
@@ -263,108 +387,34 @@ export interface DiffraPlugin {
   onTestComplete?(report: TestRunReport): Promise<void> | void;
 }
 
-export interface UrlTargetConfig {
-  id?: string;
-  name?: string;
-  group?: string;
-  url: string;
-  selector?: string;
-  mask?: (string | Locator)[];
-  delay?: number;
-  diffThreshold?: number;
-  viewports?: ViewportInput[];
-}
-
-export interface FigmaDriverOptions {
-  fileKey: string;
-  personalAccessToken?: string;
-  nodeIds?: string[];
-  components?: Record<string, string>;
-  version?: string;
-  scale?: number;
-  format?: 'png' | 'jpg' | 'svg' | 'pdf';
-  diffThreshold?: number;
-}
+// ============================================================================
+// Top-Level Diffra Configuration (5-Domain Architecture)
+// ============================================================================
 
 export interface DiffraConfig {
-  /** Driver name ('storybook', 'url', 'image', 'figma') or custom VisualDriver implementation */
-  driver?: 'storybook' | 'url' | 'image' | 'figma' | VisualDriver;
-  /** Multiple drivers to run in a single test pass */
-  drivers?: (VisualDriver | string)[];
+  /** 1. Target drivers & discovery (Storybook, URLs, Figma, Images) */
+  drivers?: DriverInput | DriverInput[];
 
-  /** Explicit in-memory target list or target provider function */
-  targets?: VisualTarget[] | (() => Promise<VisualTarget[]> | VisualTarget[]);
+  /** 2. Snapshot & comparison rules (viewports, diffThreshold, delay, pauseAnimationAtEnd) */
+  snapshot?: SnapshotConfig;
 
-  /** URL list for the generic URL driver */
-  urls?: Array<string | UrlTargetConfig>;
+  /** 3. Browser & CI execution (concurrency, projects, launchOptions, shard, baselineBranch) */
+  runner?: RunnerConfig;
 
-  /** Directory for direct image/screenshot comparison (ImageDriver) */
-  imagesDir?: string;
+  /** 4. Baseline & artifact persistence (local, S3, R2, GCS, Azure) */
+  storage?: StorageConfig | StorageAdapter;
 
-  /** Figma driver configuration options */
-  figma?: FigmaDriverOptions;
+  /** 5. Notifications & PR reporting (GitHub, Slack, JSON) */
+  reporters?: ReporterInput[];
 
-  /** Base preview server URL (e.g. 'http://localhost:3000' or 'http://localhost:6006') */
-  baseUrl?: string;
-  previewUrl?: string;
-  /** Storybook preview server URL */
-  storybookUrl?: string;
-  storybookPort?: number;
-  storybookBuildDir?: string;
-  stories?: string[];
-
-  /** Playwright multi-engine projects and device configuration */
-  projects?: Project[];
-
-  /** CI Sharding configuration (e.g. "1/4") */
-  shard?: string;
-
-  /** Global testing options */
-  viewports?: ViewportInput[];
-  diffThreshold?: number;
-  threshold?: number;
-  delay?: number;
-  animations?: 'disabled' | 'allow';
-  pauseAnimationAtEnd?: boolean;
-  launchOptions?: LaunchOptions;
-  concurrency?: number;
-  outputDir?: string;
-  baselineBranch?: string;
-  storage?:
-    | StorageAdapter
-    | {
-        type: 'local' | 's3' | 'gcs' | 'azure';
-        local?: {
-          baselineDir?: string;
-        };
-        s3?: {
-          bucket: string;
-          region?: string;
-          prefix?: string;
-          endpoint?: string;
-        };
-        gcs?: {
-          bucket: string;
-          prefix?: string;
-        };
-        azure?: {
-          container: string;
-          connectionString?: string;
-          prefix?: string;
-        };
-      };
-  notifiers?: NotifierAdapter[];
-  diffEngine?: DiffEngineAdapter;
+  /** Lifecycle plugins */
   plugins?: DiffraPlugin[];
-  viewerUrl?: string;
-  notifier?: {
-    github?: {
-      token?: string;
-      repo?: string;
-      prNumber?: number;
-      viewerUrl?: string;
-    };
-  };
+
+  /** Custom diff engine */
+  diffEngine?: DiffEngineAdapter;
+
+  /** Explicit in-memory targets or target provider */
+  targets?: VisualTarget[] | (() => Promise<VisualTarget[]> | VisualTarget[]);
 }
 
 export function defineConfig(config: DiffraConfig): DiffraConfig {

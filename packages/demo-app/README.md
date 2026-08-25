@@ -37,15 +37,21 @@ See [`diffra.config.ts`](./diffra.config.ts) for sample configuration:
 import { defineConfig } from '@diffra/core/config';
 
 export default defineConfig({
-  driver: 'url',
-  baseUrl: 'http://localhost:4173',
-  urls: ['/', '/about', '/features', '/pricing'],
-  viewports: [
-    { name: 'mobile', width: 375, height: 667 },
-    { name: 'desktop', width: 1280, height: 800 },
-  ],
-  diffThreshold: 0.05,
-  concurrency: 4,
+  drivers: {
+    driver: 'url',
+    baseUrl: 'http://localhost:4173',
+    urls: ['/', '/about', '/features', '/pricing'],
+  },
+  snapshot: {
+    viewports: [
+      { name: 'mobile', width: 375, height: 667 },
+      { name: 'desktop', width: 1280, height: 800 },
+    ],
+    diffThreshold: 0.05,
+  },
+  runner: {
+    concurrency: 4,
+  },
 });
 ```
 

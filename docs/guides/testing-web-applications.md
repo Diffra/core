@@ -12,37 +12,38 @@ To test web application routes, set `driver: 'url'` in your `diffra.config.ts`:
 import { defineConfig } from '@diffra/core/config';
 
 export default defineConfig({
-  driver: 'url',
+  drivers: {
+    driver: 'url',
+    baseUrl: 'http://localhost:3000',
+    urls: [
+      '/',
+      '/pricing',
+      '/features',
+      {
+        url: '/dashboard',
+        name: 'Analytics Dashboard',
+        group: 'Authenticated Pages',
+        snapshot: {
+          selector: '#dashboard-grid',
+          delay: 250,
+          diffThreshold: 0.05,
+          mask: ['.dynamic-clock', '.user-avatar'],
+          viewports: [
+            { name: 'mobile', width: 375, height: 667 },
+            { name: 'desktop', width: 1440, height: 900 },
+          ],
+        },
+      },
+    ],
+  },
 
-  // Base URL for relative paths
-  storybookUrl: 'http://localhost:3000',
-
-  // List of route strings or target objects
-  urls: [
-    '/',
-    '/pricing',
-    '/features',
-    {
-      url: '/dashboard',
-      name: 'Analytics Dashboard',
-      group: 'Authenticated Pages',
-      selector: '#dashboard-grid',
-      delay: 250,
-      diffThreshold: 0.05,
-      mask: ['.dynamic-clock', '.user-avatar'],
-      viewports: [
-        { name: 'mobile', width: 375, height: 667 },
-        { name: 'desktop', width: 1440, height: 900 },
-      ],
-    },
-  ],
-
-  // Global responsive viewports
-  viewports: [
-    { name: 'mobile', width: 375, height: 667 },
-    { name: 'tablet', width: 768, height: 1024 },
-    { name: 'desktop', width: 1280, height: 800 },
-  ],
+  snapshot: {
+    viewports: [
+      { name: 'mobile', width: 375, height: 667 },
+      { name: 'tablet', width: 768, height: 1024 },
+      { name: 'desktop', width: 1280, height: 800 },
+    ],
+  },
 });
 ```
 
@@ -57,11 +58,7 @@ Each entry in the `urls` array can be a plain relative path string (e.g. `'/pric
 | `url` | `string` | **Required**. Relative path (`'/checkout'`) or absolute URL (`'https://staging.example.com/checkout'`). |
 | `name` | `string` | Human-readable target name displayed in reports and sidebar. |
 | `group` | `string` | Categorization group in the review viewer sidebar (e.g. `'Marketing Pages'`). |
-| `selector` | `string` | CSS selector to isolate for capture (e.g. `'#pricing-cards'`). Ignores the rest of the page. |
-| `mask` | `string[]` | CSS selectors for dynamic elements to mask (e.g. `['.live-counter', '.auth-email']`). |
-| `delay` | `number` | Milliseconds to wait after page load before taking screenshot. Useful for client-side hydration. |
-| `diffThreshold` | `number` | Perceptual sensitivity threshold (`0.00` strict to `1.00` permissive) for this specific route. |
-| `viewports` | `(number \| Viewport)[]` | Specific viewport dimensions to test for this route. |
+| `snapshot` | `SnapshotConfig` | Custom snapshot parameters for this specific target (`selector`, `mask`, `delay`, `diffThreshold`, `viewports`). |
 
 ---
 
@@ -74,7 +71,9 @@ Instead of capturing an entire viewport that may contain dynamic external ads or
 {
   url: '/pricing',
   name: 'Pricing Comparison Table',
-  selector: '#comparison-table',
+  snapshot: {
+    selector: '#comparison-table',
+  },
 }
 ```
 
@@ -85,7 +84,9 @@ For server-rendered applications (Next.js, Remix, Astro) where interactive JavaS
 {
   url: '/interactive-calculator',
   name: 'ROI Calculator',
-  delay: 300, // Allow 300ms for React hydration and charting libraries to initialize
+  snapshot: {
+    delay: 300, // Allow 300ms for React hydration and charting libraries to initialize
+  },
 }
 ```
 
@@ -96,11 +97,13 @@ Web applications often display timestamps, randomized session tokens, or user av
 {
   url: '/account/billing',
   name: 'Billing Invoices',
-  mask: [
-    '.invoice-date',
-    '.transaction-id',
-    '#current-timestamp',
-  ],
+  snapshot: {
+    mask: [
+      '.invoice-date',
+      '.transaction-id',
+      '#current-timestamp',
+    ],
+  },
 }
 ```
 

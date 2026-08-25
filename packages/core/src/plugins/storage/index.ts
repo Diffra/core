@@ -28,47 +28,39 @@ export function resolveStorageAdapter(
   const storageConfig = (
     typeof config.storage === 'object' && config.storage !== null
       ? config.storage
-      : { type: 'local' }
-  ) as {
-    type?: string;
-    s3?: {
-      bucket: string;
-      prefix?: string;
-      region?: string;
-      endpoint?: string;
-    };
-    gcs?: { bucket: string; prefix?: string };
-    azure?: { container: string; connectionString?: string; prefix?: string };
-    local?: { baselineDir?: string };
-  };
+      : { provider: 'local' }
+  ) as any;
 
-  if (storageConfig.type === 's3' && storageConfig.s3) {
+  const provider = storageConfig.provider || storageConfig.type || 'local';
+
+  if (provider === 's3') {
     return createS3Storage({
-      bucket: storageConfig.s3.bucket,
-      prefix: storageConfig.s3.prefix,
-      region: storageConfig.s3.region,
-      endpoint: storageConfig.s3.endpoint,
+      bucket: storageConfig.bucket || storageConfig.s3?.bucket,
+      prefix: storageConfig.prefix || storageConfig.s3?.prefix,
+      region: storageConfig.region || storageConfig.s3?.region,
+      endpoint: storageConfig.endpoint || storageConfig.s3?.endpoint,
     });
   }
 
-  if (storageConfig.type === 'gcs' && storageConfig.gcs) {
+  if (provider === 'gcs') {
     return createGCSStorage({
-      bucket: storageConfig.gcs.bucket,
-      prefix: storageConfig.gcs.prefix,
+      bucket: storageConfig.bucket || storageConfig.gcs?.bucket,
+      prefix: storageConfig.prefix || storageConfig.gcs?.prefix,
     });
   }
 
-  if (storageConfig.type === 'azure' && storageConfig.azure) {
+  if (provider === 'azure') {
     return createAzureStorage({
-      container: storageConfig.azure.container,
-      connectionString: storageConfig.azure.connectionString,
-      prefix: storageConfig.azure.prefix,
+      container: storageConfig.container || storageConfig.azure?.container,
+      connectionString:
+        storageConfig.connectionString || storageConfig.azure?.connectionString,
+      prefix: storageConfig.prefix || storageConfig.azure?.prefix,
     });
   }
 
   return createLocalStorage({
-    outputDir: config.outputDir || '.diffra',
-    baselineDir: storageConfig.local?.baselineDir || '.diffra/baselines',
+    outputDir: storageConfig.outputDir || '.diffra',
+    baselineDir: storageConfig.dir || storageConfig.local?.baselineDir || '.diffra/baselines',
     cwd,
   });
 }

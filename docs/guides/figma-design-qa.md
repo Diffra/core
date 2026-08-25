@@ -21,9 +21,8 @@ Set up Figma configuration in `diffra.config.ts`:
 import { defineConfig } from '@diffra/core/config';
 
 export default defineConfig({
-  driver: 'figma',
-
-  figma: {
+  drivers: {
+    driver: 'figma',
     // Figma File Key from file URL: https://www.figma.com/file/<FILE_KEY>/...
     fileKey: process.env.FIGMA_FILE_KEY!,
 
@@ -38,17 +37,13 @@ export default defineConfig({
       'Modal/Confirmation': '789:10',
     },
 
-    // Mode: 'parity' (Code vs Design) or 'regression' (Design vs Design)
-    mode: 'regression',
-
     // Export render scale factor (default: 2 for Retina resolution)
     scale: 2,
 
-    // Image export format ('png', 'jpg', 'svg', 'pdf')
-    format: 'png',
-
     // Perceptual sensitivity threshold
-    diffThreshold: 0.063,
+    snapshot: {
+      diffThreshold: 0.063,
+    },
   },
 });
 ```
