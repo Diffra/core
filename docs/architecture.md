@@ -29,18 +29,29 @@ The pipeline executes through sequential phases:
 
 ---
 
-## Package structure
+## Package structure and subpath architecture
 
-The monorepo contains four packages:
+The monorepo is structured around modular zero-side-effect packages with explicit subpath exports:
 
 ### 1. @diffra/core
-Contains the CLI binary, test runner orchestrator, Playwright browser pool, Git merge-base resolver, OXC AST parser, report generator, and pluggable storage and notifier drivers.
+Core test runner orchestrator, Playwright browser pool, Git merge-base resolver, OXC AST parser, and report generator. Exposes isolated subpath surfaces via `package.json` `exports`:
+* `@diffra/core`: Root visual regression test runner (`runVisualRegression`, `approveBaselines`).
+* `@diffra/core/config`: Configuration helper (`defineConfig`, `loadConfig`) and schema validators.
+* `@diffra/core/plugins`: Pluggable storage and notifier drivers (`createLocalStorage`, `createS3Storage`, `createGitHubNotifier`, `createSlackNotifier`).
+* `@diffra/core/drivers`: Built-in target drivers (`createStorybookDriver`, `createUrlDriver`, `createImageDriver`).
+* `@diffra/core/types`: Pure TypeScript interfaces (`DiffraConfig`, `DiffraPlugin`, `VisualDriver`, `StorageAdapter`).
 
 ### 2. @diffra/diff
-Contains the native Rust SIMD pixel comparison engine (`packages/diff/src/lib.rs`) compiled via Node-API (`@napi-rs`), along with spatial bounding box clustering algorithms. Falls back to a pure TypeScript implementation if prebuilt native binaries are unavailable.
+High-performance pixel comparison engine using native Rust SIMD acceleration (`packages/diff/src/lib.rs`) with Node-API (`@napi-rs`) bindings, spatial bounding box clustering, and pure TypeScript fallback.
 
-### 3. @diffra/viewer
-Contains the static Web Components visual review interface (`packages/viewer/src/components/`), design tokens (`theme.css`), and an IIFE bundle compiler that packages the UI into a single self-contained distribution (`dist/viewer.bundle.js`).
+### 3. @diffra/cli
+Zero-dependency command-line binary (`diffra`) using Node.js built-in `node:util` `parseArgs` and standard ANSI terminal output.
 
-### 4. @diffra/storybook
-A showcase design system built with Storybook 8 (`@storybook/react-vite`) and React 19, serving as a live testing ground and integration reference.
+### 4. @diffra/viewer
+Scandinavian minimalist visual review interface and report viewer bundled as a standalone IIFE asset.
+
+### 5. @diffra/action
+GitHub Action runner for CI/CD workflows with automated PR sticky summaries and commit check annotations.
+
+### 6. @diffra/storybook
+Showcase design system built with Storybook 8 (`@storybook/react-vite`) and React 19, serving as a live testing ground and integration reference.

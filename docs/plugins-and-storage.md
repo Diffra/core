@@ -12,7 +12,8 @@ Visual drivers are responsible for discovering testable UI targets (`VisualTarge
 The default driver for Storybook component libraries, extracting CSF story metadata and parameters:
 
 ```typescript
-import { defineConfig, createStorybookDriver } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
+import { createStorybookDriver } from '@diffra/core/drivers';
 
 export default defineConfig({
   driver: 'storybook', // or createStorybookDriver()
@@ -24,7 +25,7 @@ export default defineConfig({
 For testing arbitrary web applications, static sites (Next.js, Astro, VitePress, Nuxt), or production routes:
 
 ```typescript
-import { defineConfig } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
 
 export default defineConfig({
   driver: 'url',
@@ -48,7 +49,7 @@ export default defineConfig({
 For comparing pre-rendered images, Figma design exports, or canvas renders without launching a headless browser:
 
 ```typescript
-import { defineConfig } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
 
 export default defineConfig({
   driver: 'image',
@@ -60,7 +61,8 @@ export default defineConfig({
 Downstream consumers can supply arbitrary custom discovery and capture logic (e.g. Cypress flows, custom Playwright interactions, or mobile canvas):
 
 ```typescript
-import { defineConfig, VisualDriver } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
+import type { VisualDriver } from '@diffra/core';
 
 const customE2EDriver: VisualDriver = {
   name: 'custom-e2e-driver',
@@ -100,7 +102,8 @@ Storage adapters manage uploading candidate screenshots, downloading baseline im
 Default driver for local testing or CI pipelines that cache artifacts to disk:
 
 ```typescript
-import { defineConfig, createLocalStorage } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
+import { createLocalStorage } from '@diffra/core/plugins';
 
 export default defineConfig({
   storage: createLocalStorage({
@@ -114,7 +117,8 @@ export default defineConfig({
 Uploads screenshots and reports directly to object storage:
 
 ```typescript
-import { defineConfig, createS3Storage } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
+import { createS3Storage } from '@diffra/core/plugins';
 
 export default defineConfig({
   storage: createS3Storage({
@@ -128,7 +132,8 @@ export default defineConfig({
 
 ### Google Cloud Storage (GCS)
 ```typescript
-import { defineConfig, createGCSStorage } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
+import { createGCSStorage } from '@diffra/core/plugins';
 
 export default defineConfig({
   storage: createGCSStorage({
@@ -140,7 +145,8 @@ export default defineConfig({
 
 ### Azure Blob Storage
 ```typescript
-import { defineConfig, createAzureStorage } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
+import { createAzureStorage } from '@diffra/core/plugins';
 
 export default defineConfig({
   storage: createAzureStorage({
@@ -154,7 +160,8 @@ export default defineConfig({
 Downstream consumers can implement the `StorageAdapter` interface:
 
 ```typescript
-import { defineConfig, StorageAdapter } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
+import type { StorageAdapter } from '@diffra/core';
 
 const customStorage: StorageAdapter = {
   name: 'my-internal-storage-service',
@@ -192,7 +199,8 @@ Notifiers execute at the conclusion of a test run to update CI status checks or 
 Updates the commit status check context `diffra/visual-tests` and maintains a single sticky comment on the pull request:
 
 ```typescript
-import { defineConfig, createGitHubNotifier } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
+import { createGitHubNotifier } from '@diffra/core/plugins';
 
 export default defineConfig({
   notifiers: [
@@ -209,7 +217,8 @@ export default defineConfig({
 Posts structured notification cards with pass/fail metrics directly to a Slack channel:
 
 ```typescript
-import { defineConfig, createSlackNotifier } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
+import { createSlackNotifier } from '@diffra/core/plugins';
 
 export default defineConfig({
   notifiers: [
@@ -228,7 +237,8 @@ export default defineConfig({
 Downstream consumers can hook into every stage of the test pipeline using `DiffraPlugin`:
 
 ```typescript
-import { defineConfig, DiffraPlugin } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
+import type { DiffraPlugin } from '@diffra/core';
 
 const customAuditPlugin: DiffraPlugin = {
   name: 'custom-audit-plugin',

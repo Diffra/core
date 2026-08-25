@@ -7,13 +7,13 @@ Diffra supports type-safe configuration via `diffra.config.ts`, `diffra.config.j
 ## Configuration schema
 
 ```typescript
+import { defineConfig } from '@diffra/core/config';
 import {
-  defineConfig,
   createLocalStorage,
   createS3Storage,
   createGitHubNotifier,
   createSlackNotifier,
-} from '@diffra/core';
+} from '@diffra/core/plugins';
 
 export default defineConfig({
   // URL of the running Storybook server

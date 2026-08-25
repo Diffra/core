@@ -35,7 +35,7 @@ Create a `diffra.config.ts` (or `diffra.config.js`) in your project root. Choose
 Test pages across your web app (e.g. Next.js, Remix, Vite, Astro, or any running server):
 
 ```typescript
-import { defineConfig } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
 
 export default defineConfig({
   // Base URL of your local dev server or staging deployment
@@ -66,7 +66,7 @@ export default defineConfig({
 Test isolated UI components directly from your CSF stories:
 
 ```typescript
-import { defineConfig } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
 
 export default defineConfig({
   // URL to your running Storybook dev server

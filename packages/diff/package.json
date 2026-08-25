@@ -24,6 +24,29 @@
     "image-comparison",
     "visual-regression"
   ],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js",
+      "default": "./dist/types.js"
+    },
+    "./clustering": {
+      "types": "./dist/clustering.d.ts",
+      "import": "./dist/clustering.js",
+      "default": "./dist/clustering.js"
+    },
+    "./png": {
+      "types": "./dist/png.d.ts",
+      "import": "./dist/png.js",
+      "default": "./dist/png.js"
+    }
+  },
   "files": [
     "dist",
     "src",

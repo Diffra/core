@@ -1,4 +1,4 @@
-import { defineConfig } from '@diffra/core';
+import { defineConfig } from '@diffra/core/config';
 
 export default defineConfig({
   storybookUrl: 'http://localhost:6006',

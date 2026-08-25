@@ -49,4 +49,10 @@ describe('Diffra Config Schema', () => {
     expect(() => DiffraConfigSchema.parse({ diffThreshold: 2.5 })).toThrow();
     expect(() => DiffraConfigSchema.parse({ diffThreshold: -0.1 })).toThrow();
   });
+
+  it('provides identity helper via defineConfig', async () => {
+    const { defineConfig } = await import('../src/config/index.js');
+    const userConfig = { storybookUrl: 'http://localhost:6006' };
+    expect(defineConfig(userConfig)).toBe(userConfig);
+  });
 });

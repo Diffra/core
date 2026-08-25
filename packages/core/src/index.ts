@@ -22,8 +22,7 @@ import type {
   VisualTestResult,
 } from './types/index.js';
 
-export * from './config/loader.js';
-export * from './config/schema.js';
+export * from './config/index.js';
 export * from './drivers/index.js';
 export * from './git/baseline.js';
 export * from './notifier/summary.js';
