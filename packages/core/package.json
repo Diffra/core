@@ -2,7 +2,7 @@
   "name": "@diffra/core",
   "version": "0.1.0",
   "type": "module",
-  "description": "Visual regression execution pipeline and driver engine for Storybook",
+  "description": "Visual regression execution pipeline and driver engine for Storybook, web apps, and design systems",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "author": "Diffra",
@@ -21,9 +21,7 @@
     "visual-testing",
     "storybook",
     "design-system",
-    "playwright",
-    "ast-parser",
-    "oxc"
+    "playwright"
   ],
   "engines": {
     "node": ">=20.18.0"
@@ -55,6 +53,16 @@
       "import": "./dist/types/index.js",
       "default": "./dist/types/index.js"
     },
+    "./playwright": {
+      "types": "./dist/playwright/index.d.ts",
+      "import": "./dist/playwright/index.js",
+      "default": "./dist/playwright/index.js"
+    },
+    "./matchers": {
+      "types": "./dist/playwright/index.d.ts",
+      "import": "./dist/playwright/index.js",
+      "default": "./dist/playwright/index.js"
+    },
     "./report": {
       "types": "./dist/report/generator.d.ts",
       "import": "./dist/report/generator.js",
@@ -72,15 +80,14 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@diffra/diff": "workspace:*",
+    "@diffra/engine": "workspace:*",
     "@diffra/viewer": "workspace:*",
     "cosmiconfig": "^10.0.0",
-    "oxc-parser": "^0.146.0",
     "playwright": "^1.62.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.3.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   }

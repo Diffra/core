@@ -1,4 +1,4 @@
-import { compareImages, type DiffOptions, type DiffResult } from '@diffra/diff';
+import { compareImages, type DiffOptions, type DiffResult } from '@diffra/engine';
 import type { DiffEngineAdapter } from '../../types/index.js';
 
 export class NativeDiffEngine implements DiffEngineAdapter {

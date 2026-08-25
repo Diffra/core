@@ -22,23 +22,30 @@ async function runGit(args: string[], cwd = process.cwd()): Promise<string> {
   }
 }
 
-function parseGithubUrl(rawUrl: string): string | undefined {
+/**
+ * Converts SSH or HTTPS remote URLs into a standard HTTPS web URL.
+ */
+export function parseGitRemoteUrl(rawUrl: string): string | undefined {
   if (!rawUrl) return undefined;
-  // Handle git@github.com:owner/repo.git
-  const sshMatch = rawUrl.match(/^git@github\.com:([^/]+)\/(.+?)(\.git)?$/);
+
+  // Handle git@host:owner/repo.git
+  const sshMatch = rawUrl.match(/^git@([^:]+):([^/]+)\/(.+?)(\.git)?$/);
   if (sshMatch) {
-    return `https://github.com/${sshMatch[1]}/${sshMatch[2]}`;
+    return `https://${sshMatch[1]}/${sshMatch[2]}/${sshMatch[3]}`;
   }
-  // Handle https://github.com/owner/repo.git
+
+  // Handle https://host/owner/repo.git
   const httpMatch = rawUrl.match(
-    /^https?:\/\/github\.com\/([^/]+)\/(.+?)(\.git)?$/,
+    /^https?:\/\/([^/]+)\/([^/]+)\/(.+?)(\.git)?$/,
   );
   if (httpMatch) {
-    return `https://github.com/${httpMatch[1]}/${httpMatch[2]}`;
+    return `https://${httpMatch[1]}/${httpMatch[2]}/${httpMatch[3]}`;
   }
+
   if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
     return rawUrl.replace(/\.git$/, '');
   }
+
   return undefined;
 }
 
@@ -71,7 +78,7 @@ export async function getGitInfo(
     repositoryUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}`;
   } else {
     const remoteUrl = await runGit(['config', '--get', 'remote.origin.url'], cwd);
-    repositoryUrl = parseGithubUrl(remoteUrl);
+    repositoryUrl = parseGitRemoteUrl(remoteUrl);
   }
 
   // Candidate branches to attempt merge-base resolution

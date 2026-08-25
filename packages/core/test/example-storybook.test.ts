@@ -1,23 +1,83 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseCSF } from '../src/index.js';
+import { StorybookDriver } from '../src/drivers/storybook.js';
 
-describe('Real-World Storybook Design System Parsing', () => {
-  const exampleStorybookDir = path.resolve(
-    import.meta.dirname,
-    '../../storybook/src/components',
-  );
+describe('Real-World Storybook Design System Index Parsing', () => {
+  const driver = new StorybookDriver();
 
-  it('parses Button stories with responsive modes parameter matrix', async () => {
-    const buttonCode = await fs.readFile(
-      path.join(exampleStorybookDir, 'Button/Button.stories.tsx'),
-      'utf-8',
+  const mockIndex = {
+    v: 4,
+    entries: {
+      'components-button--responsive-matrix': {
+        id: 'components-button--responsive-matrix',
+        title: 'Components/Button',
+        name: 'ResponsiveMatrix',
+        importPath: './src/Button.stories.tsx',
+        type: 'story',
+        parameters: {
+          snapshot: {
+            viewports: [
+              { name: 'mobile', width: 375, height: 667 },
+              { name: 'tablet', width: 768, height: 1024 },
+              { name: 'desktop', width: 1280, height: 800 },
+            ],
+          },
+        },
+      },
+      'components-card--featured': {
+        id: 'components-card--featured',
+        title: 'Components/Card',
+        name: 'Featured',
+        importPath: './src/Card.stories.tsx',
+        type: 'story',
+        parameters: {
+          snapshot: {
+            threshold: 0.02,
+          },
+        },
+      },
+      'components-modal--default': {
+        id: 'components-modal--default',
+        title: 'Components/Modal',
+        name: 'Default',
+        importPath: './src/Modal.stories.tsx',
+        type: 'story',
+        parameters: {
+          snapshot: {
+            delay: 150,
+            pauseAnimationAtEnd: true,
+          },
+        },
+      },
+      'components-badge--live-indicator': {
+        id: 'components-badge--live-indicator',
+        title: 'Components/Badge',
+        name: 'LiveIndicator',
+        importPath: './src/Badge.stories.tsx',
+        type: 'story',
+      },
+      'components-badge--disabled': {
+        id: 'components-badge--disabled',
+        title: 'Components/Badge',
+        name: 'Disabled',
+        importPath: './src/Badge.stories.tsx',
+        type: 'story',
+        parameters: {
+          snapshot: {
+            disable: true,
+          },
+        },
+      },
+    },
+  };
+
+  it('parses Button stories with responsive modes parameter matrix', () => {
+    const stories = (driver as any).parseStoryIndex(
+      mockIndex,
+      'http://localhost:6006',
     );
-    const stories = parseCSF(buttonCode, 'Button.stories.tsx');
-
-    expect(stories.length).toBe(4);
-    const responsiveStory = stories.find((s) => s.name === 'ResponsiveMatrix');
+    const responsiveStory = stories.find(
+      (s: any) => s.name === 'ResponsiveMatrix',
+    );
     expect(responsiveStory).toBeDefined();
     expect(responsiveStory?.parameters?.snapshot?.viewports).toEqual([
       { name: 'mobile', width: 375, height: 667 },
@@ -26,38 +86,32 @@ describe('Real-World Storybook Design System Parsing', () => {
     ]);
   });
 
-  it('parses Card stories with custom thresholds and named viewports', async () => {
-    const cardCode = await fs.readFile(
-      path.join(exampleStorybookDir, 'Card/Card.stories.tsx'),
-      'utf-8',
+  it('parses Card stories with custom thresholds and named viewports', () => {
+    const stories = (driver as any).parseStoryIndex(
+      mockIndex,
+      'http://localhost:6006',
     );
-    const stories = parseCSF(cardCode, 'Card.stories.tsx');
-
-    expect(stories.length).toBe(2);
-    const featuredStory = stories.find((s) => s.name === 'Featured');
+    const featuredStory = stories.find((s: any) => s.name === 'Featured');
     expect(featuredStory?.parameters?.snapshot?.threshold).toBe(0.02);
   });
 
-  it('parses Modal stories with animation and delay parameters', async () => {
-    const modalCode = await fs.readFile(
-      path.join(exampleStorybookDir, 'Modal/Modal.stories.tsx'),
-      'utf-8',
+  it('parses Modal stories with animation and delay parameters', () => {
+    const stories = (driver as any).parseStoryIndex(
+      mockIndex,
+      'http://localhost:6006',
     );
-    const stories = parseCSF(modalCode, 'Modal.stories.tsx');
-
-    expect(stories.length).toBe(1);
-    expect(stories[0].parameters?.snapshot?.delay).toBe(150);
-    expect(stories[0].parameters?.snapshot?.pauseAnimationAtEnd).toBe(true);
+    const modalStory = stories.find((s: any) => s.component === 'Modal');
+    expect(modalStory?.parameters?.snapshot?.delay).toBe(150);
+    expect(modalStory?.parameters?.snapshot?.pauseAnimationAtEnd).toBe(true);
   });
 
-  it('honors disable parameters in Badge stories', async () => {
-    const badgeCode = await fs.readFile(
-      path.join(exampleStorybookDir, 'Badge/Badge.stories.tsx'),
-      'utf-8',
+  it('honors disable parameters in Badge stories', () => {
+    const stories = (driver as any).parseStoryIndex(
+      mockIndex,
+      'http://localhost:6006',
     );
-    const stories = parseCSF(badgeCode, 'Badge.stories.tsx');
-
-    expect(stories.length).toBe(1);
-    expect(stories[0].name).toBe('LiveIndicator');
+    const badgeStories = stories.filter((s: any) => s.component === 'Badge');
+    expect(badgeStories).toHaveLength(1);
+    expect(badgeStories[0].name).toBe('LiveIndicator');
   });
 });

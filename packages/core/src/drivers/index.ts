@@ -1,3 +1,4 @@
+export * from './figma.js';
 export * from './image.js';
 export * from './storybook.js';
 export * from './url.js';
@@ -7,6 +8,7 @@ import type {
   VisualDriver,
   VisualTarget,
 } from '../types/index.js';
+import { createFigmaDriver } from './figma.js';
 import { createImageDriver } from './image.js';
 import { createStorybookDriver } from './storybook.js';
 import { createUrlDriver } from './url.js';
@@ -50,6 +52,7 @@ export function resolveDrivers(
         if (d === 'storybook') drivers.push(createStorybookDriver());
         else if (d === 'url') drivers.push(createUrlDriver());
         else if (d === 'image') drivers.push(createImageDriver());
+        else if (d === 'figma') drivers.push(createFigmaDriver(config.figma));
       } else if (d && typeof d === 'object' && 'name' in d) {
         drivers.push(d);
       }
@@ -65,6 +68,8 @@ export function resolveDrivers(
       if (config.driver === 'storybook') return [createStorybookDriver()];
       if (config.driver === 'url') return [createUrlDriver()];
       if (config.driver === 'image') return [createImageDriver()];
+      if (config.driver === 'figma')
+        return [createFigmaDriver(config.figma)];
     } else if (typeof config.driver === 'object' && 'name' in config.driver) {
       return [config.driver];
     }
@@ -77,6 +82,10 @@ export function resolveDrivers(
   }
 
   // 4. Inferred drivers based on options
+  if (config.figma) {
+    return [createFigmaDriver(config.figma)];
+  }
+
   if (config.urls && config.urls.length > 0) {
     return [createUrlDriver()];
   }

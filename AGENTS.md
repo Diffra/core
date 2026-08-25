@@ -8,7 +8,7 @@ This document records architectural principles, conventions, and operational lea
 
 ### 1. Minimal dependencies and standard web APIs
 * Avoid introducing third-party runtime dependencies when standard runtime or language capabilities exist.
-* For CLI applications, use Node.js built-in `node:util` `parseArgs` instead of legacy libraries like `commander` or `yargs`.
+* For CLI applications, use Node.js built-in `node:util` `parseArgs` instead of external CLI packages like `commander` or `yargs`.
 * For terminal styling, use standard ANSI escape sequences with compliance for `NO_COLOR` and `FORCE_COLOR` instead of external color packages.
 * For review interfaces and reports, use standard Web Components (Custom Elements, Shadow DOM) bundled as zero-dependency self-contained distribution files.
 
@@ -22,7 +22,7 @@ This document records architectural principles, conventions, and operational lea
   * `viewports`: Specific viewport dimensions to capture.
   * `disableSnapshot` / `disable`: Skip visual snapshot generation.
 * Do not invent custom parameters for DOM interactions (such as `hover` or `click`). In Storybook, component interactions must be executed via the standard `play` function using `@storybook/test` (Testing Library / user-event).
-* Maintain backward compatibility for legacy parameter aliases where appropriate without advertising them in documentation.
+* Maintain modern canonical parameter names without introducing or referencing non-standard aliases.
 
 ### 3. Documentation style
 * **Tone**: Technical, clear, concise, and professional.
@@ -31,12 +31,13 @@ This document records architectural principles, conventions, and operational lea
 * **Naming**: Do not reference external commercial brand names or competitors. Keep terminology vendor-neutral and component-centric.
 
 ### 4. Monorepo structure and package boundaries
-* `packages/core`: Core test runner, AST parser, Playwright coordinator, Git merge-base resolver, report inliner, pluggable drivers.
-* `packages/diff`: Rust SIMD pixel diffing engine with Node-API (`@napi-rs`) bindings.
+* `packages/core`: Core test runner, Playwright coordinator, Git merge-base resolver, report inliner, pluggable drivers.
+* `packages/engine`: Rust SIMD pixel comparison engine with Node-API (`@napi-rs`) bindings.
 * `packages/cli`: Zero-dependency command-line binary (`diffra`).
 * `packages/viewer`: Static Web Components review UI bundled via Vite as a standalone IIFE bundle (`dist/viewer.bundle.js`).
 * `packages/action`: GitHub Action runner with path traversal protection and secret masking.
-* `packages/storybook`: Showcase design system built with Storybook 8 and React 19.
+* `packages/demo-storybook`: Real working demo of Storybook 8 with Diffra visual regression.
+* `packages/demo-app`: Real working demo of a Vite TypeScript web application with Diffra configured.
 
 ### 5. Storybook version pinning in monorepos
 * When integrating Storybook in a pnpm monorepo, ensure all Storybook dependencies (`storybook`, `@storybook/react`, `@storybook/react-vite`, `@storybook/addon-essentials`, `@storybook/builder-vite`) share the exact same major and minor version to prevent runtime export mismatch errors in Vite builders.
@@ -59,3 +60,14 @@ This document records architectural principles, conventions, and operational lea
 * **Layout hierarchy**: A unified top header bar integrates the Diffra brand and exactly two clean breadcrumb buttons (`[ LayoutGrid Overview ]` and `[ Component / StoryName ]`) with no separator characters. A DRY shared stage bar sits above all comparison modes with baseline/candidate branch and commit tags linked to GitHub. The sidebar positions directly below the header starting with a clean white search input and native HTML Popover API filter, followed by natural-case component headlines and interactive snapshot buttons.
 * **Iconography**: Exclusively import icons directly from `lucide-react` (e.g. `LayoutGrid`, `ScanEye`, `Columns2`, `SlidersHorizontal`, `Layers`, `SquareDashed`, `ListFilter`, `Search`, `X`, `Check`). Avoid custom intermediate icon wrapper files.
 * **Comparison defaults**: Pixel movement (`ScanEye` icon, neon green highlight over desaturated candidate backdrop) is the default inspection mode with zero-config instant rendering.
+
+### 8. Anti-hardcoding and hermetic design principles
+* **Zero magic network literals**: Never hardcode loopback IP addresses (`127.0.0.1`), hostnames (`localhost`), or fixed port numbers in servers or client requests. Always bind and inspect dynamic sockets using `server.address()` (supporting port `0` for dynamic port allocation and IPv6/IPv4 normalization).
+* **Zero magic literals and arbitrary thresholds**: Never hardcode magic numbers, custom tolerances, magic DOM selectors, or branch names (`origin/main`) inline without single-source-of-truth constants or configuration options.
+* **Configurable endpoints**: All external service URLs (Figma, GitHub, storage endpoints, viewers) must be injectable via configuration and environment variables with sensible standard defaults, allowing self-hosted and offline mock environments.
+* **Unopinionated domain isolation**: Do not inject domain-specific defaults (such as Storybook ports/URLs) into top-level generic configuration schemas.
+* **Explicit configuration over presumptive conventions**: Discover or accept paths, branches, and layouts from the user or live environment rather than making rigid assumptions about repository structure.
+
+### 9. Zero legacy terminology and modern API purity
+* **No legacy mentions or baggage**: Never use the term "legacy" in code comments, type definitions, docstrings, or user documentation. 
+* **First-principles API design**: Always design and reference clean, canonical modern interfaces directly without preserving obsolete conventions or backward-facing terminology.

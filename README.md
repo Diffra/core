@@ -33,20 +33,49 @@ Diffra gives you full control and ownership of your visual regression testing pi
 
 ## Getting started
 
-Ready to set up visual testing in your project? Follow the step-by-step [Getting started guide](docs/getting-started.md) to learn how to test web application routes or Storybook components, run your first test, and configure automated CI checks.
+Ready to set up visual testing in your project? Follow our quickstarts and guides:
+
+* [Storybook quickstart](docs/getting-started/storybook-quickstart.md): 5-minute setup for Storybook 7/8/9.
+* [Web applications quickstart](docs/getting-started/web-apps-quickstart.md): 5-minute setup for Next.js, Remix, Vite, and Astro.
+* [Playwright test runner quickstart](docs/getting-started/playwright-quickstart.md): Visual assertions with `toMatchVisualBaseline`.
 
 ---
 
 ## Documentation
 
-* [Getting started guide](docs/getting-started.md): Step-by-step onboarding walkthrough for web applications and design systems.
-* [Command-line interface (CLI)](docs/cli.md): Reference for all CLI commands, arguments, and flags.
-* [Configuration reference](docs/configuration.md): Complete configuration schema and TypeScript options.
-* [Storybook integration](docs/storybook-integration.md): Story-level configuration with `parameters.snapshot`.
-* [Storage drivers and plugins](docs/plugins-and-storage.md): Local disk, Amazon S3, Cloudflare R2, Google Cloud Storage, Azure Blob, and Slack notifications.
-* [CI/CD workflows and GitHub Action](docs/ci-cd-workflows.md): Pull request integration, sticky comment markers, and baseline caching.
-* [Review interface guide](docs/viewer-guide.md): How to use the interactive comparison UI and inspection modes.
-* [Architecture and core engine](docs/architecture.md): Monorepo structure, comparison algorithm, and execution pipeline.
+Explore the complete [Diffra documentation hub](docs/index.md):
+
+* **Guides**:
+  * [Testing Storybook components](docs/guides/testing-storybook-components.md)
+  * [Testing web applications and routes](docs/guides/testing-web-applications.md)
+  * [Playwright matcher integration](docs/guides/playwright-integration.md)
+  * [Figma design parity and QA](docs/guides/figma-design-qa.md)
+  * [Static images and canvas diffing](docs/guides/static-images-and-canvas.md)
+  * [Monorepos and workspaces](docs/guides/monorepos-and-workspaces.md)
+  * [Baseline management and Git merge-base](docs/guides/baseline-management.md)
+  * [Flakiness and determinism](docs/guides/flakiness-and-determinism.md)
+* **CI/CD & Production**:
+  * [GitHub Actions workflow](docs/ci-cd/github-actions.md)
+  * [Parallel CI sharding and report merger](docs/ci-cd/parallel-sharding.md)
+  * [Self-hosted report deployment](docs/ci-cd/hosting-reports.md)
+  * [Other CI providers (GitLab, CircleCI, Bitbucket)](docs/ci-cd/other-ci-providers.md)
+* **Review UI & Inspection**:
+  * [Review interface overview](docs/review-ui/overview.md)
+  * [Comparison inspection modes](docs/review-ui/inspection-modes.md)
+  * [Keyboard shortcuts and navigation](docs/review-ui/keyboard-shortcuts.md)
+* **Storage & Plugins**:
+  * [Storage adapters (S3, R2, GCS, Azure, Local)](docs/storage-and-plugins/storage-adapters.md)
+  * [Notification adapters (GitHub, Slack)](docs/storage-and-plugins/notifiers.md)
+  * [Custom drivers and lifecycle plugins](docs/storage-and-plugins/custom-plugins-and-drivers.md)
+* **Reference & Architecture**:
+  * [Configuration reference](docs/reference/configuration.md)
+  * [Command-line interface (CLI)](docs/reference/cli.md)
+  * [Storybook snapshot parameters](docs/reference/story-parameters.md)
+  * [GitHub Action reference](docs/reference/action-reference.md)
+  * [TypeScript API types](docs/reference/types-reference.md)
+  * [Core comparison engine & SIMD](docs/architecture/core-engine.md)
+  * [Execution pipeline](docs/architecture/execution-pipeline.md)
+  * [Design system principles](docs/architecture/design-principles.md)
 
 ---
 
@@ -55,11 +84,12 @@ Ready to set up visual testing in your project? Follow the step-by-step [Getting
 | Package | Directory | Description |
 | :--- | :--- | :--- |
 | `@diffra/cli` | `packages/cli` | Zero-dependency command-line binary (`diffra`) |
-| `@diffra/core` | `packages/core` | Core test runner, browser coordinator, AST parser, and report inliner |
-| `@diffra/diff` | `packages/diff` | High-performance pixel comparison engine with SIMD acceleration |
+| `@diffra/core` | `packages/core` | Core test runner, Playwright matcher, pluggable drivers, and report generator |
+| `@diffra/engine` | `packages/engine` | High-performance pixel comparison engine with SIMD acceleration |
 | `@diffra/viewer` | `packages/viewer` | Standalone interactive review UI bundle |
 | `@diffra/action` | `packages/action` | GitHub Action runner for CI/CD pipelines |
-| `@diffra/storybook` | `packages/storybook` | Showcase design system with Storybook 8 and React 19 |
+| `@diffra/demo-storybook` | `packages/demo-storybook` | Real working demo of Storybook 8 with Diffra visual regression |
+| `@diffra/demo-app` | `packages/demo-app` | Real working demo of a Vite TypeScript web app with Diffra configured |
 
 ---
 

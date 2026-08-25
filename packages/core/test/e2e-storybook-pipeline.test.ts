@@ -9,7 +9,7 @@ describe('Real End-to-End Visual Regression Pipeline on Real Storybook 8', () =>
   const PORT = 6006;
   const storybookPackageDir = path.resolve(
     import.meta.dirname,
-    '../../storybook',
+    '../../demo-storybook',
   );
   const staticDir = path.resolve(storybookPackageDir, 'storybook-static');
 
@@ -89,17 +89,17 @@ describe('Real End-to-End Visual Regression Pipeline on Real Storybook 8', () =>
       }
     }
 
-    const reportHtmlPath = path.resolve(
+    const reportJsonPath = path.resolve(
       storybookPackageDir,
       '.diffra/runs',
       report.runId,
-      'index.html',
+      'report.json',
     );
-    const htmlExists = await fs
-      .stat(reportHtmlPath)
+    const reportExists = await fs
+      .stat(reportJsonPath)
       .then(() => true)
       .catch(() => false);
-    expect(htmlExists).toBe(true);
+    expect(reportExists).toBe(true);
 
     const approveResult = await approveBaselines({ cwd: storybookPackageDir });
     expect(approveResult.count).toBe(report.summary.total);

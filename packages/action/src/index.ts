@@ -9,14 +9,21 @@ import {
   runVisualRegression,
 } from '@diffra/core';
 
+const DEFAULT_SERVER_PORT = 6006;
+const MAX_CONCURRENCY = 16;
+
 export function matchesBranchOrBool(
   inputValue: string,
   currentRef: string,
+  defaultBranch?: string,
 ): boolean {
   if (!inputValue || inputValue === 'false') return false;
   if (inputValue === 'true') return true;
 
   const currentBranch = currentRef.replace(/^refs\/heads\//, '');
+  if (inputValue === 'default-branch') {
+    return defaultBranch ? currentBranch === defaultBranch : currentBranch === 'main' || currentBranch === 'master';
+  }
   return (
     currentBranch === inputValue || currentRef === `refs/heads/${inputValue}`
   );
@@ -36,47 +43,46 @@ export async function run(): Promise<void> {
     }
     const token = rawProjectToken;
 
+    const rawWorkingDir = core.getInput('workingDir') || '.';
+    const workingDir = path.resolve(process.cwd(), rawWorkingDir);
+
     const driverInput = core.getInput('driver');
     const urlsInput = core.getInput('urls');
     const storybookBuildDir = core.getInput('storybookBuildDir');
     let storybookUrl = core.getInput('storybookUrl');
-    const portInput = core.getInput('storybookPort') || '6006';
+    const portInput = core.getInput('storybookPort');
     const thresholdInput =
       core.getInput('diffThreshold') || core.getInput('threshold');
     const concurrencyInput = core.getInput('concurrency');
-    const exitZeroInput = core.getInput('exitZeroOnChanges');
-    const autoAcceptInput = core.getInput('autoAcceptChanges');
+    const exitZeroInput = core.getInput('exitZeroOnChanges') || 'true';
+    const autoAcceptInput = core.getInput('autoAcceptChanges') || 'default-branch';
     const exitOnceUploadedInput = core.getInput('exitOnceUploaded');
-    const rawWorkingDir = core.getInput('workingDir') || '.';
-    const workingDir = path.resolve(process.cwd(), rawWorkingDir);
 
-    const isMainBranch =
-      currentRef === 'refs/heads/main' ||
-      currentRef === 'refs/heads/master' ||
-      currentRef === 'main' ||
-      currentRef === 'master';
+    const defaultBranch =
+      github.context.payload.repository?.default_branch;
 
     const shouldExitZeroOnChanges = matchesBranchOrBool(
       exitZeroInput,
       currentRef,
+      defaultBranch,
     );
-    const shouldAutoAccept =
-      matchesBranchOrBool(autoAcceptInput, currentRef) ||
-      (autoAcceptInput === 'true' && isMainBranch) ||
-      (autoAcceptInput === 'main' && isMainBranch);
+    const shouldAutoAccept = autoAcceptInput
+      ? matchesBranchOrBool(autoAcceptInput, currentRef, defaultBranch)
+      : false;
     const shouldExitOnceUploaded = matchesBranchOrBool(
       exitOnceUploadedInput,
       currentRef,
+      defaultBranch,
     );
 
-    // 1. Static Storybook Server with Path Traversal Protection
+    // 1. Static Preview Server with Path Traversal Boundary Verification
     if (storybookBuildDir && !storybookUrl) {
-      const port = parseInt(portInput, 10) || 6006;
+      const port = portInput ? parseInt(portInput, 10) : DEFAULT_SERVER_PORT;
       const staticRoot = path.resolve(workingDir, storybookBuildDir);
 
       staticServer = http.createServer(async (req, res) => {
         try {
-          const parsedUrl = new URL(req.url || '/', `http://127.0.0.1:${port}`);
+          const parsedUrl = new URL(req.url || '/', 'http://localhost');
           let normalizedPath = path.normalize(parsedUrl.pathname);
           if (normalizedPath === '/' || normalizedPath === '\\') {
             normalizedPath = '/index.html';
@@ -123,12 +129,14 @@ export async function run(): Promise<void> {
       });
 
       await new Promise<void>((resolve, reject) => {
-        staticServer?.listen(port, '127.0.0.1', () => resolve());
         staticServer?.on('error', reject);
+        staticServer?.listen(port, '127.0.0.1', () => resolve());
       });
 
-      storybookUrl = `http://127.0.0.1:${port}`;
-      core.info(`Started Storybook static preview server on ${storybookUrl}`);
+      const addr = staticServer.address();
+      const actualPort = typeof addr === 'object' && addr ? addr.port : port;
+      storybookUrl = `http://127.0.0.1:${actualPort}`;
+      core.info(`Started static preview server on ${storybookUrl}`);
     }
 
     core.info('Starting Diffra visual regression test run...');
@@ -172,7 +180,7 @@ export async function run(): Promise<void> {
     if (concurrencyInput) {
       const parsedConcurrency = parseInt(concurrencyInput, 10);
       if (!Number.isNaN(parsedConcurrency) && parsedConcurrency > 0) {
-        configOverrides.concurrency = Math.min(parsedConcurrency, 16);
+        configOverrides.concurrency = Math.min(parsedConcurrency, MAX_CONCURRENCY);
       }
     }
 
@@ -218,20 +226,22 @@ export async function run(): Promise<void> {
       },
     });
 
-    const reportHtmlPath = path.resolve(
+    const reportJsonPath = path.resolve(
       workingDir,
       '.diffra/runs',
       report.runId,
-      'index.html',
+      'report.json',
     );
-    const reportUrl = `file://${reportHtmlPath}`;
+    const reportUrl = `file://${reportJsonPath}`;
 
     // 5. Standard Action Outputs
     core.setOutput('url', reportUrl);
     core.setOutput('buildUrl', reportUrl);
+    core.setOutput('reportUrl', reportUrl);
     core.setOutput('storybookUrl', storybookUrl || '');
     core.setOutput('changeCount', String(report.summary.changed));
     core.setOutput('storyCount', String(report.summary.total));
+    core.setOutput('targetCount', String(report.summary.total));
 
     core.info('\nTest Run Summary:');
     core.info(`  Total:     ${report.summary.total}`);
@@ -250,7 +260,7 @@ export async function run(): Promise<void> {
       await core.summary.addRaw(summaryMarkdown).write();
     } catch {}
 
-    // 7. Emit GitHub Annotations / Warnings for Changed Stories
+    // 7. Emit GitHub Annotations / Warnings for Changed Targets
     for (const result of report.results) {
       if (result.status === 'changed') {
         const pct = result.diffResult?.diffPercentage.toFixed(2) ?? '0.00';
@@ -320,7 +330,6 @@ export async function run(): Promise<void> {
   }
 }
 
-// Auto-run if executed in GitHub Action runner
 if (process.env.GITHUB_ACTIONS) {
   run();
 }

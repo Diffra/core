@@ -50,20 +50,26 @@ export class GCSStorageAdapter implements StorageAdapter {
     return this.gcsStorage;
   }
 
-  private getFilename(storyId: string, viewport: Viewport): string {
-    return `${storyId.replace(/[^a-zA-Z0-9_-]/g, '_')}--${viewport.width}x${viewport.height}.png`;
+  private getFilename(
+    targetId: string,
+    viewport: Viewport,
+    options?: { browser?: string },
+  ): string {
+    const browserSuffix = options?.browser ? `--${options.browser}` : '';
+    return `${targetId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${viewport.width}x${viewport.height}.png`;
   }
 
   async uploadCandidate(
     runId: string,
-    storyId: string,
+    targetId: string,
     viewport: Viewport,
     imageBuffer: Buffer,
+    options?: { browser?: string },
   ): Promise<string> {
     const file = this.getClient()
       .bucket(this.bucket)
       .file(
-        `${this.prefix}/runs/${runId}/candidates/${this.getFilename(storyId, viewport)}`,
+        `${this.prefix}/runs/${runId}/candidates/${this.getFilename(targetId, viewport, options)}`,
       );
     await file.save(imageBuffer, { contentType: 'image/png' });
     return `https://storage.googleapis.com/${this.bucket}/${file.name}`;
@@ -71,14 +77,15 @@ export class GCSStorageAdapter implements StorageAdapter {
 
   async uploadDiff(
     runId: string,
-    storyId: string,
+    targetId: string,
     viewport: Viewport,
     imageBuffer: Buffer,
+    options?: { browser?: string },
   ): Promise<string> {
     const file = this.getClient()
       .bucket(this.bucket)
       .file(
-        `${this.prefix}/runs/${runId}/diffs/${this.getFilename(storyId, viewport)}`,
+        `${this.prefix}/runs/${runId}/diffs/${this.getFilename(targetId, viewport, options)}`,
       );
     await file.save(imageBuffer, { contentType: 'image/png' });
     return `https://storage.googleapis.com/${this.bucket}/${file.name}`;
@@ -86,13 +93,14 @@ export class GCSStorageAdapter implements StorageAdapter {
 
   async downloadBaseline(
     baselineCommit: string,
-    storyId: string,
+    targetId: string,
     viewport: Viewport,
+    options?: { browser?: string },
   ): Promise<Buffer | null> {
     const file = this.getClient()
       .bucket(this.bucket)
       .file(
-        `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(storyId, viewport)}`,
+        `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(targetId, viewport, options)}`,
       );
     try {
       const [contents] = await file.download();
@@ -104,14 +112,15 @@ export class GCSStorageAdapter implements StorageAdapter {
 
   async uploadBaseline(
     commitSha: string,
-    storyId: string,
+    targetId: string,
     viewport: Viewport,
     imageBuffer: Buffer,
+    options?: { browser?: string },
   ): Promise<void> {
     const file = this.getClient()
       .bucket(this.bucket)
       .file(
-        `${this.prefix}/baselines/${commitSha}/${this.getFilename(storyId, viewport)}`,
+        `${this.prefix}/baselines/${commitSha}/${this.getFilename(targetId, viewport, options)}`,
       );
     await file.save(imageBuffer, { contentType: 'image/png' });
   }

@@ -130,4 +130,64 @@ describe('Pluggable Driver Ecosystem', () => {
     expect(targets[2].selector).toBe('#analytics-grid');
     expect(targets[2].parameters?.snapshot?.delay).toBe(150);
   });
+
+  it('StorybookDriver parseStoryIndex parses canonical index.json entries accurately', () => {
+    const driver = new StorybookDriver();
+    const mockIndex = {
+      v: 4,
+      entries: {
+        'components-button--primary': {
+          id: 'components-button--primary',
+          title: 'Components/Button',
+          name: 'Primary',
+          importPath: './src/Button.stories.tsx',
+          type: 'story',
+          parameters: {
+            snapshot: { delay: 200, diffThreshold: 0.05 },
+          },
+        },
+        'components-button--disabled': {
+          id: 'components-button--disabled',
+          title: 'Components/Button',
+          name: 'Disabled',
+          importPath: './src/Button.stories.tsx',
+          type: 'story',
+        },
+        'components-button--docs': {
+          id: 'components-button--docs',
+          title: 'Components/Button',
+          name: 'Docs',
+          importPath: './src/Button.mdx',
+          type: 'docs',
+        },
+        'components-modal--skipped': {
+          id: 'components-modal--skipped',
+          title: 'Components/Modal',
+          name: 'Skipped',
+          type: 'story',
+          parameters: {
+            snapshot: { disableSnapshot: true },
+          },
+        },
+      },
+    };
+
+    const targets = (driver as any).parseStoryIndex(
+      mockIndex,
+      'http://localhost:6006',
+    );
+
+    expect(targets).toHaveLength(2);
+    expect(targets[0].id).toBe('components-button--primary');
+    expect(targets[0].name).toBe('Primary');
+    expect(targets[0].component).toBe('Button');
+    expect(targets[0].title).toBe('Components/Button');
+    expect(targets[0].url).toBe(
+      'http://localhost:6006/iframe.html?id=components-button--primary&viewMode=story',
+    );
+    expect(targets[0].parameters.snapshot.delay).toBe(200);
+
+    expect(targets[1].id).toBe('components-button--disabled');
+    expect(targets[1].name).toBe('Disabled');
+  });
 });

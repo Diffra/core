@@ -1,19 +1,41 @@
-import type { BoundingBox, DiffOptions, DiffResult } from '@diffra/diff';
+import type { BoundingBox, DiffOptions, DiffResult } from '@diffra/engine';
+import type {
+  BrowserContextOptions,
+  LaunchOptions,
+  Locator,
+  PageScreenshotOptions,
+  ViewportSize,
+} from 'playwright';
 
-export type { BoundingBox, DiffOptions, DiffResult };
+export type {
+  BoundingBox,
+  DiffOptions,
+  DiffResult,
+  BrowserContextOptions,
+  LaunchOptions,
+  Locator,
+  PageScreenshotOptions,
+  ViewportSize,
+};
+
+export type Viewport = ViewportSize & {
+  name?: string;
+};
 
 export type ViewportInput =
   | number
-  | {
+  | ViewportSize
+  | (ViewportSize & {
       name?: string;
-      width: number;
-      height: number;
-    };
+    });
 
-export interface Viewport {
-  name?: string;
-  width: number;
-  height: number;
+export interface Project {
+  name: string;
+  browser?: 'chromium' | 'firefox' | 'webkit';
+  use?: BrowserContextOptions & {
+    viewport?: ViewportSize;
+  };
+  launchOptions?: LaunchOptions;
 }
 
 export interface SnapshotModeConfig {
@@ -33,7 +55,9 @@ export interface TargetParameters {
   threshold?: number;
   /** Milliseconds to wait after render/navigation before taking screenshot */
   delay?: number;
-  /** Pause CSS animations and transitions at their final frame (default true) */
+  /** Playwright animations handling: 'disabled' (default) stops CSS animations, 'allow' keeps them running */
+  animations?: 'disabled' | 'allow';
+  /** Pause CSS animations and transitions at their final frame (default true, alias for animations: 'disabled') */
   pauseAnimationAtEnd?: boolean;
   /** Multi-mode configurations (e.g. viewports, themes) */
   modes?: Record<string, SnapshotModeConfig>;
@@ -41,13 +65,20 @@ export interface TargetParameters {
   viewports?: ViewportInput[];
   /** Optional CSS selector to isolate for screenshot */
   selector?: string;
+  /** Locators or CSS selectors to mask before taking screenshot */
+  mask?: (string | Locator)[];
+  /** Take full scrollable page screenshot */
+  fullPage?: boolean;
+  /** Optional clipping region */
+  clip?: { x: number; y: number; width: number; height: number };
+  /** Transparent background option */
+  omitBackground?: boolean;
+  /** Passthrough raw Playwright screenshot options */
+  screenshotOptions?: PageScreenshotOptions;
 }
 
-/** Legacy alias for TargetParameters */
-export type SnapshotStoryParameters = TargetParameters;
-
 /**
- * Normalized visual target representing any testable UI unit (story, web route, modal state, static image).
+ * Normalized visual target representing any testable UI unit (story, web route, modal state, static image, figma frame).
  */
 export interface VisualTarget {
   id: string;
@@ -58,6 +89,7 @@ export interface VisualTarget {
   url?: string;
   filePath?: string;
   selector?: string;
+  mask?: (string | Locator)[];
   parameters?: {
     snapshot?: TargetParameters;
     visual?: TargetParameters;
@@ -67,15 +99,16 @@ export interface VisualTarget {
   metadata?: Record<string, unknown>;
 }
 
-/** Legacy alias for StoryMetadata */
-export type StoryMetadata = VisualTarget;
-
 export interface VisualTestResult {
   id: string;
   name: string;
   group?: string;
   component: string;
   viewport: Viewport;
+  browser?: string;
+  colorScheme?: string;
+  blobHash?: string;
+  baselineBlobHash?: string;
   status: 'changed' | 'added' | 'removed' | 'unchanged';
   diffResult?: DiffResult;
   baselinePath?: string;
@@ -87,9 +120,6 @@ export interface VisualTestResult {
   metadata?: Record<string, unknown>;
 }
 
-/** Legacy alias for StoryTestResult */
-export type StoryTestResult = VisualTestResult;
-
 export interface TestRunReport {
   runId: string;
   timestamp: string;
@@ -100,6 +130,7 @@ export interface TestRunReport {
   repositoryUrl?: string;
   baselineReportUrl?: string;
   branchLatestUrl?: string;
+  viewerUrl?: string;
   summary: {
     total: number;
     changed: number;
@@ -121,24 +152,31 @@ export interface StorageAdapter {
     targetId: string,
     viewport: Viewport,
     imageBuffer: Buffer,
+    options?: { browser?: string },
   ): Promise<string>;
   uploadDiff(
     runId: string,
     targetId: string,
     viewport: Viewport,
     imageBuffer: Buffer,
+    options?: { browser?: string },
   ): Promise<string>;
   downloadBaseline(
     baselineCommit: string,
     targetId: string,
     viewport: Viewport,
+    options?: { browser?: string },
   ): Promise<Buffer | null>;
   uploadBaseline(
     commitSha: string,
     targetId: string,
     viewport: Viewport,
     imageBuffer: Buffer,
+    options?: { browser?: string },
   ): Promise<void>;
+  uploadBlob?(hash: string, imageBuffer: Buffer): Promise<string>;
+  downloadBlob?(hash: string): Promise<Buffer | null>;
+  hasBlob?(hash: string): Promise<boolean>;
   saveReport(report: TestRunReport): Promise<string>;
 }
 
@@ -173,12 +211,14 @@ export interface DriverContext {
 export interface DriverCaptureTask {
   target: VisualTarget;
   viewport: Viewport;
+  project?: Project;
 }
 
 export interface DriverCaptureResult {
   target: VisualTarget;
   viewport: Viewport;
   buffer: Buffer;
+  project?: Project;
 }
 
 /**
@@ -205,6 +245,9 @@ export interface VisualDriver {
 export interface DiffraPlugin {
   name: string;
   setup?(config: DiffraConfig): Promise<void> | void;
+  onDiscoverTargets?(
+    targets: VisualTarget[],
+  ): Promise<VisualTarget[]> | VisualTarget[];
   onDiscoverStories?(
     stories: VisualTarget[],
   ): Promise<VisualTarget[]> | VisualTarget[];
@@ -226,14 +269,26 @@ export interface UrlTargetConfig {
   group?: string;
   url: string;
   selector?: string;
+  mask?: (string | Locator)[];
   delay?: number;
   diffThreshold?: number;
   viewports?: ViewportInput[];
 }
 
+export interface FigmaDriverOptions {
+  fileKey: string;
+  personalAccessToken?: string;
+  nodeIds?: string[];
+  components?: Record<string, string>;
+  version?: string;
+  scale?: number;
+  format?: 'png' | 'jpg' | 'svg' | 'pdf';
+  diffThreshold?: number;
+}
+
 export interface DiffraConfig {
-  /** Driver name ('storybook', 'url', 'image') or custom VisualDriver implementation */
-  driver?: 'storybook' | 'url' | 'image' | VisualDriver;
+  /** Driver name ('storybook', 'url', 'image', 'figma') or custom VisualDriver implementation */
+  driver?: 'storybook' | 'url' | 'image' | 'figma' | VisualDriver;
   /** Multiple drivers to run in a single test pass */
   drivers?: (VisualDriver | string)[];
 
@@ -246,18 +301,32 @@ export interface DiffraConfig {
   /** Directory for direct image/screenshot comparison (ImageDriver) */
   imagesDir?: string;
 
-  /** Storybook configuration */
+  /** Figma driver configuration options */
+  figma?: FigmaDriverOptions;
+
+  /** Base preview server URL (e.g. 'http://localhost:3000' or 'http://localhost:6006') */
+  baseUrl?: string;
+  previewUrl?: string;
+  /** Storybook preview server URL */
   storybookUrl?: string;
   storybookPort?: number;
   storybookBuildDir?: string;
   stories?: string[];
+
+  /** Playwright multi-engine projects and device configuration */
+  projects?: Project[];
+
+  /** CI Sharding configuration (e.g. "1/4") */
+  shard?: string;
 
   /** Global testing options */
   viewports?: ViewportInput[];
   diffThreshold?: number;
   threshold?: number;
   delay?: number;
+  animations?: 'disabled' | 'allow';
   pauseAnimationAtEnd?: boolean;
+  launchOptions?: LaunchOptions;
   concurrency?: number;
   outputDir?: string;
   baselineBranch?: string;

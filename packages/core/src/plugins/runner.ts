@@ -1,9 +1,9 @@
 import type {
   DiffraConfig,
   DiffraPlugin,
-  StoryMetadata,
   TestRunReport,
   Viewport,
+  VisualTarget,
 } from '../types/index.js';
 
 export class PluginRunner {
@@ -21,31 +21,40 @@ export class PluginRunner {
     }
   }
 
-  async hookDiscoverStories(
-    stories: StoryMetadata[],
-  ): Promise<StoryMetadata[]> {
-    let currentStories = [...stories];
+  async hookDiscoverTargets(
+    targets: VisualTarget[],
+  ): Promise<VisualTarget[]> {
+    let currentTargets = [...targets];
     for (const plugin of this.plugins) {
-      if (plugin.onDiscoverStories) {
-        currentStories = await plugin.onDiscoverStories(currentStories);
+      if (plugin.onDiscoverTargets) {
+        currentTargets = await plugin.onDiscoverTargets(currentTargets);
+      } else if (plugin.onDiscoverStories) {
+        currentTargets = await plugin.onDiscoverStories(currentTargets);
       }
     }
-    return currentStories;
+    return currentTargets;
+  }
+
+  /** Alias for hookDiscoverTargets */
+  async hookDiscoverStories(
+    stories: VisualTarget[],
+  ): Promise<VisualTarget[]> {
+    return this.hookDiscoverTargets(stories);
   }
 
   async hookBeforeCapture(
-    story: StoryMetadata,
+    target: VisualTarget,
     viewport: Viewport,
   ): Promise<void> {
     for (const plugin of this.plugins) {
       if (plugin.onBeforeCapture) {
-        await plugin.onBeforeCapture(story, viewport);
+        await plugin.onBeforeCapture(target, viewport);
       }
     }
   }
 
   async hookAfterCapture(
-    story: StoryMetadata,
+    target: VisualTarget,
     viewport: Viewport,
     buffer: Buffer,
   ): Promise<Buffer> {
@@ -53,7 +62,7 @@ export class PluginRunner {
     for (const plugin of this.plugins) {
       if (plugin.onAfterCapture) {
         currentBuffer = await plugin.onAfterCapture(
-          story,
+          target,
           viewport,
           currentBuffer,
         );

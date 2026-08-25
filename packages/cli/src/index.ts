@@ -4,8 +4,9 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import {
   approveBaselines,
+  buildViewerUrl,
+  mergeReports,
   runVisualRegression,
-  serveReport,
 } from '@diffra/core';
 import { colors } from './utils/colors.js';
 
@@ -20,17 +21,18 @@ ${colors.bold('Usage:')}
   diffra <command> [options]
 
 ${colors.bold('Commands:')}
-  test       Execute visual regression tests against configured targets
-  approve    Approve candidate screenshots as the new baseline
-  serve      Start the local review report server
+  test           Execute visual regression tests against configured targets
+  approve        Approve candidate screenshots as the new baseline
+  serve          Start the local review report server
+  merge-reports  Merge multiple shard report JSONs into a single report
 
 ${colors.bold('Options:')}
   -h, --help                  Show help information
   -v, --version               Show version number
 
 ${colors.bold('Command Options (test):')}
-  -d, --driver <name>         Visual driver: 'storybook', 'url', or 'image' (default: storybook)
-  -u, --url <url>             Base URL or Storybook server URL (default: http://localhost:6006)
+  -d, --driver <name>         Visual driver: 'storybook', 'url', 'image', or 'figma' (default: storybook)
+  -u, --url <url>             Base URL or preview server URL
   --urls <list>               Comma-separated list of web URLs / paths to test
   -c, --config <path>         Path to custom configuration file
   -b, --branch <branch>       Target baseline git branch (default: origin/main)
@@ -38,18 +40,23 @@ ${colors.bold('Command Options (test):')}
   --threshold <num>           Alias for diff-threshold
   -o, --output-dir <dir>      Output directory for reports (default: .diffra)
   --concurrency <number>      Number of parallel browser workers (default: 4)
+  --shard <index/total>       Execute a deterministic slice of tests (e.g. 1/4)
   --delay <ms>                Settle wait time in ms after component render
   --pass-on-changes           Exit with status 0 even if visual differences are found
   --open                      Automatically open the visual report in browser
 
 ${colors.bold('Command Options (serve):')}
   -p, --port <number>         Port for review server (default: 9000)
-  -r, --report <path>         Path to custom report HTML file
+  -r, --report <path>         Path to custom report JSON file or directory
+
+${colors.bold('Command Options (merge-reports):')}
+  -o, --output-dir <dir>      Output destination directory for merged report (default: .diffra)
 
 ${colors.bold('Examples:')}
   diffra test
   diffra test --driver url --urls "/,/pricing,/dashboard"
-  diffra test --url http://127.0.0.1:8080 --diff-threshold 0.05
+  diffra test --shard 1/4 --output-dir .diffra/shards/1
+  diffra merge-reports .diffra/shards/* --output-dir .diffra
   diffra approve
   diffra serve --port 3000
 `);
@@ -71,6 +78,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       delay: { type: 'string' },
       'output-dir': { type: 'string', short: 'o' },
       concurrency: { type: 'string' },
+      shard: { type: 'string' },
       'pass-on-changes': { type: 'boolean' },
       open: { type: 'boolean' },
       port: { type: 'string', short: 'p' },
@@ -122,9 +130,11 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           overrides.outputDir = values['output-dir'] as string;
         if (values.concurrency)
           overrides.concurrency = parseInt(values.concurrency as string, 10);
+        if (values.shard) overrides.shard = values.shard as string;
 
         const report = await runVisualRegression({
           config: overrides,
+          shard: values.shard as string | undefined,
           onProgress: (step, current, total) => {
             process.stdout.write(
               `\r${colors.gray('►')} ${colors.white(step)} [${current}/${total}]`,
@@ -183,23 +193,24 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           console.log('');
         }
 
-        const reportHtmlPath = path.resolve(
+        const reportJsonPath = path.resolve(
           process.cwd(),
           (values['output-dir'] as string) || '.diffra',
           'runs',
           report.runId,
-          'index.html',
+          'report.json',
         );
         console.log(
-          `${colors.cyan('Visual Report:')} file://${reportHtmlPath}\n`,
+          `${colors.cyan('Report Manifest:')} file://${reportJsonPath}\n`,
         );
-
         if (values.open) {
-          const { url } = await serveReport(reportHtmlPath, 9000);
-          console.log(
-            `${colors.green('✓')} Review server active at ${colors.bold(url)} (Press Ctrl+C to exit)`,
+          const viewerUrl = buildViewerUrl(
+            `file://${reportJsonPath}`,
+            values['viewer-url'] as string,
           );
-          await new Promise(() => {});
+          console.log(
+            `${colors.green('✓')} Review report at: ${colors.bold(colors.cyan(viewerUrl))}\n`,
+          );
         }
 
         if (report.summary.changed > 0 && !values['pass-on-changes']) {
@@ -252,45 +263,54 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       }
     }
 
-    case 'serve': {
-      let reportPath = values.report as string;
-      const port = values.port ? parseInt(values.port as string, 10) : 9000;
+    case 'merge-reports': {
+      console.log(
+        `\n${colors.bold(colors.cyan('Diffra Shard Report Merger'))}\n`,
+      );
+      const shardDirs = positionals.slice(1);
+      const outDir = (values['output-dir'] as string) || '.diffra';
 
-      if (!reportPath) {
-        const latestPath = path.resolve(
-          process.cwd(),
-          '.diffra/latest-report.json',
+      if (shardDirs.length === 0) {
+        console.error(
+          colors.red('Usage: diffra merge-reports <shardPaths...> -o <outputDir>'),
         );
-        try {
-          const content = await fs.readFile(latestPath, 'utf-8');
-          const report = JSON.parse(content);
-          reportPath = path.resolve(
-            process.cwd(),
-            '.diffra/runs',
-            report.runId,
-            'index.html',
-          );
-        } catch {
-          reportPath = path.resolve(process.cwd(), '.diffra/report.html');
-        }
+        return 1;
       }
 
       try {
-        const { url } = await serveReport(reportPath, port);
-        console.log(`\n${colors.bold(colors.cyan('Diffra Report Viewer'))}`);
+        const merged = await mergeReports(shardDirs, { outputDir: outDir });
         console.log(
-          `${colors.green('✓')} Review report live at ${colors.bold(colors.underline(url))}\n`,
+          `${colors.green(colors.bold('Successfully merged'))} ${merged.results.length} visual results across ${shardDirs.length} shards into ${colors.cyan(outDir)}.\n`,
         );
-        console.log(colors.gray('Press Ctrl+C to stop server.\n'));
-        await new Promise(() => {});
         return 0;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(
-          `${colors.red(colors.bold('Error starting server:'))} ${msg}\n`,
+          `${colors.red(colors.bold('Error merging shard reports:'))} ${msg}\n`,
         );
         return 1;
       }
+    }
+
+    case 'serve': {
+      let reportPath = values.report as string;
+
+      if (!reportPath) {
+        reportPath = path.resolve(
+          process.cwd(),
+          '.diffra/latest-report.json',
+        );
+      }
+
+      const viewerUrl = buildViewerUrl(
+        `file://${reportPath}`,
+        values['viewer-url'] as string,
+      );
+      console.log(`\n${colors.bold(colors.cyan('Diffra Report Viewer'))}`);
+      console.log(
+        `${colors.green('✓')} Review report at: ${colors.bold(colors.underline(viewerUrl))}\n`,
+      );
+      return 0;
     }
 
     default: {

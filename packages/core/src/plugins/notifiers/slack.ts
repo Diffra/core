@@ -21,8 +21,8 @@ export class SlackNotifier implements NotifierAdapter {
     const hasChanges = report.summary.changed > 0;
     const color = hasChanges ? '#f85149' : '#3fb950';
     const text = hasChanges
-      ? `🚨 *Diffra Visual Test Alert*: ${report.summary.changed} changed stories detected on branch \`${report.branch}\`.`
-      : `✅ *Diffra Visual Tests Passed*: All ${report.summary.total} stories verified cleanly on \`${report.branch}\`.`;
+      ? `🚨 *Diffra Visual Test Alert*: ${report.summary.changed} changed targets detected on branch \`${report.branch}\`.`
+      : `✅ *Diffra Visual Tests Passed*: All ${report.summary.total} targets verified cleanly on \`${report.branch}\`.`;
 
     const payload = {
       channel: this.channel,

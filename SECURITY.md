@@ -11,7 +11,7 @@ Security updates and patches are actively applied to the following release lines
 | Version | Supported | Notes |
 | :--- | :--- | :--- |
 | `0.1.x` | Yes | Active development line |
-| `< 0.1.0` | No | Legacy preview builds |
+| `< 0.1.0` | No | Pre-release builds |
 
 ---
 

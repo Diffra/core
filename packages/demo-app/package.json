@@ -1,0 +1,28 @@
+{
+  "name": "@diffra/demo-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Vite TypeScript web application demo with Diffra visual regression configured",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview --port 4173",
+    "test:visual": "diffra test",
+    "test:visual:approve": "diffra approve",
+    "test:visual:serve": "diffra serve",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@diffra/cli": "workspace:*",
+    "@diffra/core": "workspace:*",
+    "@diffra/engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}

@@ -1,16 +1,57 @@
-import { resolvePullRequestNumber } from '../../notifier/github.js';
+import fs from 'node:fs/promises';
 import {
+  DIFFRA_COMMENT_MARKER,
   formatMarkdownSummary,
-  SYNDETIC_COMMENT_MARKER,
-} from '../../notifier/summary.js';
+} from './summary.js';
 import type { NotifierAdapter, TestRunReport } from '../../types/index.js';
 
 export interface GitHubNotifierOptions {
   token?: string;
   repo?: string;
   prNumber?: number;
+  commitSha?: string;
   reportUrl?: string;
   viewerUrl?: string;
+}
+
+/**
+ * Resolves the pull request number from options or GitHub Actions environment.
+ */
+export async function resolvePullRequestNumber(
+  explicitPrNumber?: number,
+): Promise<number | undefined> {
+  if (explicitPrNumber && !Number.isNaN(explicitPrNumber)) {
+    return explicitPrNumber;
+  }
+
+  if (process.env.GITHUB_PR_NUMBER) {
+    const parsed = parseInt(process.env.GITHUB_PR_NUMBER, 10);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+
+  const ref = process.env.GITHUB_REF || '';
+  const pullRefMatch = ref.match(/^refs\/pull\/(\d+)\/(merge|head)$/);
+  if (pullRefMatch?.[1]) {
+    const parsed = parseInt(pullRefMatch[1], 10);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+
+  if (process.env.GITHUB_EVENT_PATH) {
+    try {
+      const eventContent = await fs.readFile(
+        process.env.GITHUB_EVENT_PATH,
+        'utf-8',
+      );
+      const payload = JSON.parse(eventContent);
+      const prNumber =
+        payload.pull_request?.number || payload.issue?.number || payload.number;
+      if (typeof prNumber === 'number' && !Number.isNaN(prNumber)) {
+        return prNumber;
+      }
+    } catch {}
+  }
+
+  return undefined;
 }
 
 export class GitHubNotifier implements NotifierAdapter {
@@ -18,13 +59,15 @@ export class GitHubNotifier implements NotifierAdapter {
   private token?: string;
   private repo?: string;
   private prNumber?: number;
+  private commitSha?: string;
   private reportUrl?: string;
   private viewerUrl?: string;
 
   constructor(options: GitHubNotifierOptions = {}) {
-    this.token = options.token || process.env.GITHUB_TOKEN;
+    this.token = options.token || process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
     this.repo = options.repo || process.env.GITHUB_REPOSITORY;
     this.prNumber = options.prNumber;
+    this.commitSha = options.commitSha;
     this.reportUrl = options.reportUrl;
     this.viewerUrl = options.viewerUrl || process.env.DIFFRA_VIEWER_URL;
   }
@@ -42,7 +85,8 @@ export class GitHubNotifier implements NotifierAdapter {
     };
 
     // 1. Commit Status Check
-    if (report.commit && report.commit !== 'uncommitted') {
+    const sha = this.commitSha || report.commit;
+    if (sha && sha !== 'uncommitted') {
       try {
         const state = report.summary.changed > 0 ? 'failure' : 'success';
         const description =
@@ -50,7 +94,7 @@ export class GitHubNotifier implements NotifierAdapter {
             ? `Found ${report.summary.changed} visual diffs.`
             : 'All visual regressions passed.';
 
-        const checkUrl = `https://api.github.com/repos/${this.repo}/statuses/${report.commit}`;
+        const checkUrl = `https://api.github.com/repos/${this.repo}/statuses/${sha}`;
         await fetch(checkUrl, {
           method: 'POST',
           headers,
@@ -61,7 +105,10 @@ export class GitHubNotifier implements NotifierAdapter {
             target_url: this.reportUrl,
           }),
         });
-      } catch {}
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[diffra] Warning posting GitHub commit status check: ${msg}`);
+      }
     }
 
     // 2. PR Sticky Markdown Comment
@@ -84,7 +131,7 @@ export class GitHubNotifier implements NotifierAdapter {
           }>;
           const existing = comments.find(
             (c) =>
-              c.body?.includes(SYNDETIC_COMMENT_MARKER) ||
+              c.body?.includes(DIFFRA_COMMENT_MARKER) ||
               c.body?.includes('Diffra Visual Regression'),
           );
 
@@ -106,7 +153,10 @@ export class GitHubNotifier implements NotifierAdapter {
           headers,
           body: JSON.stringify({ body }),
         });
-      } catch {}
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[diffra] Warning posting GitHub PR comment: ${msg}`);
+      }
     }
   }
 }

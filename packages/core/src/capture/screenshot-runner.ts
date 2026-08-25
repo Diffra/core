@@ -1,6 +1,10 @@
 import type {
-  DriverCaptureResult,
-  DriverCaptureTask,
+  Locator,
+  PageScreenshotOptions,
+} from 'playwright';
+import type {
+  Project,
+  TargetParameters,
   Viewport,
   VisualDriver,
   VisualTarget,
@@ -10,25 +14,27 @@ import { BrowserPool } from './browser-pool.js';
 export interface CaptureTask {
   target: VisualTarget;
   viewport: Viewport;
+  project?: Project;
   driver?: VisualDriver;
-  /** Legacy alias for target */
-  story?: VisualTarget;
 }
 
 export interface CaptureResult {
   target: VisualTarget;
   viewport: Viewport;
+  project?: Project;
   buffer: Buffer;
-  /** Legacy alias for target */
-  story: VisualTarget;
 }
+
+const DEFAULT_CONCURRENCY = 4;
+const DEFAULT_NAVIGATION_TIMEOUT = 30000;
+const DEFAULT_SELECTOR_TIMEOUT = 10000;
 
 /**
  * Orchestrates parallel Playwright browser capture for any visual targets.
  */
 export async function captureTargets(
   tasks: CaptureTask[],
-  baseUrl = 'http://localhost:6006',
+  baseUrl?: string,
   options: {
     concurrency?: number;
     delay?: number;
@@ -37,27 +43,27 @@ export async function captureTargets(
   } = {},
 ): Promise<CaptureResult[]> {
   const concurrency = Math.min(
-    options.concurrency || 2,
+    options.concurrency || DEFAULT_CONCURRENCY,
     Math.max(1, tasks.length),
   );
 
   const results: CaptureResult[] = [];
   const browserTasks: CaptureTask[] = [];
 
-  // 1. Separate tasks handled directly by custom driver capture hooks
+  // 1. Separate tasks handled directly by custom driver capture hooks (e.g. Figma API, static images)
   for (const task of tasks) {
-    const target = task.target || task.story!;
+    const target = task.target;
     if (task.driver?.capture) {
       try {
         const buf = await task.driver.capture(
-          { target, viewport: task.viewport },
+          { target, viewport: task.viewport, project: task.project },
           { config: {}, cwd: options.cwd || process.cwd() },
         );
         if (buf) {
           results.push({
             target,
-            story: target,
             viewport: task.viewport,
+            project: task.project,
             buffer: buf,
           });
           continue;
@@ -69,7 +75,7 @@ export async function captureTargets(
         );
       }
     }
-    browserTasks.push({ ...task, target, story: target });
+    browserTasks.push({ ...task, target });
   }
 
   if (browserTasks.length === 0) {
@@ -79,7 +85,6 @@ export async function captureTargets(
   // 2. Capture remaining targets via Playwright browser pool
   const pauseAnimationAtEnd = options.pauseAnimationAtEnd ?? true;
   const pool = new BrowserPool(concurrency, pauseAnimationAtEnd);
-  await pool.init();
 
   const queue = [...browserTasks];
 
@@ -88,69 +93,85 @@ export async function captureTargets(
       const task = queue.shift();
       if (!task) break;
 
-      const target = task.target || task.story!;
-      const { viewport } = task;
-      const workerPage = await pool.acquirePage(viewport);
+      const target = task.target;
+      const { viewport, project } = task;
+
+      const targetParams: TargetParameters = (target.parameters?.snapshot ||
+        target.parameters?.visual ||
+        target.parameters?.diffra ||
+        {}) as TargetParameters;
+
+      const workerPage = await pool.acquirePage(viewport, project, {
+        animations: targetParams.animations,
+        pauseAnimationAtEnd: targetParams.pauseAnimationAtEnd,
+      });
 
       try {
-        const targetParams =
-          target.parameters?.snapshot ||
-          target.parameters?.visual ||
-          target.parameters?.diffra ||
-          {};
-
         let url = target.url;
         if (!url) {
-          url = `${baseUrl.replace(/\/$/, '')}/iframe.html?id=${encodeURIComponent(
-            target.id,
-          )}&viewMode=story`;
+          if (baseUrl) {
+            url = `${baseUrl.replace(/\/$/, '')}/${target.id}`;
+          } else {
+            throw new Error(
+              `Target "${target.id}" has no target URL and no baseUrl was configured.`,
+            );
+          }
         }
 
         await workerPage.page.goto(url, {
           waitUntil: 'domcontentloaded',
-          timeout: 15000,
+          timeout: DEFAULT_NAVIGATION_TIMEOUT,
         });
 
-        // Wait for element selector if specified
-        const selector =
-          target.selector ||
-          targetParams.selector ||
-          (url.includes('iframe.html') ? '#storybook-root, #root' : undefined);
+        // Wait for element selector if specified by target or snapshot parameters
+        const selector = target.selector || targetParams.selector;
 
         if (selector) {
           try {
             await workerPage.page.waitForSelector(selector, {
               state: 'attached',
-              timeout: 5000,
+              timeout: DEFAULT_SELECTOR_TIMEOUT,
             });
           } catch {}
         }
 
-        const waitDelay = targetParams.delay ?? options.delay ?? 20;
+        const waitDelay = targetParams.delay ?? options.delay ?? 0;
         if (waitDelay > 0) {
           await workerPage.page.waitForTimeout(waitDelay);
         }
 
+        // Collect mask locators (accepts CSS selector strings or Playwright Locator instances)
+        const maskItems = (target.mask || targetParams.mask || []) as Array<string | Locator>;
+        const maskLocators: Locator[] = maskItems
+          .map((item) => (typeof item === 'string' ? workerPage.page.locator(item) : item))
+          .filter(Boolean);
+
+        // Build standard Playwright PageScreenshotOptions
+        const screenshotOptions: PageScreenshotOptions = {
+          type: 'png',
+          mask: maskLocators.length > 0 ? maskLocators : undefined,
+          fullPage: targetParams.fullPage,
+          clip: targetParams.clip,
+          omitBackground: targetParams.omitBackground,
+          ...(targetParams.screenshotOptions || {}),
+        };
+
         let screenshotBuffer: Buffer;
-        if (target.selector && target.selector !== '#storybook-root, #root') {
-          const el = await workerPage.page.$(target.selector);
+        if (selector) {
+          const el = await workerPage.page.$(selector);
           if (el) {
-            screenshotBuffer = (await el.screenshot({ type: 'png' })) as Buffer;
+            screenshotBuffer = (await el.screenshot(screenshotOptions)) as Buffer;
           } else {
-            screenshotBuffer = (await workerPage.page.screenshot({
-              type: 'png',
-            })) as Buffer;
+            screenshotBuffer = (await workerPage.page.screenshot(screenshotOptions)) as Buffer;
           }
         } else {
-          screenshotBuffer = (await workerPage.page.screenshot({
-            type: 'png',
-          })) as Buffer;
+          screenshotBuffer = (await workerPage.page.screenshot(screenshotOptions)) as Buffer;
         }
 
         results.push({
           target,
-          story: target,
           viewport,
+          project,
           buffer: screenshotBuffer,
         });
       } catch (err) {
@@ -170,24 +191,4 @@ export async function captureTargets(
   }
 
   return results;
-}
-
-/**
- * Legacy wrapper function for Storybook captures
- */
-export async function captureStories(
-  tasks: Array<{ story: VisualTarget; viewport: Viewport }>,
-  storybookUrl: string,
-  options: {
-    concurrency?: number;
-    delay?: number;
-    pauseAnimationAtEnd?: boolean;
-  } = {},
-): Promise<CaptureResult[]> {
-  const normalizedTasks: CaptureTask[] = tasks.map((t) => ({
-    target: t.story,
-    story: t.story,
-    viewport: t.viewport,
-  }));
-  return captureTargets(normalizedTasks, storybookUrl, options);
 }

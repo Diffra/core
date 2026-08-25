@@ -10,7 +10,7 @@ Thank you for your interest in contributing to Diffra. We welcome contributions,
 
 * **Node.js**: `^20.18.0` or `^22.0.0`
 * **pnpm**: `^10.0.0` or `^11.0.0`
-* **Rust toolchain** (optional, for compiling `@diffra/diff` native bindings): `cargo` and `rustc` `^1.80.0`
+* **Rust toolchain** (optional, for compiling `@diffra/engine` native bindings): `cargo` and `rustc` `^1.80.0`
 
 ### Repository setup
 
@@ -61,6 +61,6 @@ pnpm test
    ```
 4. Commit your changes following [Conventional Commits](https://www.conventionalcommits.org/):
    * `feat(core): add azure blob storage driver`
-   * `fix(parser): handle multiline parameter objects`
+   * `fix(drivers): handle multiline parameter objects`
    * `docs(cli): add missing flag reference`
 5. Submit your pull request to the `main` branch.

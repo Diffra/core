@@ -17,4 +17,4 @@ This document provides a concise reference for the visual design, typography, an
 * **Iconography**: Direct `lucide-react` imports (`LayoutGrid`, `ScanEye`, `Columns2`, `SlidersHorizontal`, `Layers`, `SquareDashed`, `ListFilter`, `Search`, `Check`).
 * **Inspection**: Movement (neon green pixel shift highlight with `ScanEye`) is the default inspection mode.
 
-For full architectural and design system details, see [docs/design.md](docs/design.md).
+For full architectural and design system details, see [docs/architecture/design-principles.md](docs/architecture/design-principles.md).

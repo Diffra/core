@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type {
@@ -16,6 +17,7 @@ export class LocalFilesystemAdapter implements StorageAdapter {
   name = 'local';
   private baselineDir: string;
   private outputDir: string;
+  private blobsDir: string;
 
   constructor(options: LocalStorageOptions = {}) {
     const cwd = options.cwd || process.cwd();
@@ -23,15 +25,52 @@ export class LocalFilesystemAdapter implements StorageAdapter {
     const base = options.baselineDir || '.diffra/baselines';
     this.outputDir = path.isAbsolute(out) ? out : path.resolve(cwd, out);
     this.baselineDir = path.isAbsolute(base) ? base : path.resolve(cwd, base);
+    this.blobsDir = path.join(this.outputDir, 'blobs');
   }
 
   async init(): Promise<void> {
     await fs.mkdir(this.baselineDir, { recursive: true });
     await fs.mkdir(this.outputDir, { recursive: true });
+    await fs.mkdir(this.blobsDir, { recursive: true });
   }
 
-  private getFilename(storyId: string, viewport: Viewport): string {
-    return `${storyId.replace(/[^a-zA-Z0-9_-]/g, '_')}--${viewport.width}x${viewport.height}.png`;
+  private getFilename(
+    storyId: string,
+    viewport: Viewport,
+    options?: { browser?: string },
+  ): string {
+    const browserSuffix = options?.browser ? `--${options.browser}` : '';
+    return `${storyId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${viewport.width}x${viewport.height}.png`;
+  }
+
+  async uploadBlob(hash: string, imageBuffer: Buffer): Promise<string> {
+    await fs.mkdir(this.blobsDir, { recursive: true });
+    const blobPath = path.join(this.blobsDir, `${hash}.png`);
+    try {
+      await fs.access(blobPath);
+    } catch {
+      await fs.writeFile(blobPath, imageBuffer);
+    }
+    return blobPath;
+  }
+
+  async downloadBlob(hash: string): Promise<Buffer | null> {
+    const blobPath = path.join(this.blobsDir, `${hash}.png`);
+    try {
+      return await fs.readFile(blobPath);
+    } catch {
+      return null;
+    }
+  }
+
+  async hasBlob(hash: string): Promise<boolean> {
+    const blobPath = path.join(this.blobsDir, `${hash}.png`);
+    try {
+      await fs.access(blobPath);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async uploadCandidate(
@@ -39,10 +78,14 @@ export class LocalFilesystemAdapter implements StorageAdapter {
     storyId: string,
     viewport: Viewport,
     imageBuffer: Buffer,
+    options?: { browser?: string },
   ): Promise<string> {
+    const hash = crypto.createHash('sha256').update(imageBuffer).digest('hex');
+    await this.uploadBlob(hash, imageBuffer);
+
     const dir = path.join(this.outputDir, 'runs', runId, 'candidates');
     await fs.mkdir(dir, { recursive: true });
-    const filePath = path.join(dir, this.getFilename(storyId, viewport));
+    const filePath = path.join(dir, this.getFilename(storyId, viewport, options));
     await fs.writeFile(filePath, imageBuffer);
     return filePath;
   }
@@ -52,10 +95,14 @@ export class LocalFilesystemAdapter implements StorageAdapter {
     storyId: string,
     viewport: Viewport,
     imageBuffer: Buffer,
+    options?: { browser?: string },
   ): Promise<string> {
+    const hash = crypto.createHash('sha256').update(imageBuffer).digest('hex');
+    await this.uploadBlob(hash, imageBuffer);
+
     const dir = path.join(this.outputDir, 'runs', runId, 'diffs');
     await fs.mkdir(dir, { recursive: true });
-    const filePath = path.join(dir, this.getFilename(storyId, viewport));
+    const filePath = path.join(dir, this.getFilename(storyId, viewport, options));
     await fs.writeFile(filePath, imageBuffer);
     return filePath;
   }
@@ -64,19 +111,14 @@ export class LocalFilesystemAdapter implements StorageAdapter {
     baselineCommit: string,
     storyId: string,
     viewport: Viewport,
+    options?: { browser?: string },
   ): Promise<Buffer | null> {
-    const commitPath = path.join(
-      this.baselineDir,
-      baselineCommit,
-      this.getFilename(storyId, viewport),
-    );
+    const filename = this.getFilename(storyId, viewport, options);
+    const commitPath = path.join(this.baselineDir, baselineCommit, filename);
     try {
       return await fs.readFile(commitPath);
     } catch {
-      const defaultPath = path.join(
-        this.baselineDir,
-        this.getFilename(storyId, viewport),
-      );
+      const defaultPath = path.join(this.baselineDir, filename);
       try {
         return await fs.readFile(defaultPath);
       } catch {
@@ -90,8 +132,12 @@ export class LocalFilesystemAdapter implements StorageAdapter {
     storyId: string,
     viewport: Viewport,
     imageBuffer: Buffer,
+    options?: { browser?: string },
   ): Promise<void> {
-    const filename = this.getFilename(storyId, viewport);
+    const hash = crypto.createHash('sha256').update(imageBuffer).digest('hex');
+    await this.uploadBlob(hash, imageBuffer);
+
+    const filename = this.getFilename(storyId, viewport, options);
     await fs.writeFile(path.join(this.baselineDir, filename), imageBuffer);
     const commitDir = path.join(this.baselineDir, commitSha);
     await fs.mkdir(commitDir, { recursive: true });

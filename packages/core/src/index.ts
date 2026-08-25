@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
@@ -8,14 +9,15 @@ import {
 import { loadConfig } from './config/loader.js';
 import { resolveDrivers } from './drivers/index.js';
 import { getGitInfo } from './git/baseline.js';
-import { normalizeViewport } from './parser/csf-parser.js';
+import { normalizeViewport } from './utils/viewport.js';
 import { resolveDiffEngine } from './plugins/diff/index.js';
 import { resolveNotifiers } from './plugins/notifiers/index.js';
 import { PluginRunner } from './plugins/runner.js';
 import { resolveStorageAdapter } from './plugins/storage/index.js';
-import { generateHtmlReport } from './report/generator.js';
+import { buildViewerUrl, saveReportManifest } from './report/generator.js';
 import type {
   DiffraConfig,
+  Project,
   TestRunReport,
   Viewport,
   VisualTarget,
@@ -25,13 +27,18 @@ import type {
 export * from './config/index.js';
 export * from './drivers/index.js';
 export * from './git/baseline.js';
-export * from './notifier/summary.js';
-export * from './parser/csf-parser.js';
+export * from './plugins/notifiers/summary.js';
+export * from './utils/viewport.js';
 export * from './plugins/index.js';
+export * from './playwright/index.js';
 export * from './report/generator.js';
+export * from './report/merger.js';
 export * from './types/index.js';
 
-const DEFAULT_DIFF_THRESHOLD = 0.063;
+import {
+  DEFAULT_DIFF_THRESHOLD,
+  DEFAULT_VIEWPORTS,
+} from './config/schema.js';
 
 /**
  * Finds all story files matching the configured glob patterns.
@@ -84,6 +91,7 @@ export async function runVisualRegression(
   options: {
     config?: Partial<DiffraConfig>;
     cwd?: string;
+    shard?: string;
     onProgress?: (step: string, current: number, total: number) => void;
   } = {},
 ): Promise<TestRunReport> {
@@ -122,13 +130,18 @@ export async function runVisualRegression(
     }
   }
 
-  allTargets = await pluginRunner.hookDiscoverStories(allTargets);
+  allTargets = await pluginRunner.hookDiscoverTargets(allTargets);
 
-  // 2. Build task matrix (targets x viewports)
+  // 2. Build task matrix (targets x viewports / projects)
   const defaultViewports = (
-    config.viewports || [{ width: 1280, height: 800, name: 'desktop' }]
+    config.viewports || DEFAULT_VIEWPORTS
   ).map(normalizeViewport);
-  const tasks: CaptureTask[] = [];
+  const projects: Project[] =
+    config.projects && config.projects.length > 0
+      ? config.projects
+      : [{ name: 'chromium', browser: 'chromium' }];
+
+  let tasks: CaptureTask[] = [];
 
   for (const target of allTargets) {
     const rawViewports =
@@ -139,15 +152,38 @@ export async function runVisualRegression(
       ? rawViewports.map(normalizeViewport)
       : defaultViewports;
 
-    for (const vp of viewports) {
-      tasks.push({ target, story: target, viewport: vp });
+    for (const project of projects) {
+      const projectViewport = project.use?.viewport
+        ? normalizeViewport(project.use.viewport)
+        : undefined;
+
+      const effectiveViewports = projectViewport ? [projectViewport] : viewports;
+
+      for (const vp of effectiveViewports) {
+        tasks.push({ target, viewport: vp, project });
+      }
+    }
+  }
+
+  // Apply Sharding if specified
+  const shardConfig = options.shard || config.shard;
+  if (shardConfig) {
+    const match = shardConfig.match(/^(\d+)\/(\d+)$/);
+    if (match) {
+      const shardIndex = parseInt(match[1], 10);
+      const shardTotal = parseInt(match[2], 10);
+      if (shardIndex >= 1 && shardTotal >= 1 && shardIndex <= shardTotal) {
+        tasks = tasks.filter((_, i) => i % shardTotal === (shardIndex - 1));
+      }
     }
   }
 
   // 3. Capture Candidate Screenshots
+  const activeBaseUrl =
+    config.baseUrl || config.previewUrl || config.storybookUrl;
   let rawCaptures: CaptureResult[] = [];
   try {
-    rawCaptures = await captureTargets(tasks, config.storybookUrl, {
+    rawCaptures = await captureTargets(tasks, activeBaseUrl, {
       concurrency: config.concurrency,
       delay: config.delay,
       pauseAnimationAtEnd: config.pauseAnimationAtEnd ?? true,
@@ -175,14 +211,17 @@ export async function runVisualRegression(
     }),
   );
 
-  // 4. Compare with Baseline Screenshots
+  // 4. Compare with Baseline Screenshots (CAS & Fast-Path Matching)
   const testResults: VisualTestResult[] = [];
 
   for (let i = 0; i < captures.length; i++) {
-    const { target, viewport, buffer } = captures[i];
+    const { target, viewport, project, buffer } = captures[i];
     const groupName = target.group || target.component || 'General';
+    const browserName = project?.browser || project?.name || 'chromium';
+    const candidateHash = crypto.createHash('sha256').update(buffer).digest('hex');
+
     options.onProgress?.(
-      `Comparing ${groupName} / ${target.name}`,
+      `Comparing ${groupName} / ${target.name} [${browserName}]`,
       i + 1,
       captures.length,
     );
@@ -193,6 +232,7 @@ export async function runVisualRegression(
       target.id,
       viewport,
       buffer,
+      { browser: browserName },
     );
 
     // Fetch baseline
@@ -200,6 +240,7 @@ export async function runVisualRegression(
       gitInfo.baselineCommit,
       target.id,
       viewport,
+      { browser: browserName },
     );
 
     if (!baselineBuffer) {
@@ -209,7 +250,38 @@ export async function runVisualRegression(
         group: groupName,
         component: groupName,
         viewport,
+        browser: browserName,
+        blobHash: candidateHash,
         status: 'added',
+        candidatePath,
+        metadata: target.metadata,
+      });
+      continue;
+    }
+
+    const baselineHash = crypto.createHash('sha256').update(baselineBuffer).digest('hex');
+
+    // CAS $O(1)$ fast-path match: identical image hash -> 0 diff
+    if (candidateHash === baselineHash) {
+      testResults.push({
+        id: target.id,
+        name: target.name,
+        group: groupName,
+        component: groupName,
+        viewport,
+        browser: browserName,
+        blobHash: candidateHash,
+        baselineBlobHash: baselineHash,
+        status: 'unchanged',
+        diffResult: {
+          diffCount: 0,
+          diffPercentage: 0,
+          isSameDimensions: true,
+          width: viewport.width,
+          height: viewport.height,
+          boundingBoxes: [],
+          hasDiff: false,
+        },
         candidatePath,
         metadata: target.metadata,
       });
@@ -240,6 +312,7 @@ export async function runVisualRegression(
           target.id,
           viewport,
           diffResult.diffImage,
+          { browser: browserName },
         );
       }
 
@@ -249,6 +322,9 @@ export async function runVisualRegression(
         group: groupName,
         component: groupName,
         viewport,
+        browser: browserName,
+        blobHash: candidateHash,
+        baselineBlobHash: baselineHash,
         status: 'changed',
         diffResult,
         candidatePath,
@@ -262,6 +338,9 @@ export async function runVisualRegression(
         group: groupName,
         component: groupName,
         viewport,
+        browser: browserName,
+        blobHash: candidateHash,
+        baselineBlobHash: baselineHash,
         status: 'unchanged',
         diffResult,
         candidatePath,
@@ -287,13 +366,13 @@ export async function runVisualRegression(
     baselineCommit: gitInfo.baselineCommit,
     baselineBranch: config.baselineBranch || 'main',
     repositoryUrl: gitInfo.repositoryUrl,
+    viewerUrl: config.viewerUrl,
     summary,
     results: testResults,
   };
 
   const reportJsonPath = await storage.saveReport(report);
-  const reportHtmlPath = path.join(path.dirname(reportJsonPath), 'index.html');
-  await generateHtmlReport(report, reportHtmlPath);
+  await saveReportManifest(report, reportJsonPath);
 
   // 6. Run Notifiers & Plugin Completion Hooks
   for (const notifier of notifiers) {
@@ -356,6 +435,7 @@ export async function approveBaselines(
           res.id,
           res.viewport,
           candidateBuf,
+          { browser: res.browser },
         );
         approvedCount++;
       } catch (err) {

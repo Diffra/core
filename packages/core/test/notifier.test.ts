@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { resolvePullRequestNumber } from '../src/notifier/github.js';
 import {
   DIFFRA_COMMENT_MARKER,
   formatMarkdownSummary,
-} from '../src/notifier/summary.js';
+  resolvePullRequestNumber,
+} from '../src/plugins/notifiers/index.js';
 import type { TestRunReport } from '../src/types/index.js';
 
 describe('Notifier PR Markdown Summary', () => {
@@ -83,7 +83,7 @@ describe('Notifier PR Markdown Summary', () => {
     const markdown = formatMarkdownSummary(report);
     expect(markdown).toContain(DIFFRA_COMMENT_MARKER);
     expect(markdown).toContain(
-      '## ✅ Diffra Visual Regression: All Visual Tests Passed (10 stories)',
+      '## ✅ Diffra Visual Regression: All Visual Tests Passed (10 targets)',
     );
   });
 

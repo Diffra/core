@@ -4,7 +4,7 @@ import { DiffraConfigSchema } from '../src/config/schema.js';
 describe('Diffra Config Schema', () => {
   it('applies default configuration values', () => {
     const config = DiffraConfigSchema.parse({});
-    expect(config.storybookUrl).toBe('http://localhost:6006');
+    expect(config.storybookUrl).toBeUndefined();
     expect(config.viewports).toEqual([
       { width: 1280, height: 800, name: 'desktop' },
     ]);

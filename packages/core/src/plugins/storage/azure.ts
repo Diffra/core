@@ -59,17 +59,23 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
     return this.containerClient;
   }
 
-  private getFilename(storyId: string, viewport: Viewport): string {
-    return `${storyId.replace(/[^a-zA-Z0-9_-]/g, '_')}--${viewport.width}x${viewport.height}.png`;
+  private getFilename(
+    targetId: string,
+    viewport: Viewport,
+    options?: { browser?: string },
+  ): string {
+    const browserSuffix = options?.browser ? `--${options.browser}` : '';
+    return `${targetId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${viewport.width}x${viewport.height}.png`;
   }
 
   async uploadCandidate(
     runId: string,
-    storyId: string,
+    targetId: string,
     viewport: Viewport,
     imageBuffer: Buffer,
+    options?: { browser?: string },
   ): Promise<string> {
-    const blobName = `${this.prefix}/runs/${runId}/candidates/${this.getFilename(storyId, viewport)}`;
+    const blobName = `${this.prefix}/runs/${runId}/candidates/${this.getFilename(targetId, viewport, options)}`;
     const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
     await blockBlobClient.upload(imageBuffer, imageBuffer.length, {
       blobHTTPHeaders: { blobContentType: 'image/png' },
@@ -79,11 +85,12 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
 
   async uploadDiff(
     runId: string,
-    storyId: string,
+    targetId: string,
     viewport: Viewport,
     imageBuffer: Buffer,
+    options?: { browser?: string },
   ): Promise<string> {
-    const blobName = `${this.prefix}/runs/${runId}/diffs/${this.getFilename(storyId, viewport)}`;
+    const blobName = `${this.prefix}/runs/${runId}/diffs/${this.getFilename(targetId, viewport, options)}`;
     const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
     await blockBlobClient.upload(imageBuffer, imageBuffer.length, {
       blobHTTPHeaders: { blobContentType: 'image/png' },
@@ -93,10 +100,11 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
 
   async downloadBaseline(
     baselineCommit: string,
-    storyId: string,
+    targetId: string,
     viewport: Viewport,
+    options?: { browser?: string },
   ): Promise<Buffer | null> {
-    const blobName = `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(storyId, viewport)}`;
+    const blobName = `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(targetId, viewport, options)}`;
     const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
     try {
       return await blockBlobClient.downloadToBuffer();
@@ -107,11 +115,12 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
 
   async uploadBaseline(
     commitSha: string,
-    storyId: string,
+    targetId: string,
     viewport: Viewport,
     imageBuffer: Buffer,
+    options?: { browser?: string },
   ): Promise<void> {
-    const blobName = `${this.prefix}/baselines/${commitSha}/${this.getFilename(storyId, viewport)}`;
+    const blobName = `${this.prefix}/baselines/${commitSha}/${this.getFilename(targetId, viewport, options)}`;
     const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
     await blockBlobClient.upload(imageBuffer, imageBuffer.length, {
       blobHTTPHeaders: { blobContentType: 'image/png' },

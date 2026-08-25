@@ -29,11 +29,11 @@ inputs:
   exitZeroOnChanges:
     description: 'Pass the action step (exit 0) even if visual differences are detected, or specify a branch name'
     required: false
-    default: 'false'
+    default: 'true'
   autoAcceptChanges:
-    description: 'Automatically promote candidate screenshots as the new baseline on main or a specific branch'
+    description: 'Automatically promote candidate screenshots as the new baseline on default branch or a specific branch (e.g. default-branch, main)'
     required: false
-    default: 'false'
+    default: 'default-branch'
   exitOnceUploaded:
     description: 'Exit with code 0 as soon as the candidate snapshots and diffs are persisted'
     required: false

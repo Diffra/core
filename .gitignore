@@ -8,5 +8,5 @@ storybook-static/
 .DS_Store
 *.tsbuildinfo
 coverage/
-packages/diff/*.node
-packages/diff/index.d.ts
+packages/engine/*.node
+packages/engine/index.d.ts
