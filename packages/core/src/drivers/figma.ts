@@ -29,7 +29,9 @@ export class FigmaDriver implements VisualDriver {
 
     const targets: VisualTarget[] = [];
     const diffThreshold =
-      figmaConfig.snapshot?.diffThreshold ?? context.config.snapshot?.diffThreshold ?? 0.063;
+      figmaConfig.snapshot?.diffThreshold ??
+      context.config.snapshot?.diffThreshold ??
+      0.063;
 
     // 1. Explicit components mapping { 'Components/Button/Primary': '123:45' }
     if (figmaConfig.components) {
@@ -159,7 +161,10 @@ export class FigmaDriver implements VisualDriver {
     const nodeTasks: Array<{ task: DriverCaptureTask; nodeId: string }> = [];
 
     for (const task of tasks) {
-      const nodeId = task.target.metadata?.figmaNodeId as string | undefined;
+      const nodeId =
+        typeof task.target.metadata?.figmaNodeId === 'string'
+          ? task.target.metadata.figmaNodeId
+          : undefined;
       if (nodeId) {
         nodeTasks.push({ task, nodeId });
       }

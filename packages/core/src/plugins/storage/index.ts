@@ -9,6 +9,15 @@ import { createGCSStorage } from './gcs.js';
 import { createLocalStorage } from './local.js';
 import { createS3Storage } from './s3.js';
 
+function isStorageAdapter(val: unknown): val is StorageAdapter {
+  return (
+    typeof val === 'object' &&
+    val !== null &&
+    'uploadCandidate' in val &&
+    typeof (val as { uploadCandidate: unknown }).uploadCandidate === 'function'
+  );
+}
+
 /**
  * Resolves the configured storage adapter plugin.
  * Downstream consumers can supply their own custom StorageAdapter object or configure built-in plugins.
@@ -18,49 +27,44 @@ export function resolveStorageAdapter(
   cwd = process.cwd(),
 ): StorageAdapter {
   // If custom storage adapter object was passed directly
-  if (
-    config.storage &&
-    typeof (config.storage as StorageAdapter).uploadCandidate === 'function'
-  ) {
-    return config.storage as StorageAdapter;
+  if (isStorageAdapter(config.storage)) {
+    return config.storage;
   }
 
-  const storageConfig = (
+  const storageConfig =
     typeof config.storage === 'object' && config.storage !== null
       ? config.storage
-      : { provider: 'local' }
-  ) as any;
+      : { provider: 'local' as const };
 
-  const provider = storageConfig.provider || storageConfig.type || 'local';
-
-  if (provider === 's3') {
+  if (storageConfig.provider === 's3') {
     return createS3Storage({
-      bucket: storageConfig.bucket || storageConfig.s3?.bucket,
-      prefix: storageConfig.prefix || storageConfig.s3?.prefix,
-      region: storageConfig.region || storageConfig.s3?.region,
-      endpoint: storageConfig.endpoint || storageConfig.s3?.endpoint,
+      bucket: storageConfig.bucket,
+      prefix: storageConfig.prefix,
+      region: storageConfig.region,
+      endpoint: storageConfig.endpoint,
     });
   }
 
-  if (provider === 'gcs') {
+  if (storageConfig.provider === 'gcs') {
     return createGCSStorage({
-      bucket: storageConfig.bucket || storageConfig.gcs?.bucket,
-      prefix: storageConfig.prefix || storageConfig.gcs?.prefix,
+      bucket: storageConfig.bucket,
+      prefix: storageConfig.prefix,
     });
   }
 
-  if (provider === 'azure') {
+  if (storageConfig.provider === 'azure') {
     return createAzureStorage({
-      container: storageConfig.container || storageConfig.azure?.container,
-      connectionString:
-        storageConfig.connectionString || storageConfig.azure?.connectionString,
-      prefix: storageConfig.prefix || storageConfig.azure?.prefix,
+      container: storageConfig.container,
+      connectionString: storageConfig.connectionString,
+      prefix: storageConfig.prefix,
     });
   }
 
   return createLocalStorage({
-    outputDir: storageConfig.outputDir || '.diffra',
-    baselineDir: storageConfig.dir || storageConfig.local?.baselineDir || '.diffra/baselines',
+    outputDir:
+      ('outputDir' in storageConfig && storageConfig.outputDir) || '.diffra',
+    baselineDir:
+      ('dir' in storageConfig && storageConfig.dir) || '.diffra/baselines',
     cwd,
   });
 }

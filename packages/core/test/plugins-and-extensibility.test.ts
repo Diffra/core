@@ -90,7 +90,14 @@ describe('Modular Plugin & Extensibility System', () => {
         branch: 'feature-extensibility',
         commit: 'abc1234',
       },
-      summary: { total: 10, passed: 9, changed: 1, added: 0, removed: 0, unchanged: 9 },
+      summary: {
+        total: 10,
+        passed: 9,
+        changed: 1,
+        added: 0,
+        removed: 0,
+        unchanged: 9,
+      },
       results: [],
     };
 

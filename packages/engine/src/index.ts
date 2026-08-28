@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { clusterBoundingBoxes } from './clustering.js';
 import { decodePng, encodePng } from './png.js';
@@ -9,6 +10,7 @@ export * from './png.js';
 export * from './types.js';
 
 const DEFAULT_THRESHOLD = 0.063;
+const require = createRequire(import.meta.url);
 
 interface NativeBinding {
   compareImagesRust?: (
@@ -49,10 +51,7 @@ function loadNativeBinding(): NativeBinding | null {
   for (const bindingPath of possiblePaths) {
     if (fs.existsSync(bindingPath)) {
       try {
-        const req = (
-          globalThis as unknown as { require?: (p: string) => NativeBinding }
-        ).require;
-        nativeBinding = req ? req(bindingPath) : null;
+        nativeBinding = require(bindingPath) as NativeBinding;
         if (nativeBinding) return nativeBinding;
       } catch {
         // Continue searching

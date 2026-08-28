@@ -1,6 +1,6 @@
+import { Check, ListFilter, Search, X } from 'lucide-react';
 import type React from 'react';
 import { useMemo } from 'react';
-import { Check, ListFilter, Search, X } from 'lucide-react';
 import { useViewer } from '../../context/ViewerContext.js';
 import type { FilterStatus, TestResult } from '../../types/index.js';
 import { Badge } from '../ui/Badge.js';
@@ -44,9 +44,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ searchInputRef }) => {
   const handleFilterSelect = (id: FilterStatus) => {
     setFilterStatus(id);
     const popoverEl = document.getElementById('filter-popover');
-    if (popoverEl && 'hidePopover' in popoverEl) {
+    if (
+      popoverEl &&
+      'hidePopover' in popoverEl &&
+      typeof popoverEl.hidePopover === 'function'
+    ) {
       try {
-        (popoverEl as unknown as { hidePopover: () => void }).hidePopover();
+        popoverEl.hidePopover();
       } catch {}
     }
   };

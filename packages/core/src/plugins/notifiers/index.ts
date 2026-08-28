@@ -6,6 +6,15 @@ import type { DiffraConfig, NotifierAdapter } from '../../types/index.js';
 import { createGitHubNotifier } from './github.js';
 import { createSlackNotifier } from './slack.js';
 
+function isNotifierAdapter(val: unknown): val is NotifierAdapter {
+  return (
+    typeof val === 'object' &&
+    val !== null &&
+    'notify' in val &&
+    typeof (val as { notify: unknown }).notify === 'function'
+  );
+}
+
 export function resolveNotifiers(config: DiffraConfig): NotifierAdapter[] {
   const notifiers: NotifierAdapter[] = [];
   const reporters = config.reporters || [];
@@ -22,8 +31,8 @@ export function resolveNotifiers(config: DiffraConfig): NotifierAdapter[] {
       if ('type' in r) {
         if (r.type === 'github') notifiers.push(createGitHubNotifier(r));
         else if (r.type === 'slack') notifiers.push(createSlackNotifier(r));
-      } else if ('notify' in r) {
-        notifiers.push(r as NotifierAdapter);
+      } else if (isNotifierAdapter(r)) {
+        notifiers.push(r);
       }
     }
   }

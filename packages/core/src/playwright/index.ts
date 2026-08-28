@@ -1,6 +1,11 @@
-import type { Locator, Page, PageScreenshotOptions } from 'playwright';
-import { getGitInfo } from '../git/baseline.js';
+import type {
+  Locator,
+  Page,
+  PageScreenshotOptions,
+  ViewportSize,
+} from 'playwright';
 import { loadConfig } from '../config/loader.js';
+import { getGitInfo } from '../git/baseline.js';
 import { resolveDiffEngine } from '../plugins/diff/index.js';
 import { resolveStorageAdapter } from '../plugins/storage/index.js';
 import type { DiffOptions } from '../types/index.js';
@@ -17,6 +22,15 @@ export interface VisualBaselineOptions extends DiffOptions {
   animations?: 'disabled' | 'allow';
   screenshotOptions?: PageScreenshotOptions;
 }
+
+export type PlaywrightCaptureTarget =
+  | Page
+  | Locator
+  | {
+      screenshot: (options?: PageScreenshotOptions) => Promise<Buffer>;
+      viewportSize?: () => ViewportSize | null;
+      page?: () => { viewportSize: () => ViewportSize | null };
+    };
 
 let cachedContext: {
   cwd: string;
@@ -44,7 +58,7 @@ async function getPlaywrightContext(cwd: string) {
  * Custom visual baseline matcher for Playwright test runners.
  */
 export async function toMatchVisualBaselineMatcher(
-  received: Page | Locator,
+  received: PlaywrightCaptureTarget,
   snapshotId: string,
   options: VisualBaselineOptions = {},
 ): Promise<{ pass: boolean; message: () => string }> {
@@ -59,7 +73,7 @@ export async function toMatchVisualBaselineMatcher(
   };
 
   // Capture screenshot buffer from Page or Locator
-  const buffer = (await received.screenshot(screenshotOpts)) as Buffer;
+  const buffer = await received.screenshot(screenshotOpts);
 
   const cwd = process.cwd();
   const { config, gitInfo, storage, runId } = await getPlaywrightContext(cwd);
@@ -67,15 +81,13 @@ export async function toMatchVisualBaselineMatcher(
   let viewport = { width: 1280, height: 800 };
   if (
     'viewportSize' in received &&
-    typeof (received as any).viewportSize === 'function'
+    typeof received.viewportSize === 'function'
   ) {
-    const vp = (received as Page).viewportSize();
+    const vp = received.viewportSize();
     if (vp) viewport = vp;
-  } else if (
-    'page' in received &&
-    typeof (received as any).page === 'function'
-  ) {
-    const vp = (received as Locator).page().viewportSize();
+  } else if ('page' in received && typeof received.page === 'function') {
+    const parentPage = received.page();
+    const vp = parentPage ? parentPage.viewportSize() : null;
     if (vp) viewport = vp;
   }
 
@@ -89,11 +101,7 @@ export async function toMatchVisualBaselineMatcher(
   await storage.uploadCandidate(runId, snapshotKey, buffer);
 
   if (!baselineBuffer) {
-    await storage.uploadBaseline(
-      gitInfo.commit || 'HEAD',
-      snapshotKey,
-      buffer,
-    );
+    await storage.uploadBaseline(gitInfo.commit || 'HEAD', snapshotKey, buffer);
     return {
       pass: true,
       message: () => `Visual baseline created for "${snapshotId}".`,

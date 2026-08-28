@@ -1,3 +1,4 @@
+import type { S3Client } from '@aws-sdk/client-s3';
 import type {
   SnapshotKey,
   StorageAdapter,
@@ -11,17 +12,13 @@ export interface S3StorageOptions {
   endpoint?: string;
 }
 
-interface S3ClientLike {
-  send: (cmd: unknown) => Promise<{ Body?: AsyncIterable<Uint8Array> }>;
-}
-
 export class S3StorageAdapter implements StorageAdapter {
   name = 's3';
   private bucket: string;
   private prefix: string;
   private region: string;
   private endpoint?: string;
-  private s3Client: S3ClientLike | null = null;
+  private s3Client: S3Client | null = null;
 
   constructor(options: S3StorageOptions) {
     this.bucket = options.bucket;
@@ -31,7 +28,6 @@ export class S3StorageAdapter implements StorageAdapter {
   }
 
   async init(): Promise<void> {
-    // @ts-expect-error
     const { S3Client } = await import('@aws-sdk/client-s3');
     this.s3Client = new S3Client({
       region: this.region,
@@ -39,7 +35,7 @@ export class S3StorageAdapter implements StorageAdapter {
     });
   }
 
-  private getClient(): S3ClientLike {
+  private getClient(): S3Client {
     if (!this.s3Client) {
       throw new Error('S3 Storage not initialized');
     }
@@ -56,7 +52,6 @@ export class S3StorageAdapter implements StorageAdapter {
     key: SnapshotKey,
     imageBuffer: Buffer,
   ): Promise<string> {
-    // @ts-expect-error
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
     const objectKey = `${this.prefix}/runs/${runId}/candidates/${this.getFilename(key)}`;
     await this.getClient().send(
@@ -75,7 +70,6 @@ export class S3StorageAdapter implements StorageAdapter {
     key: SnapshotKey,
     imageBuffer: Buffer,
   ): Promise<string> {
-    // @ts-expect-error
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
     const objectKey = `${this.prefix}/runs/${runId}/diffs/${this.getFilename(key)}`;
     await this.getClient().send(
@@ -93,7 +87,6 @@ export class S3StorageAdapter implements StorageAdapter {
     baselineCommit: string,
     key: SnapshotKey,
   ): Promise<Buffer | null> {
-    // @ts-expect-error
     const { GetObjectCommand } = await import('@aws-sdk/client-s3');
     const objectKey = `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(key)}`;
     try {
@@ -105,7 +98,7 @@ export class S3StorageAdapter implements StorageAdapter {
       );
       const chunks: Uint8Array[] = [];
       if (response.Body) {
-        for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+        for await (const chunk of response.Body) {
           chunks.push(chunk);
         }
       }
@@ -120,7 +113,6 @@ export class S3StorageAdapter implements StorageAdapter {
     key: SnapshotKey,
     imageBuffer: Buffer,
   ): Promise<void> {
-    // @ts-expect-error
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
     const objectKey = `${this.prefix}/baselines/${commitSha}/${this.getFilename(key)}`;
     await this.getClient().send(
@@ -134,7 +126,6 @@ export class S3StorageAdapter implements StorageAdapter {
   }
 
   async saveReport(report: TestRunReport): Promise<string> {
-    // @ts-expect-error
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
     const key = `${this.prefix}/runs/${report.runId}/report.json`;
     await this.getClient().send(

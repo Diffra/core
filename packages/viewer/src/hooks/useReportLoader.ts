@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { TestRunReport } from '../types/index.js';
 
+declare global {
+  interface Window {
+    __DIFFRA_DATA__?: unknown;
+  }
+}
+
 export interface ReportLoaderState {
   status: 'loading' | 'ready' | 'error' | 'empty';
   data: TestRunReport | null;
@@ -9,48 +15,144 @@ export interface ReportLoaderState {
   retry: () => void;
 }
 
-function normalizeReport(raw: any): TestRunReport {
-  if (!raw) return raw;
+export interface RawGitContext {
+  branch?: string;
+  commit?: string;
+  baselineCommit?: string;
+  baselineBranch?: string;
+  repositoryUrl?: string;
+}
+
+export interface RawDiffResult {
+  diffPercentage?: number;
+  diffCount?: number;
+  boundingBoxes?: Array<{
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  }>;
+}
+
+export interface RawImageArtifact {
+  path?: string;
+  url?: string;
+}
+
+export interface RawTestResult {
+  id?: string;
+  name?: string;
+  group?: string;
+  component?: string;
+  status?: 'added' | 'changed' | 'removed' | 'unchanged';
+  diffPercentage?: number;
+  diffCount?: number;
+  viewport?: {
+    name?: string;
+    width: number;
+    height: number;
+  };
+  candidateUrl?: string;
+  candidatePath?: string;
+  candidate?: RawImageArtifact;
+  baselineUrl?: string;
+  baselinePath?: string;
+  baseline?: RawImageArtifact;
+  diffUrl?: string;
+  diffPath?: string;
+  diffImage?: RawImageArtifact;
+  diff?: RawDiffResult;
+  diffResult?: RawDiffResult;
+  boundingBoxes?: Array<{
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  }>;
+}
+
+export interface RawTestRunReport {
+  runId?: string;
+  timestamp?: string;
+  git?: RawGitContext;
+  branch?: string;
+  commit?: string;
+  baselineCommit?: string;
+  baselineBranch?: string;
+  repositoryUrl?: string;
+  links?: {
+    baselineReport?: string;
+    branchLatest?: string;
+  };
+  baselineReportUrl?: string;
+  branchLatestUrl?: string;
+  summary?: {
+    total?: number;
+    changed?: number;
+    added?: number;
+    removed?: number;
+    unchanged?: number;
+  };
+  results?: RawTestResult[];
+}
+
+function normalizeReport(rawInput: unknown): TestRunReport {
+  if (!rawInput || typeof rawInput !== 'object') {
+    return {
+      runId: '',
+      timestamp: '',
+      branch: 'main',
+      commit: '',
+      summary: {
+        total: 0,
+        changed: 0,
+        added: 0,
+        removed: 0,
+        unchanged: 0,
+      },
+      results: [],
+    };
+  }
+
+  const raw = rawInput as RawTestRunReport;
   const git = raw.git || {};
   const branch = git.branch || raw.branch || 'main';
   const commit = git.commit || raw.commit || '';
   const baselineCommit = git.baselineCommit || raw.baselineCommit;
   const baselineBranch = git.baselineBranch || raw.baselineBranch;
   const repositoryUrl = git.repositoryUrl || raw.repositoryUrl;
-  const summary = raw.summary || {
-    total: 0,
-    changed: 0,
-    added: 0,
-    removed: 0,
-    unchanged: 0,
+  const summary = {
+    total: raw.summary?.total ?? 0,
+    changed: raw.summary?.changed ?? 0,
+    added: raw.summary?.added ?? 0,
+    removed: raw.summary?.removed ?? 0,
+    unchanged: raw.summary?.unchanged ?? 0,
   };
 
-  const results = (raw.results || []).map((r: any) => {
+  const results = (raw.results || []).map((r) => {
     const candidateUrl =
       r.candidateUrl ||
       r.candidate?.url ||
       r.candidate?.path ||
       r.candidatePath;
     const baselineUrl =
-      r.baselineUrl ||
-      r.baseline?.url ||
-      r.baseline?.path ||
-      r.baselinePath;
+      r.baselineUrl || r.baseline?.url || r.baseline?.path || r.baselinePath;
     const diffUrl =
-      r.diffUrl ||
-      r.diffImage?.url ||
-      r.diffImage?.path ||
-      r.diffPath;
+      r.diffUrl || r.diffImage?.url || r.diffImage?.path || r.diffPath;
     const diff = r.diff || r.diffResult;
 
     return {
-      id: r.id,
-      name: r.name,
+      id: r.id || 'target',
+      name: r.name || 'Default',
       component: r.group || r.component || 'Component',
-      status: r.status,
+      status: r.status || 'unchanged',
       diffPercentage: diff?.diffPercentage ?? r.diffPercentage ?? 0,
       diffCount: diff?.diffCount ?? r.diffCount ?? 0,
-      viewport: r.viewport,
+      viewport: {
+        name: r.viewport?.name || 'default',
+        width: r.viewport?.width ?? 1280,
+        height: r.viewport?.height ?? 800,
+      },
       baselineUrl,
       candidateUrl,
       diffUrl,
@@ -91,6 +193,7 @@ export function useReportLoader(
   };
 
   useEffect(() => {
+    void reloadTrigger;
     if (initialData) {
       setData(normalizeReport(initialData));
       setStatus('ready');
@@ -121,7 +224,7 @@ export function useReportLoader(
             if (!response.ok) {
               throw new Error(`HTTP ${response.status} ${response.statusText}`);
             }
-            const json = await response.json();
+            const json: unknown = await response.json();
             if (!isMounted) return;
             setData(normalizeReport(json));
             setStatus('ready');
@@ -141,7 +244,7 @@ export function useReportLoader(
         const scriptEl = document.getElementById('diffra-data');
         if (scriptEl?.textContent) {
           try {
-            const json = JSON.parse(scriptEl.textContent);
+            const json: unknown = JSON.parse(scriptEl.textContent);
             if (!isMounted) return;
             setData(normalizeReport(json));
             setStatus('ready');
@@ -157,18 +260,11 @@ export function useReportLoader(
       }
 
       // 3. Check for window globals
-      if (typeof window !== 'undefined') {
-        const win = window as unknown as {
-          __DIFFRA_DATA__?: any;
-          __SYNDETIC_DATA__?: any;
-        };
-        const globalData = win.__DIFFRA_DATA__ || win.__SYNDETIC_DATA__;
-        if (globalData) {
-          if (!isMounted) return;
-          setData(normalizeReport(globalData));
-          setStatus('ready');
-          return;
-        }
+      if (typeof window !== 'undefined' && window.__DIFFRA_DATA__) {
+        if (!isMounted) return;
+        setData(normalizeReport(window.__DIFFRA_DATA__));
+        setStatus('ready');
+        return;
       }
 
       // 4. Standby when no report was provided

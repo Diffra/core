@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { getGitInfo, parseGitRemoteUrl } from '../src/git/baseline.js';
 
 const execFileAsync = promisify(execFile);
@@ -120,7 +120,9 @@ describe('Git Baseline Resolution', () => {
     });
 
     it('handles non-git directories gracefully', async () => {
-      const nonGitDir = await fs.mkdtemp(path.join(os.tmpdir(), 'diffra-non-git-'));
+      const nonGitDir = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'diffra-non-git-'),
+      );
       try {
         const info = await getGitInfo(undefined, nonGitDir);
         expect(info.commit).toBe('uncommitted');

@@ -23,7 +23,20 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "preset": "recommended",
+      "recommended": true,
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noExtraNonNullAssertion": "error",
+        "noMisleadingInstantiator": "error",
+        "noUnsafeDeclarationMerging": "error"
+      },
+      "complexity": {
+        "noBannedTypes": "error"
+      },
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error"
+      },
       "a11y": {
         "noSvgWithoutTitle": "off"
       }

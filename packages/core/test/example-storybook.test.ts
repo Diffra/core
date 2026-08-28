@@ -31,7 +31,7 @@ describe('Real-World Storybook Design System Index Parsing', () => {
         type: 'story',
         parameters: {
           snapshot: {
-            threshold: 0.02,
+            diffThreshold: 0.02,
           },
         },
       },
@@ -71,13 +71,8 @@ describe('Real-World Storybook Design System Index Parsing', () => {
   };
 
   it('parses Button stories with responsive modes parameter matrix', () => {
-    const stories = (driver as any).parseStoryIndex(
-      mockIndex,
-      'http://localhost:6006',
-    );
-    const responsiveStory = stories.find(
-      (s: any) => s.name === 'ResponsiveMatrix',
-    );
+    const stories = driver.parseStoryIndex(mockIndex, 'http://localhost:6006');
+    const responsiveStory = stories.find((s) => s.name === 'ResponsiveMatrix');
     expect(responsiveStory).toBeDefined();
     expect(responsiveStory?.snapshot?.viewports).toEqual([
       { name: 'mobile', width: 375, height: 667 },
@@ -87,31 +82,22 @@ describe('Real-World Storybook Design System Index Parsing', () => {
   });
 
   it('parses Card stories with custom thresholds and named viewports', () => {
-    const stories = (driver as any).parseStoryIndex(
-      mockIndex,
-      'http://localhost:6006',
-    );
-    const featuredStory = stories.find((s: any) => s.name === 'Featured');
-    expect(featuredStory?.snapshot?.threshold ?? featuredStory?.snapshot?.diffThreshold).toBe(0.02);
+    const stories = driver.parseStoryIndex(mockIndex, 'http://localhost:6006');
+    const featuredStory = stories.find((s) => s.name === 'Featured');
+    expect(featuredStory?.snapshot?.diffThreshold).toBe(0.02);
   });
 
   it('parses Modal stories with animation and delay parameters', () => {
-    const stories = (driver as any).parseStoryIndex(
-      mockIndex,
-      'http://localhost:6006',
-    );
-    const modalStory = stories.find((s: any) => s.group === 'Modal');
+    const stories = driver.parseStoryIndex(mockIndex, 'http://localhost:6006');
+    const modalStory = stories.find((s) => s.group === 'Modal');
     expect(modalStory?.snapshot?.delay).toBe(150);
     expect(modalStory?.snapshot?.pauseAnimationAtEnd).toBe(true);
   });
 
   it('honors disable parameters in Badge stories', () => {
-    const stories = (driver as any).parseStoryIndex(
-      mockIndex,
-      'http://localhost:6006',
-    );
-    const badgeStories = stories.filter((s: any) => s.group === 'Badge');
+    const stories = driver.parseStoryIndex(mockIndex, 'http://localhost:6006');
+    const badgeStories = stories.filter((s) => s.group === 'Badge');
     expect(badgeStories).toHaveLength(1);
-    expect(badgeStories[0].name).toBe('LiveIndicator');
+    expect(badgeStories[0]?.name).toBe('LiveIndicator');
   });
 });

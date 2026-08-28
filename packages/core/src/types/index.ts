@@ -10,9 +10,9 @@ import type {
 // Re-export standard dependency types directly
 export type {
   BoundingBox,
+  BrowserContextOptions,
   DiffOptions,
   DiffResult,
-  BrowserContextOptions,
   LaunchOptions,
   Locator,
   PageScreenshotOptions,
@@ -256,15 +256,8 @@ export interface StorageAdapter {
     key: SnapshotKey,
     buffer: Buffer,
   ): Promise<string>;
-  uploadDiff(
-    runId: string,
-    key: SnapshotKey,
-    buffer: Buffer,
-  ): Promise<string>;
-  downloadBaseline(
-    commit: string,
-    key: SnapshotKey,
-  ): Promise<Buffer | null>;
+  uploadDiff(runId: string, key: SnapshotKey, buffer: Buffer): Promise<string>;
+  downloadBaseline(commit: string, key: SnapshotKey): Promise<Buffer | null>;
   uploadBaseline(
     commit: string,
     key: SnapshotKey,

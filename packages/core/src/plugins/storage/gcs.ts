@@ -1,3 +1,4 @@
+import type { Storage } from '@google-cloud/storage';
 import type {
   SnapshotKey,
   StorageAdapter,
@@ -9,25 +10,11 @@ export interface GCSStorageOptions {
   prefix?: string;
 }
 
-interface GCSFileLike {
-  save: (data: Buffer | string, options?: unknown) => Promise<void>;
-  download: () => Promise<[Buffer]>;
-  name: string;
-}
-
-interface GCSBucketLike {
-  file: (name: string) => GCSFileLike;
-}
-
-interface GCSStorageLike {
-  bucket: (name: string) => GCSBucketLike;
-}
-
 export class GCSStorageAdapter implements StorageAdapter {
   name = 'gcs';
   private bucket: string;
   private prefix: string;
-  private gcsStorage: GCSStorageLike | null = null;
+  private gcsStorage: Storage | null = null;
 
   constructor(options: GCSStorageOptions) {
     this.bucket = options.bucket;
@@ -35,12 +22,11 @@ export class GCSStorageAdapter implements StorageAdapter {
   }
 
   async init(): Promise<void> {
-    // @ts-expect-error
     const { Storage } = await import('@google-cloud/storage');
     this.gcsStorage = new Storage();
   }
 
-  private getClient(): GCSStorageLike {
+  private getClient(): Storage {
     if (!this.gcsStorage) {
       throw new Error('GCS storage adapter not initialized');
     }
@@ -59,9 +45,7 @@ export class GCSStorageAdapter implements StorageAdapter {
   ): Promise<string> {
     const file = this.getClient()
       .bucket(this.bucket)
-      .file(
-        `${this.prefix}/runs/${runId}/candidates/${this.getFilename(key)}`,
-      );
+      .file(`${this.prefix}/runs/${runId}/candidates/${this.getFilename(key)}`);
     await file.save(imageBuffer, { contentType: 'image/png' });
     return `https://storage.googleapis.com/${this.bucket}/${file.name}`;
   }
@@ -73,9 +57,7 @@ export class GCSStorageAdapter implements StorageAdapter {
   ): Promise<string> {
     const file = this.getClient()
       .bucket(this.bucket)
-      .file(
-        `${this.prefix}/runs/${runId}/diffs/${this.getFilename(key)}`,
-      );
+      .file(`${this.prefix}/runs/${runId}/diffs/${this.getFilename(key)}`);
     await file.save(imageBuffer, { contentType: 'image/png' });
     return `https://storage.googleapis.com/${this.bucket}/${file.name}`;
   }
@@ -104,9 +86,7 @@ export class GCSStorageAdapter implements StorageAdapter {
   ): Promise<void> {
     const file = this.getClient()
       .bucket(this.bucket)
-      .file(
-        `${this.prefix}/baselines/${commitSha}/${this.getFilename(key)}`,
-      );
+      .file(`${this.prefix}/baselines/${commitSha}/${this.getFilename(key)}`);
     await file.save(imageBuffer, { contentType: 'image/png' });
   }
 

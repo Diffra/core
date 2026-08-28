@@ -13,6 +13,15 @@ import { createImageDriver } from './image.js';
 import { createStorybookDriver } from './storybook.js';
 import { createUrlDriver } from './url.js';
 
+function isVisualDriver(val: unknown): val is VisualDriver {
+  return (
+    typeof val === 'object' &&
+    val !== null &&
+    'name' in val &&
+    typeof (val as { name: unknown }).name === 'string'
+  );
+}
+
 /**
  * In-memory custom target driver when `targets` array/function is supplied in configuration.
  */
@@ -63,8 +72,8 @@ export function resolveDrivers(
           else if (d.driver === 'url') drivers.push(createUrlDriver(d));
           else if (d.driver === 'image') drivers.push(createImageDriver(d));
           else if (d.driver === 'figma') drivers.push(createFigmaDriver(d));
-        } else if ('name' in d) {
-          drivers.push(d as VisualDriver);
+        } else if (isVisualDriver(d)) {
+          drivers.push(d);
         }
       }
     }

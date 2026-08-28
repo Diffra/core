@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { StorybookDriver } from '../src/drivers/storybook.js';
-import type { TargetParameters } from '../src/types/index.js';
 
 describe('3-Tier Parameter Cascade & Snapshot Hierarchy', () => {
   it('merges story parameters and filters disabled stories', () => {
@@ -48,24 +47,21 @@ describe('3-Tier Parameter Cascade & Snapshot Hierarchy', () => {
       },
     };
 
-    const stories = (driver as any).parseStoryIndex(
-      mockIndex,
-      'http://localhost:6006',
-    );
+    const stories = driver.parseStoryIndex(mockIndex, 'http://localhost:6006');
     expect(stories).toHaveLength(2); // Disabled story skipped
 
-    const defaultStory = stories.find((s: any) => s.name === 'Default')!;
+    const defaultStory = stories.find((s) => s.name === 'Default');
     expect(defaultStory).toBeDefined();
-    const defaultParams = defaultStory.snapshot as TargetParameters;
-    expect(defaultParams.delay).toBe(300);
-    expect(defaultParams.diffThreshold).toBe(0.08);
+    const defaultParams = defaultStory?.snapshot;
+    expect(defaultParams?.delay).toBe(300);
+    expect(defaultParams?.diffThreshold).toBe(0.08);
 
-    const customStory = stories.find((s: any) => s.name === 'CustomDelay')!;
+    const customStory = stories.find((s) => s.name === 'CustomDelay');
     expect(customStory).toBeDefined();
-    const customParams = customStory.snapshot as TargetParameters;
-    expect(customParams.delay).toBe(800);
-    expect(customParams.diffThreshold).toBe(0.02);
-    expect(customParams.mask).toEqual(['.live-clock']);
+    const customParams = customStory?.snapshot;
+    expect(customParams?.delay).toBe(800);
+    expect(customParams?.diffThreshold).toBe(0.02);
+    expect(customParams?.mask).toEqual(['.live-clock']);
   });
 
   it('supports pauseAnimationAtEnd snapshot parameter', () => {
@@ -87,13 +83,10 @@ describe('3-Tier Parameter Cascade & Snapshot Hierarchy', () => {
       },
     };
 
-    const stories = (driver as any).parseStoryIndex(
-      mockIndex,
-      'http://localhost:6006',
-    );
+    const stories = driver.parseStoryIndex(mockIndex, 'http://localhost:6006');
     expect(stories).toHaveLength(1);
     const story = stories[0];
-    const params = story.snapshot as TargetParameters;
-    expect(params.pauseAnimationAtEnd).toBe(false);
+    const params = story?.snapshot;
+    expect(params?.pauseAnimationAtEnd).toBe(false);
   });
 });

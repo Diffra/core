@@ -1,6 +1,6 @@
+import { SlidersHorizontal } from 'lucide-react';
 import type React from 'react';
 import { useRef, useState } from 'react';
-import { SlidersHorizontal } from 'lucide-react';
 import { useViewer } from '../../../context/ViewerContext.js';
 
 export const SwipeSlider: React.FC = () => {

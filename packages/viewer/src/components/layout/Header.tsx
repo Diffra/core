@@ -1,4 +1,3 @@
-import type React from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -9,6 +8,7 @@ import {
   SlidersHorizontal,
   SquareDashed,
 } from 'lucide-react';
+import type React from 'react';
 import { useViewer } from '../../context/ViewerContext.js';
 import type { DiffMode } from '../../types/index.js';
 
@@ -126,7 +126,7 @@ export const Header: React.FC = () => {
           </div>
 
           {/* Clean Inspection Mode Tabs */}
-          <nav
+          <div
             role="tablist"
             aria-label="Comparison modes"
             className="flex items-center gap-1"
@@ -140,10 +140,10 @@ export const Header: React.FC = () => {
                   aria-selected={isActive}
                   type="button"
                   onClick={() => setActiveMode(opt.id)}
-                  className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-ui-medium cursor-pointer transition-all duration-150 outline-none select-none border-none ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-ui-base transition-colors ${
                     isActive
-                      ? 'bg-zinc-100 text-zinc-900 font-medium shadow-xs'
-                      : 'bg-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 font-normal'
+                      ? 'bg-zinc-200/80 text-zinc-950 font-medium'
+                      : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
                   }`}
                 >
                   {opt.icon}
@@ -151,7 +151,7 @@ export const Header: React.FC = () => {
                 </button>
               );
             })}
-          </nav>
+          </div>
         </div>
       ) : null}
     </header>

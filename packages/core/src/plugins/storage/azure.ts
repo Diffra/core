@@ -1,3 +1,4 @@
+import type { ContainerClient } from '@azure/storage-blob';
 import type {
   SnapshotKey,
   StorageAdapter,
@@ -10,26 +11,12 @@ export interface AzureStorageOptions {
   prefix?: string;
 }
 
-interface BlockBlobClientLike {
-  upload: (
-    data: Buffer | string,
-    length: number,
-    options?: { blobHTTPHeaders?: { blobContentType?: string } },
-  ) => Promise<unknown>;
-  downloadToBuffer: () => Promise<Buffer>;
-  url: string;
-}
-
-interface ContainerClientLike {
-  getBlockBlobClient: (name: string) => BlockBlobClientLike;
-}
-
 export class AzureBlobStorageAdapter implements StorageAdapter {
   name = 'azure';
   private containerName: string;
   private connectionString?: string;
   private prefix: string;
-  private containerClient: ContainerClientLike | null = null;
+  private containerClient: ContainerClient | null = null;
 
   constructor(options: AzureStorageOptions) {
     this.containerName = options.container;
@@ -39,7 +26,6 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
   }
 
   async init(): Promise<void> {
-    // @ts-expect-error
     const { BlobServiceClient } = await import('@azure/storage-blob');
     if (!this.connectionString) {
       throw new Error('Azure connectionString is required');
@@ -52,7 +38,7 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
     );
   }
 
-  private getClient(): ContainerClientLike {
+  private getClient(): ContainerClient {
     if (!this.containerClient) {
       throw new Error('Azure Blob Storage not initialized');
     }

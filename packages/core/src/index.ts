@@ -9,12 +9,11 @@ import {
 import { loadConfig } from './config/loader.js';
 import { resolveDrivers } from './drivers/index.js';
 import { getGitInfo } from './git/baseline.js';
-import { normalizeViewport } from './utils/viewport.js';
 import { resolveDiffEngine } from './plugins/diff/index.js';
 import { resolveNotifiers } from './plugins/notifiers/index.js';
 import { PluginRunner } from './plugins/runner.js';
 import { resolveStorageAdapter } from './plugins/storage/index.js';
-import { buildViewerUrl, saveReportManifest } from './report/generator.js';
+import { saveReportManifest } from './report/generator.js';
 import type {
   DiffraConfig,
   Project,
@@ -23,17 +22,18 @@ import type {
   VisualTarget,
   VisualTestResult,
 } from './types/index.js';
+import { normalizeViewport } from './utils/viewport.js';
 
 export * from './config/index.js';
 export * from './drivers/index.js';
 export * from './git/baseline.js';
-export * from './plugins/notifiers/summary.js';
-export * from './utils/viewport.js';
-export * from './plugins/index.js';
 export * from './playwright/index.js';
+export * from './plugins/index.js';
+export * from './plugins/notifiers/summary.js';
 export * from './report/generator.js';
 export * from './report/merger.js';
 export * from './types/index.js';
+export * from './utils/viewport.js';
 
 import {
   DEFAULT_CONCURRENCY,
@@ -344,7 +344,9 @@ export async function runVisualRegression(
   }
 
   // 5. Build Final Report
-  const unchangedCount = testResults.filter((r) => r.status === 'unchanged').length;
+  const unchangedCount = testResults.filter(
+    (r) => r.status === 'unchanged',
+  ).length;
   const changedCount = testResults.filter((r) => r.status === 'changed').length;
   const addedCount = testResults.filter((r) => r.status === 'added').length;
   const removedCount = testResults.filter((r) => r.status === 'removed').length;
@@ -414,8 +416,14 @@ export async function approveBaselines(
 
   let report = options.report;
   if (!report) {
-    const storageConfig = typeof config.storage === 'object' ? config.storage : {};
-    const outDir = (storageConfig as any).outputDir || (storageConfig as any).dir || '.diffra';
+    let outDir = '.diffra';
+    if (config.storage && typeof config.storage === 'object') {
+      if ('outputDir' in config.storage && config.storage.outputDir) {
+        outDir = config.storage.outputDir;
+      } else if ('dir' in config.storage && config.storage.dir) {
+        outDir = config.storage.dir;
+      }
+    }
     const outputDir = path.resolve(cwd, outDir);
     const reportPath = options.runId
       ? path.join(outputDir, 'runs', options.runId, 'report.json')

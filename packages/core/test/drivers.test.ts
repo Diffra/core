@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createImageDriver,
-  createStorybookDriver,
   createUrlDriver,
-  ImageDriver,
   resolveDrivers,
   StorybookDriver,
-  UrlDriver,
 } from '../src/drivers/index.js';
 import type { VisualDriver, VisualTarget } from '../src/types/index.js';
 
@@ -180,10 +176,7 @@ describe('Pluggable Driver Ecosystem', () => {
       },
     };
 
-    const targets = (driver as any).parseStoryIndex(
-      mockIndex,
-      'http://localhost:6006',
-    );
+    const targets = driver.parseStoryIndex(mockIndex, 'http://localhost:6006');
 
     expect(targets).toHaveLength(2);
     expect(targets[0].id).toBe('components-button--primary');

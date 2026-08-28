@@ -56,9 +56,7 @@ export function formatMarkdownSummary(
       const diffPercent = item.diff
         ? `${item.diff.diffPercentage.toFixed(2)}%`
         : '-';
-      const diffPixels = item.diff
-        ? item.diff.diffCount.toLocaleString()
-        : '-';
+      const diffPixels = item.diff ? item.diff.diffCount.toLocaleString() : '-';
       const statusBadge =
         item.status === 'changed'
           ? '🟠 Changed'

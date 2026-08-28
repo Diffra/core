@@ -70,12 +70,12 @@ export class UrlDriver implements VisualDriver {
               .replace(/-/g, ' '));
 
       const id =
-        (urlPath === '/' || urlPath === ''
+        urlPath === '/' || urlPath === ''
           ? 'route--home'
           : `route--${urlPath
               .replace(/^\//, '')
               .replace(/[^a-zA-Z0-9]/g, '_')
-              .toLowerCase()}`);
+              .toLowerCase()}`;
 
       targets.push({
         id,

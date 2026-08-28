@@ -3,7 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { cosmiconfig } from 'cosmiconfig';
 import type { DiffraConfig } from '../types/index.js';
-import { type DiffraConfigResolved, DiffraConfigSchema } from './schema.js';
+import { DiffraConfigSchema } from './schema.js';
 
 const MODULE_NAME = 'diffra';
 
@@ -70,5 +70,5 @@ export async function loadConfig(
     throw new Error(`Invalid Diffra configuration: ${parsed.error.message}`);
   }
 
-  return parsed.data as unknown as DiffraConfig;
+  return parsed.data;
 }

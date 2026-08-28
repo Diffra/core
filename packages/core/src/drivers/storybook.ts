@@ -2,9 +2,31 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type {
   DriverContext,
+  SnapshotConfig,
   VisualDriver,
   VisualTarget,
 } from '../types/index.js';
+
+export interface StorybookEntry {
+  id?: string;
+  name?: string;
+  story?: string;
+  title?: string;
+  type?: string;
+  importPath?: string;
+  parameters?: {
+    snapshot?: SnapshotConfig & { disableSnapshot?: boolean };
+    visual?: SnapshotConfig & { disableSnapshot?: boolean };
+    diffra?: SnapshotConfig & { disableSnapshot?: boolean };
+    [key: string]: unknown;
+  };
+}
+
+export interface StorybookIndexData {
+  v?: number;
+  entries?: Record<string, StorybookEntry> | StorybookEntry[];
+  stories?: Record<string, StorybookEntry> | StorybookEntry[];
+}
 
 export class StorybookDriver implements VisualDriver {
   name = 'storybook';
@@ -28,7 +50,7 @@ export class StorybookDriver implements VisualDriver {
         const exists = await fs.stat(indexPath).catch(() => null);
         if (exists?.isFile()) {
           const content = await fs.readFile(indexPath, 'utf-8');
-          const data = JSON.parse(content);
+          const data = JSON.parse(content) as StorybookIndexData;
           const targets = this.parseStoryIndex(data, baseUrl);
           if (targets.length > 0) {
             return targets;
@@ -46,7 +68,7 @@ export class StorybookDriver implements VisualDriver {
             signal: AbortSignal.timeout(3000),
           });
           if (res.ok) {
-            const data = (await res.json()) as any;
+            const data = (await res.json()) as StorybookIndexData;
             const targets = this.parseStoryIndex(data, baseUrl);
             if (targets.length > 0) {
               return targets;
@@ -61,15 +83,18 @@ export class StorybookDriver implements VisualDriver {
     );
   }
 
-  private parseStoryIndex(data: any, baseUrl: string): VisualTarget[] {
+  public parseStoryIndex(
+    data: StorybookIndexData | Record<string, unknown>,
+    baseUrl: string,
+  ): VisualTarget[] {
     const rawEntries = data.entries || data.stories || {};
-    const entriesList = Array.isArray(rawEntries)
+    const entriesList: StorybookEntry[] = Array.isArray(rawEntries)
       ? rawEntries
       : Object.values(rawEntries);
 
     const targets: VisualTarget[] = [];
 
-    for (const entry of entriesList as any[]) {
+    for (const entry of entriesList) {
       if (entry.type && entry.type !== 'story') {
         continue;
       }

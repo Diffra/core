@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { FigmaDriver, createFigmaDriver } from '../src/drivers/figma.js';
+import { describe, expect, it } from 'vitest';
+import { createFigmaDriver, FigmaDriver } from '../src/drivers/figma.js';
 
 describe('FigmaDriver', () => {
   it('discovers targets from component mapping', async () => {

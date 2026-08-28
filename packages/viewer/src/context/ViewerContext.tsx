@@ -1,5 +1,12 @@
 import type React from 'react';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { useHashLocation } from 'wouter/use-hash-location';
 import type {
   DiffMode,
@@ -54,24 +61,30 @@ export const ViewerProvider: React.FC<ViewerProviderProps> = ({
   const [location, setLocation] = useHashLocation();
 
   // Parse initial route from hash location
-  const parseRoute = (loc: string): { mode: ViewMode; id: string | null } => {
-    if (!loc || loc === '/' || loc === '') {
+  const parseRoute = useCallback(
+    (loc: string): { mode: ViewMode; id: string | null } => {
+      if (!loc || loc === '/' || loc === '') {
+        return { mode: 'overview', id: null };
+      }
+      if (loc.startsWith('/story/')) {
+        const id = decodeURIComponent(loc.slice(7));
+        return { mode: 'detail', id };
+      }
+      // Also support direct hash like #components-button--primary
+      const cleanHash = loc.replace(/^\//, '');
+      const matched = manifest?.results?.find((r) => r.id === cleanHash);
+      if (matched) {
+        return { mode: 'detail', id: matched.id };
+      }
       return { mode: 'overview', id: null };
-    }
-    if (loc.startsWith('/story/')) {
-      const id = decodeURIComponent(loc.slice(7));
-      return { mode: 'detail', id };
-    }
-    // Also support direct hash like #components-button--primary
-    const cleanHash = loc.replace(/^\//, '');
-    const matched = manifest?.results?.find((r) => r.id === cleanHash);
-    if (matched) {
-      return { mode: 'detail', id: matched.id };
-    }
-    return { mode: 'overview', id: null };
-  };
+    },
+    [manifest?.results],
+  );
 
-  const initialRoute = useMemo(() => parseRoute(location), []);
+  const initialRoute = useMemo(
+    () => parseRoute(location),
+    [location, parseRoute],
+  );
 
   const [viewMode, setViewMode] = useState<ViewMode>(initialRoute.mode);
   const [activeStoryId, setActiveStoryId] = useState<string | null>(
@@ -93,7 +106,7 @@ export const ViewerProvider: React.FC<ViewerProviderProps> = ({
     if (id) {
       setActiveStoryId(id);
     }
-  }, [location, manifest?.results]);
+  }, [location, parseRoute]);
 
   const filteredResults = useMemo(() => {
     if (!manifest?.results) return [];

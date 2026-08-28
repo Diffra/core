@@ -67,7 +67,9 @@ export class ImageDriver implements VisualDriver {
     _context: DriverContext,
   ): Promise<Buffer | null> {
     const imgPath =
-      (task.target.metadata?.imagePath as string) || task.target.filePath;
+      (typeof task.target.metadata?.imagePath === 'string'
+        ? task.target.metadata.imagePath
+        : null) || task.target.filePath;
     if (!imgPath) return null;
 
     try {

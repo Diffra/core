@@ -1,5 +1,5 @@
-import type React from 'react';
 import { Eye, Pause } from 'lucide-react';
+import type React from 'react';
 import { useViewer } from '../../context/ViewerContext.js';
 import type { ZoomLevel } from '../../types/index.js';
 import { IconButton } from '../ui/IconButton.js';

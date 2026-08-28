@@ -12,7 +12,14 @@ describe('mergeReports', () => {
         commit: 'abc1234',
         baselineBranch: 'main',
       },
-      summary: { total: 1, passed: 0, changed: 1, added: 0, removed: 0, unchanged: 0 },
+      summary: {
+        total: 1,
+        passed: 0,
+        changed: 1,
+        added: 0,
+        removed: 0,
+        unchanged: 0,
+      },
       results: [
         {
           id: 'button--primary',
@@ -32,7 +39,14 @@ describe('mergeReports', () => {
         commit: 'abc1234',
         baselineBranch: 'main',
       },
-      summary: { total: 1, passed: 0, changed: 0, added: 1, removed: 0, unchanged: 0 },
+      summary: {
+        total: 1,
+        passed: 0,
+        changed: 0,
+        added: 1,
+        removed: 0,
+        unchanged: 0,
+      },
       results: [
         {
           id: 'badge--default',

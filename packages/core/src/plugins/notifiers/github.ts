@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
-import { DIFFRA_COMMENT_MARKER, formatMarkdownSummary } from './summary.js';
 import type { NotifierAdapter, TestRunReport } from '../../types/index.js';
+import { DIFFRA_COMMENT_MARKER, formatMarkdownSummary } from './summary.js';
 
 export interface GitHubNotifierOptions {
   token?: string;

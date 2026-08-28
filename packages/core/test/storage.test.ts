@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { LocalFilesystemAdapter } from '../src/plugins/storage/local.js';
-import type { TestRunReport, Viewport } from '../src/types/index.js';
+import type { TestRunReport } from '../src/types/index.js';
 
 describe('LocalFilesystemAdapter', () => {
   const testOutputDir = '.diffra/test-tmp';

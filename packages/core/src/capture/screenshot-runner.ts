@@ -2,7 +2,6 @@ import type { Locator, PageScreenshotOptions } from 'playwright';
 import type {
   Project,
   SnapshotConfig,
-  TargetParameters,
   Viewport,
   VisualDriver,
   VisualTarget,
@@ -135,9 +134,7 @@ export async function captureTargets(
         }
 
         // Collect mask locators (accepts CSS selector strings or Playwright Locator instances)
-        const maskItems = (targetParams.mask || []) as Array<
-          string | Locator
-        >;
+        const maskItems = targetParams.mask || [];
         const maskLocators: Locator[] = maskItems
           .map((item) =>
             typeof item === 'string' ? workerPage.page.locator(item) : item,
@@ -158,18 +155,14 @@ export async function captureTargets(
         if (selector) {
           const el = await workerPage.page.$(selector);
           if (el) {
-            screenshotBuffer = (await el.screenshot(
-              screenshotOptions,
-            )) as Buffer;
+            screenshotBuffer = await el.screenshot(screenshotOptions);
           } else {
-            screenshotBuffer = (await workerPage.page.screenshot(
-              screenshotOptions,
-            )) as Buffer;
+            screenshotBuffer =
+              await workerPage.page.screenshot(screenshotOptions);
           }
         } else {
-          screenshotBuffer = (await workerPage.page.screenshot(
-            screenshotOptions,
-          )) as Buffer;
+          screenshotBuffer =
+            await workerPage.page.screenshot(screenshotOptions);
         }
 
         results.push({

@@ -10,7 +10,7 @@ describe('toMatchVisualBaselineMatcher in @diffra/core/playwright', () => {
     };
 
     const result = await toMatchVisualBaselineMatcher(
-      mockPage as any,
+      mockPage,
       'test-hero-section',
       { diffThreshold: 0.08 },
     );

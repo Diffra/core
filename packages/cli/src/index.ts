@@ -1,4 +1,3 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -124,7 +123,10 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           runnerOverrides.baselineBranch = values.branch as string;
         }
         if (values.concurrency) {
-          runnerOverrides.concurrency = parseInt(values.concurrency as string, 10);
+          runnerOverrides.concurrency = parseInt(
+            values.concurrency as string,
+            10,
+          );
         }
         if (values.shard) {
           runnerOverrides.shard = values.shard as string;
@@ -189,9 +191,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         const commit = report.git?.commit || '';
         const baselineCommit = report.git?.baselineCommit;
 
-        console.log(
-          `  ${colors.bold('Branch:')}    ${colors.cyan(branch)}`,
-        );
+        console.log(`  ${colors.bold('Branch:')}    ${colors.cyan(branch)}`);
         console.log(
           `  ${colors.bold('Commit:')}    ${colors.gray(commit.slice(0, 8))}`,
         );
