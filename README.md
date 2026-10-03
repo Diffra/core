@@ -24,14 +24,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0 # Needed for Git merge-base baseline resolution
 
-      - name: Setup Node.js and pnpm
-        uses: pnpm/action-setup@v3
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
         with:
-          version: 10
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -42,7 +48,7 @@ jobs:
       - name: Run Diffra Action
         uses: Diffra/core@v1
         with:
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           storybookBuildDir: 'storybook-static'
           autoAcceptChanges: 'main'
           exitZeroOnChanges: 'true'

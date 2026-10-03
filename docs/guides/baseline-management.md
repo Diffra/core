@@ -66,7 +66,7 @@ For Git merge-base resolution to discover the ancestor commit properly in CI run
 
 ```yaml
 - name: Checkout repository
-  uses: actions/checkout@v4
+  uses: actions/checkout@v7
   with:
     fetch-depth: 0 # Full history required for merge-base resolution
 ```

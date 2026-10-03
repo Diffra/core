@@ -26,14 +26,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0 # Full history needed for git merge-base resolution
 
-      - name: Setup Node.js and pnpm
-        uses: pnpm/action-setup@v3
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
         with:
-          version: 10
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -44,7 +50,7 @@ jobs:
       - name: Run Diffra Action
         uses: Diffra/core@v1
         with:
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           storybookBuildDir: 'storybook-static'
           autoAcceptChanges: 'main'
           exitZeroOnChanges: 'true'
@@ -61,12 +67,17 @@ jobs:
 
 | Input | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `githubToken` | Yes | N/A | GitHub token for status checks and PR comments (`${{ secrets.GITHUB_TOKEN }}`) |
+| `token` | No | `${{ github.token }}` | GitHub token for status checks and PR comments (`${{ secrets.GITHUB_TOKEN }}`) |
+| `projectToken` | No | N/A | Unique project token or storage authentication token |
 | `storybookBuildDir` | No | `'storybook-static'` | Path to pre-built static Storybook directory |
-| `storybookUrl` | No | `''` | URL of running Storybook server |
-| `autoAcceptChanges` | No | `'main'` | Branch pattern on which candidate snapshots are automatically approved |
+| `storybookUrl` | No | `undefined` | URL of running Storybook server |
+| `storybookPort` | No | `'6006'` | Port to run local preview server on |
+| `driver` | No | `'storybook'` | Visual target driver: `'storybook'`, `'url'`, or `'image'` |
+| `autoAcceptChanges` | No | `'default-branch'` | Branch pattern on which candidate snapshots are automatically approved |
 | `exitZeroOnChanges` | No | `'true'` | Exit with status code 0 when visual changes are found |
-| `shard` | No | `''` | CI shard index and count (e.g. `1/4`) |
+| `diffThreshold` | No | `'0.063'` | Perceptual sensitivity threshold |
+| `concurrency` | No | `'4'` | Number of parallel browser workers |
+| `workingDir` | No | `'.'` | Working directory for monorepo packages |
 
 ---
 
@@ -74,10 +85,13 @@ jobs:
 
 | Output | Description |
 | :--- | :--- |
-| `reportPath` | Path to generated structured `report.json` manifest |
-| `viewerUrl` | Public or hosted interactive review URL |
-| `changedCount` | Total number of changed visual targets |
-| `totalCount` | Total number of visual targets tested |
+| `url` | Shorthand alias for the visual report build URL |
+| `buildUrl` | Full URL to the visual regression review report |
+| `storybookUrl` | URL of the Storybook preview server used during capture |
+| `code` | Process exit status code |
+| `changeCount` | Number of visual differences detected |
+| `storyCount` | Total number of stories and viewport combinations tested |
+| `status` | Final execution status (`passed`, `changes_found`, or `failed`) |
 
 ---
 

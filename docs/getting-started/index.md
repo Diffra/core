@@ -70,13 +70,18 @@ jobs:
   visual-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # Full history needed for git merge-base
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v6
         with:
-          version: 10
+          version: 11
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build-storybook
@@ -84,7 +89,7 @@ jobs:
       - name: Run Diffra
         uses: Diffra/core@v1
         with:
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           storybookBuildDir: 'storybook-static'
           autoAcceptChanges: 'main'
         env:

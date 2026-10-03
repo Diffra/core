@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
 name: 'Diffra Visual Regression Testing'
 description: 'Automated visual regression testing and review reports for Storybook and modern design systems'
 author: 'Diffra'
@@ -82,7 +83,7 @@ outputs:
     description: 'Final execution status (passed, changes_found, or failed)'
 
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/action.js'
 
 branding:

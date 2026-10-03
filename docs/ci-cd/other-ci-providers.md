@@ -14,7 +14,7 @@ stages:
 
 visual-regression:
   stage: test
-  image: node:22-bookworm
+  image: node:24-bookworm
   before_script:
     - corepack enable
     - pnpm install --frozen-lockfile
@@ -44,7 +44,7 @@ version: 2.1
 executors:
   node-executor:
     docker:
-      - image: cimg/node:22.0.0-browsers
+      - image: cimg/node:24.0.0-browsers
 
 jobs:
   visual-tests:
@@ -77,7 +77,7 @@ workflows:
 Create `bitbucket-pipelines.yml`:
 
 ```yaml
-image: node:22-bookworm
+image: node:24-bookworm
 
 pipelines:
   pull-requests:
