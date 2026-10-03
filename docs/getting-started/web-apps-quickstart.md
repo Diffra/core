@@ -95,8 +95,6 @@ jobs:
           fetch-depth: 0 # Full history needed for Git merge-base baseline discovery
 
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11
 
       - uses: actions/setup-node@v7
         with:

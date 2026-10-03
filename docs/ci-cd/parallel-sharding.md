@@ -53,8 +53,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
-        with:
-          version: 11
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -90,8 +88,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
-        with:
-          version: 11
 
       - name: Setup Node.js
         uses: actions/setup-node@v7

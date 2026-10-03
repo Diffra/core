@@ -75,8 +75,6 @@ jobs:
           fetch-depth: 0 # Full history needed for git merge-base
 
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11
 
       - uses: actions/setup-node@v7
         with:
