@@ -55,6 +55,7 @@ export const SnapshotConfigSchema: z.ZodType<{
   mask?: (string | Locator)[];
   fullPage?: boolean;
   disable?: boolean;
+  disableSnapshot?: boolean;
   clip?: {
     x: number;
     y: number;
@@ -140,12 +141,12 @@ export const AzureStorageConfigSchema = z.object({
   prefix: z.string().optional(),
 });
 
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null;
+}
+
 export const StorageAdapterSchema = z.custom<StorageAdapter>(
-  (val) =>
-    typeof val === 'object' &&
-    val !== null &&
-    'uploadCandidate' in val &&
-    typeof (val as StorageAdapter).uploadCandidate === 'function',
+  (val) => isRecord(val) && typeof val.uploadCandidate === 'function',
 );
 
 export const StorageConfigSchema = z.union([
@@ -192,11 +193,7 @@ export const FigmaDriverConfigSchema = z.object({
 });
 
 export const VisualDriverSchema = z.custom<VisualDriver>(
-  (val) =>
-    typeof val === 'object' &&
-    val !== null &&
-    'name' in val &&
-    typeof (val as VisualDriver).name === 'string',
+  (val) => isRecord(val) && typeof val.name === 'string',
 );
 
 export const DriverInputSchema = z.union([
@@ -228,11 +225,7 @@ export const ReporterConfigSchema = z.union([
 ]);
 
 export const NotifierAdapterSchema = z.custom<NotifierAdapter>(
-  (val) =>
-    typeof val === 'object' &&
-    val !== null &&
-    'notify' in val &&
-    typeof (val as NotifierAdapter).notify === 'function',
+  (val) => isRecord(val) && typeof val.notify === 'function',
 );
 
 export const ReporterInputSchema = z.union([
@@ -242,19 +235,11 @@ export const ReporterInputSchema = z.union([
 ]);
 
 export const DiffraPluginSchema = z.custom<DiffraPlugin>(
-  (val) =>
-    typeof val === 'object' &&
-    val !== null &&
-    'name' in val &&
-    typeof (val as DiffraPlugin).name === 'string',
+  (val) => isRecord(val) && typeof val.name === 'string',
 );
 
 export const DiffEngineAdapterSchema = z.custom<DiffEngineAdapter>(
-  (val) =>
-    typeof val === 'object' &&
-    val !== null &&
-    'compare' in val &&
-    typeof (val as DiffEngineAdapter).compare === 'function',
+  (val) => isRecord(val) && typeof val.compare === 'function',
 );
 
 export const TargetProviderSchema = z.custom<

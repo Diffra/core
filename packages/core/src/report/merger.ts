@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { TestRunReport, VisualTestResult } from '../types/index.js';
+import { isTestRunReport } from './generator.js';
 
 /**
  * Merges multiple partial shard report JSON files into a single cohesive TestRunReport.
@@ -15,13 +16,13 @@ export async function mergeReports(
     if (typeof input === 'string') {
       try {
         const stats = await fs.stat(input);
-        if (stats.isDirectory()) {
-          const reportPath = path.join(input, 'report.json');
-          const content = await fs.readFile(reportPath, 'utf-8');
-          reports.push(JSON.parse(content) as TestRunReport);
-        } else {
-          const content = await fs.readFile(input, 'utf-8');
-          reports.push(JSON.parse(content) as TestRunReport);
+        const reportPath = stats.isDirectory()
+          ? path.join(input, 'report.json')
+          : input;
+        const content = await fs.readFile(reportPath, 'utf-8');
+        const parsed: unknown = JSON.parse(content);
+        if (isTestRunReport(parsed)) {
+          reports.push(parsed);
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -29,7 +30,7 @@ export async function mergeReports(
           `[diffra] Warning: Could not read shard report at ${input}: ${msg}`,
         );
       }
-    } else if (input && typeof input === 'object') {
+    } else if (input && typeof input === 'object' && isTestRunReport(input)) {
       reports.push(input);
     }
   }

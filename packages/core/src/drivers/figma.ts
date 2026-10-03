@@ -91,14 +91,29 @@ export class FigmaDriver implements VisualDriver {
         });
 
         if (res.ok) {
-          const data = (await res.json()) as {
+          const rawData: unknown = await res.json();
+          const data: {
             document?: {
               children?: Array<{
                 name?: string;
                 children?: Array<{ id: string; name: string; type: string }>;
               }>;
             };
-          };
+          } =
+            typeof rawData === 'object' && rawData !== null
+              ? (rawData as {
+                  document?: {
+                    children?: Array<{
+                      name?: string;
+                      children?: Array<{
+                        id: string;
+                        name: string;
+                        type: string;
+                      }>;
+                    }>;
+                  };
+                })
+              : {};
 
           for (const page of data.document?.children || []) {
             const pageName = page.name || 'Figma';
@@ -189,9 +204,11 @@ export class FigmaDriver implements VisualDriver {
         });
 
         if (res.ok) {
-          const data = (await res.json()) as {
-            images?: Record<string, string | null>;
-          };
+          const rawData: unknown = await res.json();
+          const data: { images?: Record<string, string | null> } =
+            typeof rawData === 'object' && rawData !== null
+              ? (rawData as { images?: Record<string, string | null> })
+              : {};
           const imageUrls = data.images || {};
 
           for (const item of batch) {

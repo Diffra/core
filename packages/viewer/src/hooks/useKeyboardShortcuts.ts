@@ -16,8 +16,7 @@ export function useKeyboardShortcuts(
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept when user is typing in an input
-      const target = e.target as HTMLElement | null;
+      const target = e.target instanceof HTMLElement ? e.target : null;
       const isInput =
         target?.tagName === 'INPUT' ||
         target?.tagName === 'TEXTAREA' ||

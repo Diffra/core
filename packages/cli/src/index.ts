@@ -13,78 +13,73 @@ const VERSION = '0.1.0';
 
 export function printHelp(): void {
   console.log(`
-${colors.bold('diffra')} v${VERSION}
-Ultra-fast, general-purpose visual regression testing engine for Storybook, web apps, and design systems
+${colors.bold(colors.cyan('Diffra Visual Regression CLI'))} v${VERSION}
 
 ${colors.bold('Usage:')}
-  diffra <command> [options]
+  diffra [command] [options]
 
 ${colors.bold('Commands:')}
-  test           Execute visual regression tests against configured targets
+  test           Run visual regression suite (default)
   approve        Approve candidate screenshots as the new baseline
-  serve          Start the local review report server
-  merge-reports  Merge multiple shard report JSONs into a single report
+  merge-reports  Merge multiple shard report manifests into a consolidated run
+  serve          Open local static review viewer for inspection
+  help           Show this help information
 
 ${colors.bold('Options:')}
-  -h, --help                  Show help information
-  -v, --version               Show version number
-
-${colors.bold('Command Options (test):')}
-  -d, --driver <name>         Visual driver: 'storybook', 'url', 'image', or 'figma' (default: storybook)
-  -u, --url <url>             Base URL or preview server URL
-  --urls <list>               Comma-separated list of web URLs / paths to test
-  -c, --config <path>         Path to custom configuration file
-  -b, --branch <branch>       Target baseline git branch (default: origin/main)
+  -d, --driver <name>         Driver adapter ('storybook', 'url', 'image', 'figma')
+  -u, --url <url>             Base URL for Storybook or live preview site
+      --urls <paths>          Comma-separated list of routes for URL driver
+  -c, --config <file>         Custom configuration file path
+  -b, --branch <branch>       Baseline Git branch override
   -t, --diff-threshold <num>  Perceptual diff threshold (default: 0.063)
-  --threshold <num>           Alias for diff-threshold
-  -o, --output-dir <dir>      Output directory for reports (default: .diffra)
-  --concurrency <number>      Number of parallel browser workers (default: 4)
-  --shard <index/total>       Execute a deterministic slice of tests (e.g. 1/4)
-  --delay <ms>                Settle wait time in ms after component render
-  --pass-on-changes           Exit with status 0 even if visual differences are found
-  --open                      Automatically open the visual report in browser
-
-${colors.bold('Command Options (serve):')}
-  -p, --port <number>         Port for review server (default: 9000)
-  -r, --report <path>         Path to custom report JSON file or directory
-
-${colors.bold('Command Options (merge-reports):')}
-  -o, --output-dir <dir>      Output destination directory for merged report (default: .diffra)
+      --delay <ms>            Delay before capture in ms
+  -o, --output-dir <dir>      Output artifacts directory (default: .diffra)
+      --concurrency <num>     Parallel screenshot workers (default: 4)
+      --shard <spec>          Shard slice (e.g. 1/4, 2/4)
+      --pass-on-changes       Exit with 0 even if visual differences are detected
+      --open                  Open review report in browser after test run
+  -p, --port <number>         Custom port for preview server
+  -r, --report <path>         Report JSON path to serve
+  -v, --version               Display version
+  -h, --help                  Show this help information
 
 ${colors.bold('Examples:')}
-  diffra test
-  diffra test --driver url --urls "/,/pricing,/dashboard"
-  diffra test --shard 1/4 --output-dir .diffra/shards/1
-  diffra merge-reports .diffra/shards/* --output-dir .diffra
+  diffra
+  diffra -d storybook -u http://127.0.0.1:6006
+  diffra -d url -u http://127.0.0.1:3000 --urls /,/about,/pricing
+  diffra --shard 1/4
   diffra approve
+  diffra merge-reports .diffra/shard-1 .diffra/shard-2 -o .diffra
   diffra serve --port 3000
 `);
 }
 
+const CLI_OPTIONS = {
+  help: { type: 'boolean', short: 'h' },
+  version: { type: 'boolean', short: 'v' },
+  driver: { type: 'string', short: 'd' },
+  url: { type: 'string', short: 'u' },
+  urls: { type: 'string' },
+  config: { type: 'string', short: 'c' },
+  branch: { type: 'string', short: 'b' },
+  'diff-threshold': { type: 'string', short: 't' },
+  threshold: { type: 'string' },
+  delay: { type: 'string' },
+  'output-dir': { type: 'string', short: 'o' },
+  concurrency: { type: 'string' },
+  shard: { type: 'string' },
+  'pass-on-changes': { type: 'boolean' },
+  open: { type: 'boolean' },
+  port: { type: 'string', short: 'p' },
+  report: { type: 'string', short: 'r' },
+  'viewer-url': { type: 'string' },
+} as const;
+
 export async function main(args = process.argv.slice(2)): Promise<number> {
   const { values, positionals } = parseArgs({
     args,
-    options: {
-      help: { type: 'boolean', short: 'h' },
-      version: { type: 'boolean', short: 'v' },
-      driver: { type: 'string', short: 'd' },
-      url: { type: 'string', short: 'u' },
-      urls: { type: 'string' },
-      config: { type: 'string', short: 'c' },
-      branch: { type: 'string', short: 'b' },
-      'diff-threshold': { type: 'string', short: 't' },
-      threshold: { type: 'string' },
-      delay: { type: 'string' },
-      'output-dir': { type: 'string', short: 'o' },
-      concurrency: { type: 'string' },
-      shard: { type: 'string' },
-      'pass-on-changes': { type: 'boolean' },
-      open: { type: 'boolean' },
-      port: { type: 'string', short: 'p' },
-      report: { type: 'string', short: 'r' },
-    },
+    options: CLI_OPTIONS,
     allowPositionals: true,
-    strict: false,
   });
 
   if (values.version) {
@@ -111,28 +106,24 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         const runnerOverrides: Record<string, unknown> = {};
         const storageOverrides: Record<string, unknown> = {};
 
-        const rawThreshold =
-          (values['diff-threshold'] as string) || (values.threshold as string);
+        const rawThreshold = values['diff-threshold'] || values.threshold;
         if (rawThreshold) {
           snapshotOverrides.diffThreshold = parseFloat(rawThreshold);
         }
         if (values.delay) {
-          snapshotOverrides.delay = parseInt(values.delay as string, 10);
+          snapshotOverrides.delay = parseInt(values.delay, 10);
         }
         if (values.branch) {
-          runnerOverrides.baselineBranch = values.branch as string;
+          runnerOverrides.baselineBranch = values.branch;
         }
         if (values.concurrency) {
-          runnerOverrides.concurrency = parseInt(
-            values.concurrency as string,
-            10,
-          );
+          runnerOverrides.concurrency = parseInt(values.concurrency, 10);
         }
         if (values.shard) {
-          runnerOverrides.shard = values.shard as string;
+          runnerOverrides.shard = values.shard;
         }
         if (values['output-dir']) {
-          storageOverrides.outputDir = values['output-dir'] as string;
+          storageOverrides.outputDir = values['output-dir'];
         }
 
         const overrides: Record<string, unknown> = {};
@@ -140,27 +131,27 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           if (values.driver === 'storybook' && values.url) {
             overrides.drivers = {
               driver: 'storybook',
-              url: values.url as string,
+              url: values.url,
             };
           } else if (values.driver === 'url') {
             const urlList = values.urls
-              ? (values.urls as string)
+              ? values.urls
                   .split(',')
                   .map((s) => s.trim())
                   .filter(Boolean)
               : ['/'];
             overrides.drivers = {
               driver: 'url',
-              baseUrl: values.url as string | undefined,
+              baseUrl: values.url,
               urls: urlList,
             };
           } else {
-            overrides.drivers = values.driver as string;
+            overrides.drivers = values.driver;
           }
         } else if (values.url) {
           overrides.drivers = {
             driver: 'storybook',
-            url: values.url as string,
+            url: values.url,
           };
         }
 
@@ -173,7 +164,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
 
         const report = await runVisualRegression({
           config: overrides,
-          shard: values.shard as string | undefined,
+          shard: values.shard,
           onProgress: (step, current, total) => {
             process.stdout.write(
               `\r${colors.gray('►')} ${colors.white(step)} [${current}/${total}]`,
@@ -236,7 +227,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
 
         const reportJsonPath = path.resolve(
           process.cwd(),
-          (values['output-dir'] as string) || '.diffra',
+          values['output-dir'] || '.diffra',
           'runs',
           report.runId,
           'report.json',
@@ -247,7 +238,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         if (values.open) {
           const viewerUrl = buildViewerUrl(
             `file://${reportJsonPath}`,
-            values['viewer-url'] as string,
+            values['viewer-url'],
           );
           console.log(
             `${colors.green('✓')} Review report at: ${colors.bold(colors.cyan(viewerUrl))}\n`,
@@ -309,7 +300,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         `\n${colors.bold(colors.cyan('Diffra Shard Report Merger'))}\n`,
       );
       const shardDirs = positionals.slice(1);
-      const outDir = (values['output-dir'] as string) || '.diffra';
+      const outDir = values['output-dir'] || '.diffra';
 
       if (shardDirs.length === 0) {
         console.error(
@@ -336,7 +327,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
     }
 
     case 'serve': {
-      let reportPath = values.report as string;
+      let reportPath = values.report;
 
       if (!reportPath) {
         reportPath = path.resolve(process.cwd(), '.diffra/latest-report.json');
@@ -344,7 +335,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
 
       const viewerUrl = buildViewerUrl(
         `file://${reportPath}`,
-        values['viewer-url'] as string,
+        values['viewer-url'],
       );
       console.log(`\n${colors.bold(colors.cyan('Diffra Report Viewer'))}`);
       console.log(

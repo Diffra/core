@@ -13,7 +13,7 @@ import { resolveDiffEngine } from './plugins/diff/index.js';
 import { resolveNotifiers } from './plugins/notifiers/index.js';
 import { PluginRunner } from './plugins/runner.js';
 import { resolveStorageAdapter } from './plugins/storage/index.js';
-import { saveReportManifest } from './report/generator.js';
+import { isTestRunReport, saveReportManifest } from './report/generator.js';
 import type {
   DiffraConfig,
   Project,
@@ -431,7 +431,11 @@ export async function approveBaselines(
 
     try {
       const content = await fs.readFile(reportPath, 'utf-8');
-      report = JSON.parse(content) as TestRunReport;
+      const parsed: unknown = JSON.parse(content);
+      if (!isTestRunReport(parsed)) {
+        throw new Error('Invalid test report structure.');
+      }
+      report = parsed;
     } catch {
       throw new Error('No latest test run found. Run "diffra test" first.');
     }

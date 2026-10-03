@@ -21,11 +21,9 @@ export const SplitView: React.FC = () => {
             className={`split-zoom-stage ${
               zoom === 'fit' ? 'max-w-full' : 'max-w-none'
             } h-auto`}
-            style={
-              {
-                '--zoom-scale': scaleVal,
-              } as React.CSSProperties
-            }
+            style={{
+              '--zoom-scale': scaleVal,
+            }}
           />
         ) : (
           <div className="text-ui-medium text-zinc-400">
@@ -43,11 +41,9 @@ export const SplitView: React.FC = () => {
             className={`split-zoom-stage ${
               zoom === 'fit' ? 'max-w-full' : 'max-w-none'
             } h-auto`}
-            style={
-              {
-                '--zoom-scale': scaleVal,
-              } as React.CSSProperties
-            }
+            style={{
+              '--zoom-scale': scaleVal,
+            }}
           />
         ) : (
           <div className="text-ui-medium text-zinc-400">No candidate image</div>

@@ -50,14 +50,12 @@ export const DiffMaskView: React.FC = () => {
               <div
                 key={`${b.minX}-${b.minY}-${b.maxX}-${b.maxY}`}
                 className="diff-bounding-box"
-                style={
-                  {
-                    '--box-x': `${b.minX}px`,
-                    '--box-y': `${b.minY}px`,
-                    '--box-w': `${b.maxX - b.minX + 1}px`,
-                    '--box-h': `${b.maxY - b.minY + 1}px`,
-                  } as React.CSSProperties
-                }
+                style={{
+                  '--box-x': `${b.minX}px`,
+                  '--box-y': `${b.minY}px`,
+                  '--box-w': `${b.maxX - b.minX + 1}px`,
+                  '--box-h': `${b.maxY - b.minY + 1}px`,
+                }}
               />
             ))}
           </div>

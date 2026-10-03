@@ -27,7 +27,7 @@ export const Stage: React.FC = () => {
     toggleBlink,
   } = useViewer();
 
-  const zoomOptions: ZoomLevel[] = [
+  const zoomOptions: readonly ZoomLevel[] = [
     '50%',
     '75%',
     '100%',
@@ -125,7 +125,12 @@ export const Stage: React.FC = () => {
             <span className="text-zinc-500 font-normal">Zoom:</span>
             <select
               value={zoom}
-              onChange={(e) => setZoom(e.target.value as ZoomLevel)}
+              onChange={(e) => {
+                const matched = zoomOptions.find((z) => z === e.target.value);
+                if (matched) {
+                  setZoom(matched);
+                }
+              }}
               className="bg-zinc-100 hover:bg-zinc-200/70 text-zinc-800 border border-zinc-200/70 rounded-lg px-2.5 py-1 text-ui-medium cursor-pointer outline-none transition-colors shadow-xs"
             >
               {zoomOptions.map((z) => (

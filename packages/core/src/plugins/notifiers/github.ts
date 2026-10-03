@@ -125,14 +125,17 @@ export class GitHubNotifier implements NotifierAdapter {
         const listRes = await fetch(commentsUrl, { headers });
 
         if (listRes.ok) {
-          const comments = (await listRes.json()) as Array<{
-            id: number;
-            body?: string;
-          }>;
+          const rawComments: unknown = await listRes.json();
+          const comments = Array.isArray(rawComments)
+            ? (rawComments as Array<{ id: number; body?: string }>)
+            : [];
           const existing = comments.find(
             (c) =>
-              c.body?.includes(DIFFRA_COMMENT_MARKER) ||
-              c.body?.includes('Diffra Visual Regression'),
+              typeof c === 'object' &&
+              c !== null &&
+              typeof c.body === 'string' &&
+              (c.body.includes(DIFFRA_COMMENT_MARKER) ||
+                c.body.includes('Diffra Visual Regression')),
           );
 
           if (existing) {

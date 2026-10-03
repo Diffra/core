@@ -17,6 +17,21 @@ export function buildViewerUrl(
 }
 
 /**
+ * Runtime type guard verifying if an unknown data object matches the TestRunReport shape.
+ */
+export function isTestRunReport(data: unknown): data is TestRunReport {
+  if (typeof data !== 'object' || data === null) return false;
+  const candidate = data as Record<string, unknown>;
+  return (
+    typeof candidate.runId === 'string' &&
+    typeof candidate.timestamp === 'string' &&
+    typeof candidate.summary === 'object' &&
+    candidate.summary !== null &&
+    Array.isArray(candidate.results)
+  );
+}
+
+/**
  * Saves the structured test run report JSON without inlining binary images.
  */
 export async function saveReportManifest(

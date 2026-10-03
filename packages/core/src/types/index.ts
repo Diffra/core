@@ -71,6 +71,7 @@ export interface SnapshotConfig {
 
   /** Skip visual snapshot generation */
   disable?: boolean;
+  disableSnapshot?: boolean;
 
   /** Clipping rectangle */
   clip?: PageScreenshotOptions['clip'];

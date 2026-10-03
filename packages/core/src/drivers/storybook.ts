@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type {
   DriverContext,
-  SnapshotConfig,
+  TargetParameters,
   VisualDriver,
   VisualTarget,
 } from '../types/index.js';
@@ -10,47 +10,70 @@ import type {
 export interface StorybookEntry {
   id?: string;
   name?: string;
-  story?: string;
   title?: string;
-  type?: string;
+  story?: string;
   importPath?: string;
+  type?: string;
   parameters?: {
-    snapshot?: SnapshotConfig & { disableSnapshot?: boolean };
-    visual?: SnapshotConfig & { disableSnapshot?: boolean };
-    diffra?: SnapshotConfig & { disableSnapshot?: boolean };
+    snapshot?: TargetParameters;
+    visual?: TargetParameters;
+    diffra?: TargetParameters;
     [key: string]: unknown;
   };
+  [key: string]: unknown;
 }
 
 export interface StorybookIndexData {
   v?: number;
   entries?: Record<string, StorybookEntry> | StorybookEntry[];
   stories?: Record<string, StorybookEntry> | StorybookEntry[];
+  [key: string]: unknown;
 }
 
 export class StorybookDriver implements VisualDriver {
   name = 'storybook';
-  private options?: { url?: string; buildDir?: string };
+  private url?: string;
+  private buildDir?: string;
 
   constructor(options?: { url?: string; buildDir?: string }) {
-    this.options = options;
+    this.url = options?.url;
+    this.buildDir = options?.buildDir;
   }
 
   async discover(context: DriverContext): Promise<VisualTarget[]> {
     const cwd = context.cwd || process.cwd();
-    const baseUrl = this.options?.url || 'http://localhost:6006';
+    const driversConfig =
+      typeof context.config.drivers === 'object' &&
+      context.config.drivers !== null
+        ? context.config.drivers
+        : undefined;
+    const baseUrl =
+      this.url ||
+      (driversConfig &&
+      'url' in driversConfig &&
+      typeof driversConfig.url === 'string'
+        ? driversConfig.url
+        : '');
+    const configuredBuildDir =
+      driversConfig &&
+      'buildDir' in driversConfig &&
+      typeof driversConfig.buildDir === 'string'
+        ? driversConfig.buildDir
+        : undefined;
+    const buildDirCandidate =
+      this.buildDir ||
+      (configuredBuildDir
+        ? path.resolve(cwd, configuredBuildDir)
+        : path.resolve(cwd, 'storybook-static'));
 
-    // 1. Try reading index.json / stories.json from pre-built directory if available
-    const buildDirCandidate = this.options?.buildDir || 'storybook-static';
-    const staticDirPath = path.resolve(cwd, buildDirCandidate);
-
-    for (const indexFileName of ['index.json', 'stories.json']) {
+    // 1. Try reading static index.json / stories.json from build output directory
+    for (const fileName of ['index.json', 'stories.json']) {
       try {
-        const indexPath = path.join(staticDirPath, indexFileName);
+        const indexPath = path.join(buildDirCandidate, fileName);
         const exists = await fs.stat(indexPath).catch(() => null);
         if (exists?.isFile()) {
           const content = await fs.readFile(indexPath, 'utf-8');
-          const data = JSON.parse(content) as StorybookIndexData;
+          const data: unknown = JSON.parse(content);
           const targets = this.parseStoryIndex(data, baseUrl);
           if (targets.length > 0) {
             return targets;
@@ -68,7 +91,7 @@ export class StorybookDriver implements VisualDriver {
             signal: AbortSignal.timeout(3000),
           });
           if (res.ok) {
-            const data = (await res.json()) as StorybookIndexData;
+            const data: unknown = await res.json();
             const targets = this.parseStoryIndex(data, baseUrl);
             if (targets.length > 0) {
               return targets;
@@ -83,18 +106,21 @@ export class StorybookDriver implements VisualDriver {
     );
   }
 
-  public parseStoryIndex(
-    data: StorybookIndexData | Record<string, unknown>,
-    baseUrl: string,
-  ): VisualTarget[] {
-    const rawEntries = data.entries || data.stories || {};
+  public parseStoryIndex(data: unknown, baseUrl: string): VisualTarget[] {
+    if (typeof data !== 'object' || data === null) {
+      return [];
+    }
+
+    const indexData = data as Record<string, unknown>;
+    const rawEntries = indexData.entries || indexData.stories || {};
     const entriesList: StorybookEntry[] = Array.isArray(rawEntries)
-      ? rawEntries
-      : Object.values(rawEntries);
+      ? (rawEntries as StorybookEntry[])
+      : (Object.values(rawEntries) as StorybookEntry[]);
 
     const targets: VisualTarget[] = [];
 
     for (const entry of entriesList) {
+      if (typeof entry !== 'object' || entry === null) continue;
       if (entry.type && entry.type !== 'story') {
         continue;
       }

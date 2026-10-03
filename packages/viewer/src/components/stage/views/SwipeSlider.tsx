@@ -61,11 +61,9 @@ export const SwipeSlider: React.FC = () => {
         className={`relative inline-block overflow-hidden rounded-xl outline-none max-w-full ${
           isDragging ? 'cursor-ew-resize' : 'cursor-default'
         }`}
-        style={
-          {
-            '--swipe-pos': `${swipePos}%`,
-          } as React.CSSProperties
-        }
+        style={{
+          '--swipe-pos': `${swipePos}%`,
+        }}
       >
         {/* Baseline (Underneath / Left) */}
         <div className="block pointer-events-none">

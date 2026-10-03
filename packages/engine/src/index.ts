@@ -51,8 +51,17 @@ function loadNativeBinding(): NativeBinding | null {
   for (const bindingPath of possiblePaths) {
     if (fs.existsSync(bindingPath)) {
       try {
-        nativeBinding = require(bindingPath) as NativeBinding;
-        if (nativeBinding) return nativeBinding;
+        const mod: unknown = require(bindingPath);
+        if (
+          typeof mod === 'object' &&
+          mod !== null &&
+          'compareImages' in mod &&
+          typeof (mod as { compareImages: unknown }).compareImages ===
+            'function'
+        ) {
+          nativeBinding = mod as NativeBinding;
+          return nativeBinding;
+        }
       } catch {
         // Continue searching
       }
