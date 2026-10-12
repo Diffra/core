@@ -23,7 +23,8 @@ describe('Demo App Diffra Configuration', () => {
     expect(drivers[0].name).toBe('url');
 
     expect(drivers[0].discover).toBeDefined();
-    const targets = await drivers[0].discover!({ config, cwd: appDir });
+    if (!drivers[0].discover) throw new Error('discover function not found');
+    const targets = await drivers[0].discover({ config, cwd: appDir });
     expect(targets).toHaveLength(2);
     expect(targets[0].name).toBe('Landing Page');
     expect(targets[1].name).toBe('Analytics Dashboard');

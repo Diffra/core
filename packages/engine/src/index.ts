@@ -39,11 +39,11 @@ function loadNativeBinding(): NativeBinding | null {
       `diffra-diff.${process.platform}-${process.arch}.node`,
     ),
     path.join(process.cwd(), 'dist', 'diffra-diff.node'),
-    path.join(process.cwd(), 'packages', 'diff', 'diffra-diff.node'),
+    path.join(process.cwd(), 'packages', 'engine', 'diffra-diff.node'),
     path.join(
       process.cwd(),
       'packages',
-      'diff',
+      'engine',
       `diffra-diff.${process.platform}-${process.arch}.node`,
     ),
   ];
@@ -55,9 +55,12 @@ function loadNativeBinding(): NativeBinding | null {
         if (
           typeof mod === 'object' &&
           mod !== null &&
-          'compareImages' in mod &&
-          typeof (mod as { compareImages: unknown }).compareImages ===
-            'function'
+          (('compareImagesRust' in mod &&
+            typeof (mod as { compareImagesRust: unknown }).compareImagesRust ===
+              'function') ||
+            ('compareImages' in mod &&
+              typeof (mod as { compareImages: unknown }).compareImages ===
+                'function'))
         ) {
           nativeBinding = mod as NativeBinding;
           return nativeBinding;

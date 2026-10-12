@@ -13,7 +13,7 @@ export const SplitView: React.FC = () => {
   return (
     <div className="grid grid-cols-2 gap-5 w-full h-full overflow-hidden select-none text-ui-base">
       {/* Baseline Pane */}
-      <div className="flex-1 flex items-center justify-center p-4 bg-white border border-zinc-200/80 rounded-2xl overflow-auto canvas-backdrop min-h-0 shadow-xs">
+      <div className="flex-1 flex items-center justify-center p-4 bg-white border border-zinc-200/80 rounded-2xl overflow-auto canvas-backdrop min-h-0">
         {activeStory.baselineUrl ? (
           <img
             src={activeStory.baselineUrl}
@@ -33,7 +33,7 @@ export const SplitView: React.FC = () => {
       </div>
 
       {/* Candidate Pane */}
-      <div className="flex-1 flex items-center justify-center p-4 bg-white border border-zinc-200/80 rounded-2xl overflow-auto canvas-backdrop min-h-0 shadow-xs">
+      <div className="flex-1 flex items-center justify-center p-4 bg-white border border-zinc-200/80 rounded-2xl overflow-auto canvas-backdrop min-h-0">
         {activeStory.candidateUrl ? (
           <img
             src={activeStory.candidateUrl}

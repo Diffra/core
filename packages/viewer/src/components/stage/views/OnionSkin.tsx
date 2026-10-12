@@ -10,7 +10,7 @@ export const OnionSkin: React.FC = () => {
   const candidate = activeStory.candidateUrl || '';
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 bg-white border border-zinc-200/80 rounded-2xl overflow-auto canvas-backdrop min-h-0 w-full h-full select-none text-ui-base shadow-xs">
+    <div className="flex-1 flex items-center justify-center p-4 bg-white border border-zinc-200/80 rounded-2xl overflow-auto canvas-backdrop min-h-0 w-full h-full select-none text-ui-base">
       <div
         className="relative inline-block overflow-hidden rounded-xl max-w-full"
         style={{

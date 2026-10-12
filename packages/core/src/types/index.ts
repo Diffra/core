@@ -98,6 +98,14 @@ export interface UrlTargetConfig {
   name?: string;
   group?: string;
   snapshot?: SnapshotConfig;
+  headers?: Record<string, string>;
+  auth?: { username: string; password?: string };
+  cookies?: Array<{
+    name: string;
+    value: string;
+    domain?: string;
+    path?: string;
+  }>;
 }
 
 export interface StorybookDriverConfig {
@@ -110,11 +118,23 @@ export interface UrlDriverConfig {
   driver: 'url';
   baseUrl?: string;
   urls: Array<string | UrlTargetConfig>;
+  headers?: Record<string, string>;
+  auth?: { username: string; password?: string };
+  cookies?: Array<{
+    name: string;
+    value: string;
+    domain?: string;
+    path?: string;
+  }>;
 }
 
 export interface ImageDriverConfig {
   driver: 'image';
-  dir: string;
+  dir?: string | string[];
+  dirs?: string[];
+  glob?: string | string[];
+  patterns?: string | string[];
+  validateFormat?: boolean;
 }
 
 export interface FigmaDriverConfig {
@@ -126,6 +146,10 @@ export interface FigmaDriverConfig {
   version?: string;
   scale?: number;
   snapshot?: SnapshotConfig;
+  endpoint?: string;
+  baseUrl?: string;
+  maxRetries?: number;
+  maxCacheEntries?: number;
 }
 
 export type BuiltinDriverConfig =

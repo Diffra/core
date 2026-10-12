@@ -66,7 +66,7 @@ export const GalleryView: React.FC = () => {
               type="button"
               key={item.id}
               onClick={() => handleCardClick(item.id)}
-              className="text-left w-full flex flex-col bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-150 group text-ui-base border border-zinc-200/80 hover:border-zinc-300 shadow-xs hover:shadow-sm outline-none"
+              className="text-left w-full flex flex-col bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-150 group text-ui-base border border-zinc-200/80 hover:border-zinc-300 outline-none"
             >
               {/* Card Header */}
               <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 bg-white group-hover:bg-zinc-50/50 transition-colors">

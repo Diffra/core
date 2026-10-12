@@ -10,6 +10,24 @@ export interface GCSStorageOptions {
   prefix?: string;
 }
 
+function isGCSNotFound(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as {
+    code?: number;
+    message?: string;
+    errors?: Array<{ reason?: string }>;
+  };
+  return (
+    e.code === 404 ||
+    Boolean(
+      e.message &&
+        (e.message.includes('Not Found') ||
+          e.message.includes('No such object')),
+    ) ||
+    e.errors?.[0]?.reason === 'notFound'
+  );
+}
+
 export class GCSStorageAdapter implements StorageAdapter {
   name = 'gcs';
   private bucket: string;
@@ -34,8 +52,50 @@ export class GCSStorageAdapter implements StorageAdapter {
   }
 
   private getFilename(key: SnapshotKey): string {
-    const browserSuffix = key.browser ? `--${key.browser}` : '';
+    const browserSuffix = key.browser
+      ? `--${key.browser.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+      : '';
     return `${key.targetId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${key.viewport.width}x${key.viewport.height}.png`;
+  }
+
+  async uploadBlob(hash: string, buffer: Buffer): Promise<string> {
+    const file = this.getClient()
+      .bucket(this.bucket)
+      .file(`${this.prefix}/blobs/${hash}.png`);
+    await file.save(buffer, { contentType: 'image/png' });
+    return `https://storage.googleapis.com/${this.bucket}/${file.name}`;
+  }
+
+  async downloadBlob(hash: string): Promise<Buffer | null> {
+    if (!this.gcsStorage) return null;
+    const file = this.getClient()
+      .bucket(this.bucket)
+      .file(`${this.prefix}/blobs/${hash}.png`);
+    try {
+      const [contents] = await file.download();
+      return contents;
+    } catch (err: unknown) {
+      if (isGCSNotFound(err)) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  async hasBlob(hash: string): Promise<boolean> {
+    if (!this.gcsStorage) return false;
+    const file = this.getClient()
+      .bucket(this.bucket)
+      .file(`${this.prefix}/blobs/${hash}.png`);
+    try {
+      const [exists] = await file.exists();
+      return exists;
+    } catch (err: unknown) {
+      if (isGCSNotFound(err)) {
+        return false;
+      }
+      throw err;
+    }
   }
 
   async uploadCandidate(
@@ -66,6 +126,9 @@ export class GCSStorageAdapter implements StorageAdapter {
     baselineCommit: string,
     key: SnapshotKey,
   ): Promise<Buffer | null> {
+    if (!this.gcsStorage) {
+      return null;
+    }
     const file = this.getClient()
       .bucket(this.bucket)
       .file(
@@ -74,8 +137,11 @@ export class GCSStorageAdapter implements StorageAdapter {
     try {
       const [contents] = await file.download();
       return contents;
-    } catch {
-      return null;
+    } catch (err: unknown) {
+      if (isGCSNotFound(err)) {
+        return null;
+      }
+      throw err;
     }
   }
 

@@ -13,26 +13,49 @@ const MODULE_NAME = 'diffra';
 export async function loadConfig(
   cwd = process.cwd(),
   overrides: Partial<DiffraConfig> = {},
+  configFile?: string,
 ): Promise<DiffraConfig> {
   let rawConfig: Record<string, unknown> = {};
 
-  // 1. Check for TypeScript config files directly
-  const tsConfigNames = [
-    `${MODULE_NAME}.config.ts`,
-    `${MODULE_NAME}.config.mts`,
-    `.${MODULE_NAME}rc.ts`,
-  ];
-
-  for (const name of tsConfigNames) {
-    const candidate = path.resolve(cwd, name);
-    try {
-      const stat = await fs.stat(candidate);
-      if (stat.isFile()) {
-        const imported = await import(pathToFileURL(candidate).href);
-        rawConfig = imported.default || imported;
-        break;
+  if (configFile) {
+    const candidate = path.isAbsolute(configFile)
+      ? configFile
+      : path.resolve(cwd, configFile);
+    const ext = path.extname(candidate).toLowerCase();
+    if (ext === '.json') {
+      const content = await fs.readFile(candidate, 'utf-8');
+      rawConfig = JSON.parse(content);
+    } else if (ext === '.ts' || ext === '.mts') {
+      const imported = await import(pathToFileURL(candidate).href);
+      rawConfig = imported.default || imported;
+    } else {
+      const explorer = cosmiconfig(MODULE_NAME);
+      const res = await explorer.load(candidate);
+      if (res?.config) {
+        rawConfig = res.config;
       }
-    } catch {}
+    }
+  }
+
+  // 1. Check for TypeScript config files directly
+  if (Object.keys(rawConfig).length === 0 && !configFile) {
+    const tsConfigNames = [
+      `${MODULE_NAME}.config.ts`,
+      `${MODULE_NAME}.config.mts`,
+      `.${MODULE_NAME}rc.ts`,
+    ];
+
+    for (const name of tsConfigNames) {
+      const candidate = path.resolve(cwd, name);
+      try {
+        const stat = await fs.stat(candidate);
+        if (stat.isFile()) {
+          const imported = await import(pathToFileURL(candidate).href);
+          rawConfig = imported.default || imported;
+          break;
+        }
+      } catch {}
+    }
   }
 
   // 2. Fall back to cosmiconfig standard search
@@ -70,5 +93,5 @@ export async function loadConfig(
     throw new Error(`Invalid Diffra configuration: ${parsed.error.message}`);
   }
 
-  return parsed.data;
+  return parsed.data as DiffraConfig;
 }

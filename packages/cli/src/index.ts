@@ -7,7 +7,14 @@ import {
   mergeReports,
   runVisualRegression,
 } from '@diffra/core';
+import {
+  createServeHandler,
+  formatServerUrl,
+  startServeServer,
+} from './serve.js';
 import { colors } from './utils/colors.js';
+
+export { createServeHandler, formatServerUrl, startServeServer };
 
 const VERSION = '0.1.0';
 
@@ -36,8 +43,13 @@ ${colors.bold('Options:')}
   -o, --output-dir <dir>      Output artifacts directory (default: .diffra)
       --concurrency <num>     Parallel screenshot workers (default: 4)
       --shard <spec>          Shard slice (e.g. 1/4, 2/4)
+      --shard-dir <dir>       Directory containing shard report to merge (multiple allowed)
       --pass-on-changes       Exit with 0 even if visual differences are detected
+      --update-baseline       Automatically promote changed candidate screenshots to baseline
+  -f, --filter <pattern>      Filter test targets by name or group
       --open                  Open review report in browser after test run
+      --ci                    Run in non-interactive CI mode
+      --json                  Output test run report as JSON
   -p, --port <number>         Custom port for preview server
   -r, --report <path>         Report JSON path to serve
   -v, --version               Display version
@@ -54,7 +66,7 @@ ${colors.bold('Examples:')}
 `);
 }
 
-const CLI_OPTIONS = {
+export const CLI_OPTIONS = {
   help: { type: 'boolean', short: 'h' },
   version: { type: 'boolean', short: 'v' },
   driver: { type: 'string', short: 'd' },
@@ -68,19 +80,37 @@ const CLI_OPTIONS = {
   'output-dir': { type: 'string', short: 'o' },
   concurrency: { type: 'string' },
   shard: { type: 'string' },
+  'shard-dir': { type: 'string', multiple: true },
   'pass-on-changes': { type: 'boolean' },
   open: { type: 'boolean' },
   port: { type: 'string', short: 'p' },
   report: { type: 'string', short: 'r' },
   'viewer-url': { type: 'string' },
+  'update-baseline': { type: 'boolean' },
+  filter: { type: 'string', short: 'f' },
+  ci: { type: 'boolean' },
+  json: { type: 'boolean' },
 } as const;
 
 export async function main(args = process.argv.slice(2)): Promise<number> {
-  const { values, positionals } = parseArgs({
-    args,
-    options: CLI_OPTIONS,
-    allowPositionals: true,
-  });
+  let parsed: ReturnType<
+    typeof parseArgs<{ options: typeof CLI_OPTIONS; allowPositionals: true }>
+  >;
+  try {
+    parsed = parseArgs({
+      args,
+      options: CLI_OPTIONS,
+      allowPositionals: true,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`\n${colors.red(colors.bold('Error:'))} ${msg}`);
+    console.error(
+      colors.gray("Run 'diffra --help' for a list of available options.\n"),
+    );
+    return 1;
+  }
+  const { values, positionals } = parsed;
 
   if (values.version) {
     console.log(`diffra v${VERSION}`);
@@ -155,6 +185,10 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           };
         }
 
+        if (values.filter) {
+          runnerOverrides.filter = values.filter;
+        }
+
         if (Object.keys(snapshotOverrides).length > 0)
           overrides.snapshot = snapshotOverrides;
         if (Object.keys(runnerOverrides).length > 0)
@@ -163,13 +197,17 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           overrides.storage = storageOverrides;
 
         const report = await runVisualRegression({
-          config: overrides,
+          config: Object.keys(overrides).length > 0 ? overrides : undefined,
+          configFile: values.config,
           shard: values.shard,
-          onProgress: (step, current, total) => {
-            process.stdout.write(
-              `\r${colors.gray('►')} ${colors.white(step)} [${current}/${total}]`,
-            );
-          },
+          onProgress:
+            values.ci || values.json
+              ? undefined
+              : (step, current, total) => {
+                  process.stdout.write(
+                    `\r${colors.gray('►')} ${colors.white(step)} [${current}/${total}]`,
+                  );
+                },
         });
 
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -245,7 +283,38 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           );
         }
 
-        if (report.summary.changed > 0 && !values['pass-on-changes']) {
+        if (values['update-baseline'] && report.summary.changed > 0) {
+          await approveBaselines({
+            config: Object.keys(overrides).length > 0 ? overrides : undefined,
+            configFile: values.config,
+            report,
+          });
+          console.log(
+            colors.green(
+              colors.bold(
+                `Automatically approved ${report.summary.changed} changed baseline(s).`,
+              ),
+            ),
+          );
+        }
+
+        if (values.json) {
+          console.log(JSON.stringify(report, null, 2));
+          if (
+            report.summary.changed > 0 &&
+            !values['pass-on-changes'] &&
+            !values['update-baseline']
+          ) {
+            return 1;
+          }
+          return 0;
+        }
+
+        if (
+          report.summary.changed > 0 &&
+          !values['pass-on-changes'] &&
+          !values['update-baseline']
+        ) {
           console.log(
             colors.red(
               colors.bold(
@@ -281,7 +350,9 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         `\n${colors.bold(colors.cyan('Diffra Baseline Approval'))}\n`,
       );
       try {
-        const result = await approveBaselines();
+        const result = await approveBaselines({
+          configFile: values.config,
+        });
         console.log(
           `${colors.green(colors.bold('Successfully approved'))} ${result.count} screenshots as baseline.\n`,
         );
@@ -299,14 +370,17 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       console.log(
         `\n${colors.bold(colors.cyan('Diffra Shard Report Merger'))}\n`,
       );
-      const shardDirs = positionals.slice(1);
+      const cliShardDirs = values['shard-dir']
+        ? Array.isArray(values['shard-dir'])
+          ? values['shard-dir']
+          : [values['shard-dir']]
+        : [];
+      const shardDirs = [...cliShardDirs, ...positionals.slice(1)];
       const outDir = values['output-dir'] || '.diffra';
 
       if (shardDirs.length === 0) {
         console.error(
-          colors.red(
-            'Usage: diffra merge-reports <shardPaths...> -o <outputDir>',
-          ),
+          colors.red('Usage: diffra merge-reports <shardPaths...> [options]'),
         );
         return 1;
       }
@@ -330,17 +404,43 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       let reportPath = values.report;
 
       if (!reportPath) {
-        reportPath = path.resolve(process.cwd(), '.diffra/latest-report.json');
+        reportPath = path.resolve(
+          process.cwd(),
+          values['output-dir'] || '.diffra',
+          'latest-report.json',
+        );
       }
 
-      const viewerUrl = buildViewerUrl(
-        `file://${reportPath}`,
-        values['viewer-url'],
-      );
+      const port = values.port ? parseInt(values.port, 10) : undefined;
+      const { server, url, stop } = await startServeServer({
+        reportPath,
+        outputDir: values['output-dir'],
+        port,
+      });
+
       console.log(`\n${colors.bold(colors.cyan('Diffra Report Viewer'))}`);
       console.log(
-        `${colors.green('✓')} Review report at: ${colors.bold(colors.underline(viewerUrl))}\n`,
+        `${colors.green('✓')} Review report at: ${colors.bold(colors.underline(url))}\n`,
       );
+
+      if (values.ci || process.env.NODE_ENV === 'test') {
+        await stop();
+        return 0;
+      }
+
+      console.log(colors.gray('Press Ctrl+C to stop the preview server.\n'));
+
+      await new Promise<void>((resolve) => {
+        const onSignal = async () => {
+          process.off('SIGINT', onSignal);
+          process.off('SIGTERM', onSignal);
+          await stop();
+          resolve();
+        };
+        process.on('SIGINT', onSignal);
+        process.on('SIGTERM', onSignal);
+        server.on('close', () => resolve());
+      });
       return 0;
     }
 

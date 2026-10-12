@@ -34,14 +34,40 @@ export class LocalFilesystemAdapter implements StorageAdapter {
     await fs.mkdir(this.blobsDir, { recursive: true });
   }
 
-  private getFilename(key: SnapshotKey): string {
-    const browserSuffix = key.browser ? `--${key.browser}` : '';
-    return `${key.targetId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${key.viewport.width}x${key.viewport.height}.png`;
+  private assertWithinBoundary(
+    targetPath: string,
+    baseDir: string,
+    context: string,
+  ): void {
+    const resolved = path.resolve(targetPath);
+    const resolvedBase = path.resolve(baseDir);
+    if (
+      resolved !== resolvedBase &&
+      !resolved.startsWith(resolvedBase + path.sep)
+    ) {
+      throw new Error(
+        `Security Error: Path traversal attempt detected in ${context}: "${targetPath}" resolves outside base directory "${baseDir}"`,
+      );
+    }
+  }
+
+  private getFilename(key: SnapshotKey, includeBrowser = true): string {
+    const safeTargetId = key.targetId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeBrowser =
+      includeBrowser && key.browser
+        ? `--${key.browser.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+        : '';
+    return `${safeTargetId}${safeBrowser}--${key.viewport.width}x${key.viewport.height}.png`;
   }
 
   async uploadBlob(hash: string, imageBuffer: Buffer): Promise<string> {
+    const rawBlobPath = path.join(this.blobsDir, `${hash}.png`);
+    this.assertWithinBoundary(rawBlobPath, this.blobsDir, 'uploadBlob');
+
+    const safeHash = hash.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const blobPath = path.join(this.blobsDir, `${safeHash}.png`);
+
     await fs.mkdir(this.blobsDir, { recursive: true });
-    const blobPath = path.join(this.blobsDir, `${hash}.png`);
     try {
       await fs.access(blobPath);
     } catch {
@@ -51,21 +77,37 @@ export class LocalFilesystemAdapter implements StorageAdapter {
   }
 
   async downloadBlob(hash: string): Promise<Buffer | null> {
-    const blobPath = path.join(this.blobsDir, `${hash}.png`);
+    const rawBlobPath = path.join(this.blobsDir, `${hash}.png`);
+    this.assertWithinBoundary(rawBlobPath, this.blobsDir, 'downloadBlob');
+
+    const safeHash = hash.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const blobPath = path.join(this.blobsDir, `${safeHash}.png`);
+
     try {
       return await fs.readFile(blobPath);
-    } catch {
-      return null;
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return null;
+      }
+      throw err;
     }
   }
 
   async hasBlob(hash: string): Promise<boolean> {
-    const blobPath = path.join(this.blobsDir, `${hash}.png`);
+    const rawBlobPath = path.join(this.blobsDir, `${hash}.png`);
+    this.assertWithinBoundary(rawBlobPath, this.blobsDir, 'hasBlob');
+
+    const safeHash = hash.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const blobPath = path.join(this.blobsDir, `${safeHash}.png`);
+
     try {
       await fs.access(blobPath);
       return true;
-    } catch {
-      return false;
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return false;
+      }
+      throw err;
     }
   }
 
@@ -78,8 +120,10 @@ export class LocalFilesystemAdapter implements StorageAdapter {
     await this.uploadBlob(hash, imageBuffer);
 
     const dir = path.join(this.outputDir, 'runs', runId, 'candidates');
-    await fs.mkdir(dir, { recursive: true });
     const filePath = path.join(dir, this.getFilename(key));
+    this.assertWithinBoundary(filePath, this.outputDir, 'uploadCandidate');
+
+    await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(filePath, imageBuffer);
     return filePath;
   }
@@ -93,8 +137,10 @@ export class LocalFilesystemAdapter implements StorageAdapter {
     await this.uploadBlob(hash, imageBuffer);
 
     const dir = path.join(this.outputDir, 'runs', runId, 'diffs');
-    await fs.mkdir(dir, { recursive: true });
     const filePath = path.join(dir, this.getFilename(key));
+    this.assertWithinBoundary(filePath, this.outputDir, 'uploadDiff');
+
+    await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(filePath, imageBuffer);
     return filePath;
   }
@@ -103,18 +149,71 @@ export class LocalFilesystemAdapter implements StorageAdapter {
     baselineCommit: string,
     key: SnapshotKey,
   ): Promise<Buffer | null> {
-    const filename = this.getFilename(key);
+    const filename = this.getFilename(key, true);
     const commitPath = path.join(this.baselineDir, baselineCommit, filename);
+    this.assertWithinBoundary(commitPath, this.baselineDir, 'downloadBaseline');
+
+    // 1. Try commit-specific baseline with browser suffix
     try {
       return await fs.readFile(commitPath);
-    } catch {
-      const defaultPath = path.join(this.baselineDir, filename);
-      try {
-        return await fs.readFile(defaultPath);
-      } catch {
-        return null;
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
       }
     }
+
+    // 2. Try default baseline with browser suffix
+    const defaultPath = path.join(this.baselineDir, filename);
+    this.assertWithinBoundary(
+      defaultPath,
+      this.baselineDir,
+      'downloadBaseline',
+    );
+    try {
+      return await fs.readFile(defaultPath);
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
+      }
+    }
+
+    // 3. Fallback: If browser was specified, try without browser suffix
+    if (key.browser) {
+      const fallbackFilename = this.getFilename(key, false);
+      const fallbackCommitPath = path.join(
+        this.baselineDir,
+        baselineCommit,
+        fallbackFilename,
+      );
+      this.assertWithinBoundary(
+        fallbackCommitPath,
+        this.baselineDir,
+        'downloadBaseline',
+      );
+      try {
+        return await fs.readFile(fallbackCommitPath);
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw err;
+        }
+      }
+
+      const fallbackDefaultPath = path.join(this.baselineDir, fallbackFilename);
+      this.assertWithinBoundary(
+        fallbackDefaultPath,
+        this.baselineDir,
+        'downloadBaseline',
+      );
+      try {
+        return await fs.readFile(fallbackDefaultPath);
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw err;
+        }
+      }
+    }
+
+    return null;
   }
 
   async uploadBaseline(
@@ -126,19 +225,28 @@ export class LocalFilesystemAdapter implements StorageAdapter {
     await this.uploadBlob(hash, imageBuffer);
 
     const filename = this.getFilename(key);
-    await fs.writeFile(path.join(this.baselineDir, filename), imageBuffer);
+    const defaultPath = path.join(this.baselineDir, filename);
+    this.assertWithinBoundary(defaultPath, this.baselineDir, 'uploadBaseline');
+    await fs.writeFile(defaultPath, imageBuffer);
+
     const commitDir = path.join(this.baselineDir, commitSha);
+    const commitPath = path.join(commitDir, filename);
+    this.assertWithinBoundary(commitPath, this.baselineDir, 'uploadBaseline');
+
     await fs.mkdir(commitDir, { recursive: true });
-    await fs.writeFile(path.join(commitDir, filename), imageBuffer);
+    await fs.writeFile(commitPath, imageBuffer);
   }
 
   async saveReport(report: TestRunReport): Promise<string> {
     const runDir = path.join(this.outputDir, 'runs', report.runId);
-    await fs.mkdir(runDir, { recursive: true });
     const reportPath = path.join(runDir, 'report.json');
+    this.assertWithinBoundary(reportPath, this.outputDir, 'saveReport');
+
+    await fs.mkdir(runDir, { recursive: true });
     await fs.writeFile(reportPath, JSON.stringify(report, null, 2), 'utf-8');
 
     const latestPath = path.join(this.outputDir, 'latest-report.json');
+    this.assertWithinBoundary(latestPath, this.outputDir, 'saveReport');
     await fs.writeFile(latestPath, JSON.stringify(report, null, 2), 'utf-8');
     return reportPath;
   }

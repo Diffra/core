@@ -11,6 +11,20 @@ export interface AzureStorageOptions {
   prefix?: string;
 }
 
+function isAzureNotFound(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as {
+    statusCode?: number;
+    code?: string;
+    details?: { errorCode?: string };
+  };
+  return (
+    e.statusCode === 404 ||
+    e.code === 'BlobNotFound' ||
+    e.details?.errorCode === 'BlobNotFound'
+  );
+}
+
 export class AzureBlobStorageAdapter implements StorageAdapter {
   name = 'azure';
   private containerName: string;
@@ -46,8 +60,47 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
   }
 
   private getFilename(key: SnapshotKey): string {
-    const browserSuffix = key.browser ? `--${key.browser}` : '';
+    const browserSuffix = key.browser
+      ? `--${key.browser.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+      : '';
     return `${key.targetId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${key.viewport.width}x${key.viewport.height}.png`;
+  }
+
+  async uploadBlob(hash: string, imageBuffer: Buffer): Promise<string> {
+    const blobName = `${this.prefix}/blobs/${hash}.png`;
+    const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
+    await blockBlobClient.upload(imageBuffer, imageBuffer.length, {
+      blobHTTPHeaders: { blobContentType: 'image/png' },
+    });
+    return blockBlobClient.url;
+  }
+
+  async downloadBlob(hash: string): Promise<Buffer | null> {
+    if (!this.containerClient) return null;
+    const blobName = `${this.prefix}/blobs/${hash}.png`;
+    const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
+    try {
+      return await blockBlobClient.downloadToBuffer();
+    } catch (err: unknown) {
+      if (isAzureNotFound(err)) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  async hasBlob(hash: string): Promise<boolean> {
+    if (!this.containerClient) return false;
+    const blobName = `${this.prefix}/blobs/${hash}.png`;
+    const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
+    try {
+      return await blockBlobClient.exists();
+    } catch (err: unknown) {
+      if (isAzureNotFound(err)) {
+        return false;
+      }
+      throw err;
+    }
   }
 
   async uploadCandidate(
@@ -80,12 +133,18 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
     baselineCommit: string,
     key: SnapshotKey,
   ): Promise<Buffer | null> {
+    if (!this.containerClient) {
+      return null;
+    }
     const blobName = `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(key)}`;
     const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
     try {
       return await blockBlobClient.downloadToBuffer();
-    } catch {
-      return null;
+    } catch (err: unknown) {
+      if (isAzureNotFound(err)) {
+        return null;
+      }
+      throw err;
     }
   }
 

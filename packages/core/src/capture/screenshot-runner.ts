@@ -48,22 +48,30 @@ export async function captureTargets(
   const browserTasks: CaptureTask[] = [];
 
   // 1. Separate tasks handled directly by custom driver capture hooks (e.g. Figma API, static images)
+  const captureAllGroups = new Map<VisualDriver, CaptureTask[]>();
+
   for (const task of tasks) {
     const target = task.target;
-    if (task.driver?.capture) {
+    if (task.driver?.captureAll) {
+      let group = captureAllGroups.get(task.driver);
+      if (!group) {
+        group = [];
+        captureAllGroups.set(task.driver, group);
+      }
+      group.push(task);
+    } else if (task.driver?.capture) {
       try {
         const buf = await task.driver.capture(
           { target, viewport: task.viewport, project: task.project },
           { config: {}, cwd: options.cwd || process.cwd() },
         );
-        if (buf) {
+        if (buf && buf.length > 0) {
           results.push({
             target,
             viewport: task.viewport,
             project: task.project,
             buffer: buf,
           });
-          continue;
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -71,8 +79,34 @@ export async function captureTargets(
           `[diffra] Driver ${task.driver.name} capture failed for ${target.id}: ${msg}`,
         );
       }
+    } else {
+      browserTasks.push({ ...task, target });
     }
-    browserTasks.push({ ...task, target });
+  }
+
+  for (const [driver, driverTasks] of captureAllGroups) {
+    if (driver.captureAll) {
+      try {
+        const batchResults = await driver.captureAll(
+          driverTasks.map((t) => ({
+            target: t.target,
+            viewport: t.viewport,
+            project: t.project,
+          })),
+          { config: {}, cwd: options.cwd || process.cwd() },
+        );
+        for (const res of batchResults) {
+          if (res.buffer && res.buffer.length > 0) {
+            results.push(res);
+          }
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(
+          `[diffra] Driver ${driver.name} captureAll failed: ${msg}`,
+        );
+      }
+    }
   }
 
   if (browserTasks.length === 0) {
@@ -111,10 +145,70 @@ export async function captureTargets(
           }
         }
 
-        await workerPage.page.goto(url, {
+        const metadata = target.metadata || {};
+        const headers = metadata.headers as Record<string, string> | undefined;
+        const auth = metadata.auth as
+          | { username: string; password?: string }
+          | undefined;
+        const cookies = metadata.cookies as
+          | Array<{
+              name: string;
+              value: string;
+              domain?: string;
+              path?: string;
+            }>
+          | undefined;
+
+        const pageAny = workerPage.page as unknown as {
+          setExtraHTTPHeaders?: (
+            headers: Record<string, string>,
+          ) => Promise<void>;
+        };
+        const contextAny = workerPage.context as unknown as {
+          setHTTPCredentials?: (auth: {
+            username: string;
+            password?: string;
+          }) => Promise<void>;
+          addCookies?: (
+            cookies: Array<Record<string, unknown>>,
+          ) => Promise<void>;
+        };
+
+        if (headers && typeof pageAny.setExtraHTTPHeaders === 'function') {
+          await pageAny.setExtraHTTPHeaders(headers);
+        }
+        if (auth && typeof contextAny.setHTTPCredentials === 'function') {
+          await contextAny.setHTTPCredentials(auth);
+        }
+        if (
+          cookies &&
+          cookies.length > 0 &&
+          typeof contextAny.addCookies === 'function'
+        ) {
+          let cookieOrigin = url;
+          try {
+            cookieOrigin = new URL(url).origin;
+          } catch {}
+          const formattedCookies = cookies.map((c) => ({
+            ...c,
+            url: c.domain ? undefined : cookieOrigin,
+          }));
+          await contextAny.addCookies(formattedCookies);
+        }
+
+        const response = (await workerPage.page.goto(url, {
           waitUntil: 'domcontentloaded',
           timeout: DEFAULT_NAVIGATION_TIMEOUT,
-        });
+        })) as { status?: () => number; ok?: () => boolean } | null | undefined;
+
+        if (response && typeof response.status === 'function') {
+          const status = response.status();
+          if (status >= 400) {
+            console.warn(
+              `[diffra] Warning: HTTP ${status} when loading ${url} for ${target.id}`,
+            );
+          }
+        }
 
         // Wait for element selector if specified by target snapshot parameters
         const selector = targetParams.selector;

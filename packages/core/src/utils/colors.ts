@@ -1,13 +1,29 @@
-const isColorSupported =
-  !('NO_COLOR' in process.env) &&
-  (process.env.FORCE_COLOR === '1' || process.stdout.isTTY === true);
+/**
+ * Dynamically determines ANSI color support in compliance with
+ * no-color.org and force-color specifications.
+ */
+export function isColorSupported(): boolean {
+  const forceColor = process.env.FORCE_COLOR;
+  if (forceColor === '0' || forceColor === 'false') {
+    return false;
+  }
+  if (forceColor !== undefined && forceColor !== '') {
+    return true;
+  }
+  const noColor = process.env.NO_COLOR;
+  if (noColor !== undefined && noColor !== '') {
+    return false;
+  }
+  return process.stdout?.isTTY === true;
+}
 
 function format(open: string, close: string) {
   return (str: string | number) =>
-    isColorSupported ? `\x1b[${open}m${str}\x1b[${close}m` : String(str);
+    isColorSupported() ? `\x1b[${open}m${str}\x1b[${close}m` : String(str);
 }
 
 export const colors = {
+  isColorSupported,
   reset: format('0', '0'),
   bold: format('1', '22'),
   dim: format('2', '22'),

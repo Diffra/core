@@ -136,3 +136,8 @@ export async function toMatchVisualBaselineMatcher(
     message,
   };
 }
+
+/**
+ * Standard alias for toMatchVisualBaselineMatcher.
+ */
+export const toMatchVisualBaseline = toMatchVisualBaselineMatcher;

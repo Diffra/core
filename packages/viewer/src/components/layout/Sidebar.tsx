@@ -70,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ searchInputRef }) => {
             placeholder="Filter snapshots..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white border border-zinc-200/80 rounded-xl text-zinc-900 pl-9 pr-16 py-2 text-ui-base outline-none transition-all placeholder:text-zinc-400 focus:border-zinc-400 shadow-xs"
+            className="w-full bg-white border border-zinc-200/80 rounded-xl text-zinc-900 pl-9 pr-16 py-2 text-ui-base outline-none transition-all placeholder:text-zinc-400 focus:border-zinc-400"
           />
 
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -91,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ searchInputRef }) => {
               popoverTarget="filter-popover"
               className={`p-1.5 rounded-lg border cursor-pointer flex items-center transition-all ${
                 filterStatus !== 'all'
-                  ? 'bg-zinc-900 text-white border-zinc-900 shadow-xs'
+                  ? 'bg-zinc-900 text-white border-zinc-900'
                   : 'bg-transparent text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 border-transparent'
               }`}
               title="Filter by status"
@@ -105,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ searchInputRef }) => {
         <div
           id="filter-popover"
           popover="auto"
-          className="m-0 p-1.5 bg-white rounded-xl border border-zinc-200 text-ui-base backdrop:bg-transparent shadow-lg"
+          className="m-0 p-1.5 bg-white rounded-xl border border-zinc-200 text-ui-base backdrop:bg-transparent"
           style={{
             position: 'absolute',
             top: '4.25rem',
@@ -160,7 +160,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ searchInputRef }) => {
                     onClick={() => selectStoryById(item.id)}
                     className={`w-full text-left flex items-center justify-between px-3 py-2.5 cursor-pointer rounded-xl transition-all outline-none border text-ui-base group ${
                       isSelected
-                        ? 'bg-white text-zinc-900 font-medium border-zinc-200/80 shadow-xs'
+                        ? 'bg-white text-zinc-900 font-medium border-zinc-200/80'
                         : 'bg-transparent hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900 border-transparent'
                     }`}
                   >

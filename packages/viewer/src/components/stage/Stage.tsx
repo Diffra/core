@@ -73,7 +73,7 @@ export const Stage: React.FC = () => {
             href={baselineBranchHref}
             target="_blank"
             rel="noreferrer"
-            className="text-zinc-800 bg-zinc-100 hover:bg-zinc-200/80 border border-zinc-200/70 px-2.5 py-0.5 rounded-md text-ui-base no-underline transition-colors shadow-xs"
+            className="text-zinc-800 bg-zinc-100 hover:bg-zinc-200/80 px-2.5 py-0.5 rounded-md text-ui-base no-underline transition-colors"
             title={`View ${baselineBranch} branch on GitHub`}
           >
             {baselineBranch}
@@ -100,7 +100,7 @@ export const Stage: React.FC = () => {
             href={candidateBranchHref}
             target="_blank"
             rel="noreferrer"
-            className="text-zinc-800 bg-zinc-100 hover:bg-zinc-200/80 border border-zinc-200/70 px-2.5 py-0.5 rounded-md text-ui-base no-underline transition-colors shadow-xs"
+            className="text-zinc-800 bg-zinc-100 hover:bg-zinc-200/80 px-2.5 py-0.5 rounded-md text-ui-base no-underline transition-colors"
             title={`View ${candidateBranch} branch on GitHub`}
           >
             {candidateBranch}
@@ -131,7 +131,7 @@ export const Stage: React.FC = () => {
                   setZoom(matched);
                 }
               }}
-              className="bg-zinc-100 hover:bg-zinc-200/70 text-zinc-800 border border-zinc-200/70 rounded-lg px-2.5 py-1 text-ui-medium cursor-pointer outline-none transition-colors shadow-xs"
+              className="bg-zinc-100 hover:bg-zinc-200/70 text-zinc-800 rounded-lg px-2.5 py-1 text-ui-medium cursor-pointer outline-none transition-colors border-none"
             >
               {zoomOptions.map((z) => (
                 <option key={z} value={z}>
@@ -143,7 +143,7 @@ export const Stage: React.FC = () => {
         ) : activeMode === 'swipe' ? (
           <div className="flex items-center gap-2 text-ui-medium">
             <span className="text-zinc-500 font-normal">Split Position:</span>
-            <span className="text-zinc-900 bg-zinc-100 border border-zinc-200/70 px-2.5 py-0.5 rounded-md text-ui-semibold shadow-xs">
+            <span className="text-zinc-900 bg-zinc-100 px-2.5 py-0.5 rounded-md text-ui-semibold">
               {swipePos}%
             </span>
           </div>
@@ -159,7 +159,7 @@ export const Stage: React.FC = () => {
               onChange={(e) => setOnionOpacity(parseFloat(e.target.value))}
               className="cursor-pointer accent-zinc-900 w-28"
             />
-            <span className="text-zinc-900 bg-zinc-100 border border-zinc-200/70 px-2.5 py-0.5 rounded-md text-ui-semibold shadow-xs">
+            <span className="text-zinc-900 bg-zinc-100 px-2.5 py-0.5 rounded-md text-ui-semibold">
               {Math.round(onionOpacity * 100)}%
             </span>
           </div>

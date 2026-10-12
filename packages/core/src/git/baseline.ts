@@ -12,13 +12,27 @@ export interface GitInfo {
 }
 
 /**
- * Runs a git command safely in the specified cwd.
+ * Runs a git command safely in the specified cwd with an execution timeout.
  */
-async function runGit(args: string[], cwd = process.cwd()): Promise<string> {
+async function runGit(
+  args: string[],
+  cwd = process.cwd(),
+  timeout = 10000,
+): Promise<string> {
   try {
-    const { stdout } = await execFileAsync('git', args, { cwd });
+    const { stdout } = await execFileAsync('git', args, { cwd, timeout });
     return stdout.trim();
-  } catch {
+  } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'killed' in error &&
+      (error as { killed: boolean }).killed
+    ) {
+      console.warn(
+        `[diffra] Warning: Git command "git ${args.join(' ')}" timed out after ${timeout}ms.`,
+      );
+    }
     return '';
   }
 }
@@ -189,7 +203,7 @@ export async function getGitInfo(
           cwd,
         );
         const distance = parseInt(distanceStr, 10);
-        const validDistance = isNaN(distance) ? Infinity : distance;
+        const validDistance = Number.isNaN(distance) ? Infinity : distance;
 
         if (validDistance < minDistance) {
           minDistance = validDistance;

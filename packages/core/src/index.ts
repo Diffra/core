@@ -19,6 +19,7 @@ import type {
   Project,
   TestRunReport,
   Viewport,
+  VisualDriver,
   VisualTarget,
   VisualTestResult,
 } from './types/index.js';
@@ -40,7 +41,16 @@ import {
   DEFAULT_DELAY_MS,
   DEFAULT_DIFF_THRESHOLD,
   DEFAULT_VIEWPORTS,
+  DiffraConfigSchema,
 } from './config/schema.js';
+
+export {
+  DEFAULT_CONCURRENCY,
+  DEFAULT_DELAY_MS,
+  DEFAULT_DIFF_THRESHOLD,
+  DEFAULT_VIEWPORTS,
+  DiffraConfigSchema,
+};
 
 /**
  * Finds all story files matching the configured glob patterns.
@@ -92,13 +102,14 @@ export async function findStoryFiles(
 export async function runVisualRegression(
   options: {
     config?: Partial<DiffraConfig>;
+    configFile?: string;
     cwd?: string;
     shard?: string;
     onProgress?: (step: string, current: number, total: number) => void;
   } = {},
 ): Promise<TestRunReport> {
   const cwd = options.cwd || process.cwd();
-  const config = await loadConfig(cwd, options.config);
+  const config = await loadConfig(cwd, options.config, options.configFile);
 
   const pluginRunner = new PluginRunner(config.plugins || []);
   await pluginRunner.hookSetup(config);
@@ -126,9 +137,16 @@ export async function runVisualRegression(
 
   // 1. Discover Visual Targets across all configured drivers
   let allTargets: VisualTarget[] = [];
+  const targetDriverMap = new Map<VisualTarget, VisualDriver>();
+  const targetIdDriverMap = new Map<string, VisualDriver>();
   for (const driver of drivers) {
     if (driver.discover) {
       const discovered = await driver.discover(driverContext);
+      for (const target of discovered) {
+        (target as unknown as Record<string, unknown>).driver = driver;
+        targetDriverMap.set(target, driver);
+        targetIdDriverMap.set(target.id, driver);
+      }
       allTargets.push(...discovered);
     }
   }
@@ -147,6 +165,12 @@ export async function runVisualRegression(
   let tasks: CaptureTask[] = [];
 
   for (const target of allTargets) {
+    const targetDriver =
+      targetDriverMap.get(target) ||
+      targetIdDriverMap.get(target.id) ||
+      ((target as unknown as Record<string, unknown>).driver as
+        | VisualDriver
+        | undefined);
     const rawViewports = target.snapshot?.viewports;
     const viewports: Viewport[] = rawViewports
       ? rawViewports.map(normalizeViewport)
@@ -162,7 +186,7 @@ export async function runVisualRegression(
         : viewports;
 
       for (const vp of effectiveViewports) {
-        tasks.push({ target, viewport: vp, project });
+        tasks.push({ target, viewport: vp, project, driver: targetDriver });
       }
     }
   }
@@ -400,13 +424,14 @@ export async function runVisualRegression(
 export async function approveBaselines(
   options: {
     config?: Partial<DiffraConfig>;
+    configFile?: string;
     cwd?: string;
     runId?: string;
     report?: TestRunReport;
   } = {},
 ): Promise<{ count: number }> {
   const cwd = options.cwd || process.cwd();
-  const config = await loadConfig(cwd, options.config);
+  const config = await loadConfig(cwd, options.config, options.configFile);
   const baselineBranch = config.runner?.baselineBranch;
   const gitInfo = await getGitInfo(baselineBranch, cwd);
   const storage = resolveStorageAdapter(config, cwd);
@@ -420,8 +445,6 @@ export async function approveBaselines(
     if (config.storage && typeof config.storage === 'object') {
       if ('outputDir' in config.storage && config.storage.outputDir) {
         outDir = config.storage.outputDir;
-      } else if ('dir' in config.storage && config.storage.dir) {
-        outDir = config.storage.dir;
       }
     }
     const outputDir = path.resolve(cwd, outDir);
@@ -430,7 +453,16 @@ export async function approveBaselines(
       : path.join(outputDir, 'latest-report.json');
 
     try {
-      const content = await fs.readFile(reportPath, 'utf-8');
+      let content: string;
+      try {
+        content = await fs.readFile(reportPath, 'utf-8');
+      } catch {
+        // Fallback to standard .diffra directory if outputDir differed from baseline dir
+        const fallbackPath = options.runId
+          ? path.join(cwd, '.diffra', 'runs', options.runId, 'report.json')
+          : path.join(cwd, '.diffra', 'latest-report.json');
+        content = await fs.readFile(fallbackPath, 'utf-8');
+      }
       const parsed: unknown = JSON.parse(content);
       if (!isTestRunReport(parsed)) {
         throw new Error('Invalid test report structure.');

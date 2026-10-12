@@ -32,13 +32,18 @@ export function formatMarkdownSummary(
   const configuredViewer =
     viewerUrl || process.env.DIFFRA_VIEWER_URL || process.env.GITHUB_PAGES_URL;
 
-  let interactiveUrl = reportUrl;
-  if (configuredViewer && reportUrl && !reportUrl.startsWith('file://')) {
+  let interactiveUrl =
+    reportUrl && !reportUrl.startsWith('file://') ? reportUrl : undefined;
+  if (configuredViewer) {
     const cleanViewer = configuredViewer.replace(/\/$/, '');
-    interactiveUrl = `${cleanViewer}/?report=${encodeURIComponent(reportUrl)}`;
+    if (reportUrl && !reportUrl.startsWith('file://')) {
+      interactiveUrl = `${cleanViewer}/?report=${encodeURIComponent(reportUrl)}`;
+    } else {
+      interactiveUrl = `${cleanViewer}/?run=${report.runId}`;
+    }
   }
 
-  if (interactiveUrl) {
+  if (interactiveUrl && !interactiveUrl.startsWith('file://')) {
     md += `👉 **[View Interactive Visual Report](${interactiveUrl})**\n\n`;
   }
 
@@ -65,9 +70,10 @@ export function formatMarkdownSummary(
             : '🔴 Removed';
 
       const groupName = item.group || 'Component';
-      const storyLink = interactiveUrl
-        ? `${interactiveUrl}#/story/${encodeURIComponent(item.id)}`
-        : undefined;
+      const storyLink =
+        interactiveUrl && !interactiveUrl.startsWith('file://')
+          ? `${interactiveUrl}#/story/${encodeURIComponent(item.id)}`
+          : undefined;
       const storyLabel = storyLink
         ? `[**${groupName}** / ${item.name}](${storyLink})`
         : `**${groupName}** / ${item.name}`;

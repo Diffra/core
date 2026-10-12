@@ -20,6 +20,17 @@ declare module '@aws-sdk/client-s3' {
     Body?: AsyncIterable<Uint8Array>;
   }
 
+  export interface HeadObjectCommandInput {
+    Bucket: string;
+    Key: string;
+  }
+
+  export interface HeadObjectCommandOutput {
+    ContentLength?: number;
+    ContentType?: string;
+    ETag?: string;
+  }
+
   export class PutObjectCommand {
     constructor(input: PutObjectCommandInput);
   }
@@ -28,10 +39,15 @@ declare module '@aws-sdk/client-s3' {
     constructor(input: GetObjectCommandInput);
   }
 
+  export class HeadObjectCommand {
+    constructor(input: HeadObjectCommandInput);
+  }
+
   export class S3Client {
     constructor(config?: S3ClientConfig);
     send(command: GetObjectCommand): Promise<GetObjectCommandOutput>;
     send(command: PutObjectCommand): Promise<Record<string, unknown>>;
+    send(command: HeadObjectCommand): Promise<HeadObjectCommandOutput>;
     send<T = unknown>(command: unknown): Promise<T>;
   }
 }
@@ -45,6 +61,7 @@ declare module '@google-cloud/storage' {
     name: string;
     save(data: Buffer | string, options?: FileSaveOptions): Promise<void>;
     download(): Promise<[Buffer]>;
+    exists(): Promise<[boolean]>;
   }
 
   export interface Bucket {
@@ -72,6 +89,7 @@ declare module '@azure/storage-blob' {
       options?: BlockBlobUploadOptions,
     ): Promise<unknown>;
     downloadToBuffer(): Promise<Buffer>;
+    exists(): Promise<boolean>;
   }
 
   export interface ContainerClient {

@@ -1,8 +1,9 @@
 import './style.css';
 
-const app = document.querySelector<HTMLDivElement>('#app')!;
+const app = document.querySelector<HTMLDivElement>('#app');
 
-app.innerHTML = `
+if (app) {
+  app.innerHTML = `
   <header class="header">
     <div class="brand">
       <span>Diffra Web Demo</span>
@@ -46,6 +47,7 @@ app.innerHTML = `
     </section>
   </main>
 `;
+}
 
 const button = document.getElementById('trigger-action');
 if (button) {

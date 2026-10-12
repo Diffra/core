@@ -82,7 +82,7 @@ export const Header: React.FC = () => {
           onClick={openOverview}
           className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg transition-all cursor-pointer outline-none border-none ${
             isOverview
-              ? 'bg-zinc-100 text-zinc-900 font-medium shadow-xs'
+              ? 'bg-zinc-100 text-zinc-900 font-medium'
               : 'bg-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 font-normal'
           }`}
           title="Overview Gallery"
@@ -91,14 +91,18 @@ export const Header: React.FC = () => {
           <span className="text-ui-medium">Overview</span>
         </button>
 
-        {/* Breadcrumb 2: Active Story pill (Single combined pill, no separators) */}
+        {/* Breadcrumb 2: Active Story button (Single combined button, no separators) */}
         {!isOverview && activeStory ? (
-          <div className="px-3.5 py-1.5 rounded-lg bg-zinc-100 text-zinc-900 text-ui-medium font-medium truncate flex items-center gap-1.5">
+          <button
+            type="button"
+            className="px-3.5 py-1.5 rounded-lg bg-zinc-100 text-zinc-900 text-ui-medium font-medium truncate flex items-center gap-1.5 border-none cursor-pointer outline-none"
+            title={`${activeStory.component} ${activeStory.name}`}
+          >
             <span className="text-zinc-500 font-normal">
-              {activeStory.component} /
+              {activeStory.component}
             </span>
             <span>{activeStory.name}</span>
-          </div>
+          </button>
         ) : null}
       </div>
 

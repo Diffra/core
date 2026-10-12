@@ -11,8 +11,10 @@ use std::io::Cursor;
 #[napi(object)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiffOptions {
-    /// Perceptual color threshold from 0.0 (exact match) to 1.0 (most permissive). Default: 0.1
+    /// Perceptual color threshold from 0.0 (exact match) to 1.0 (most permissive). Default: 0.063
     pub threshold: Option<f64>,
+    /// Alias for threshold. Default: 0.063
+    pub diff_threshold: Option<f64>,
     /// Whether to ignore subtle anti-aliasing differences. Default: false
     pub include_anti_aliasing: Option<bool>,
     /// Opacity of original pixels in the diff image (0.0 to 1.0). Default: 0.15
@@ -28,7 +30,8 @@ pub struct DiffOptions {
 impl Default for DiffOptions {
     fn default() -> Self {
         Self {
-            threshold: Some(0.1),
+            threshold: Some(0.063),
+            diff_threshold: Some(0.063),
             include_anti_aliasing: Some(false),
             alpha: Some(0.15),
             diff_color: Some(vec![255, 0, 85, 255]),
@@ -287,7 +290,11 @@ pub fn compare_rgba_images(
     let width = bw.max(cw);
     let height = bh.max(ch);
 
-    let threshold = options.threshold.unwrap_or(0.1).clamp(0.0, 1.0);
+    let threshold = options
+        .diff_threshold
+        .or(options.threshold)
+        .unwrap_or(0.063)
+        .clamp(0.0, 1.0);
     let max_delta = 35215.0 * threshold * threshold;
 
     let include_aa = options.include_anti_aliasing.unwrap_or(false);

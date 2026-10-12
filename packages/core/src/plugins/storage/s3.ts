@@ -12,6 +12,21 @@ export interface S3StorageOptions {
   endpoint?: string;
 }
 
+function isS3NotFound(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as {
+    name?: string;
+    Code?: string;
+    $metadata?: { httpStatusCode?: number };
+  };
+  return (
+    e.name === 'NoSuchKey' ||
+    e.name === 'NotFound' ||
+    e.Code === 'NoSuchKey' ||
+    e.$metadata?.httpStatusCode === 404
+  );
+}
+
 export class S3StorageAdapter implements StorageAdapter {
   name = 's3';
   private bucket: string;
@@ -42,9 +57,97 @@ export class S3StorageAdapter implements StorageAdapter {
     return this.s3Client;
   }
 
+  private formatUrl(objectKey: string): string {
+    if (this.endpoint) {
+      const base = this.endpoint.replace(/\/+$/, '');
+      return `${base}/${this.bucket}/${objectKey}`;
+    }
+    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${objectKey}`;
+  }
+
   private getFilename(key: SnapshotKey): string {
-    const browserSuffix = key.browser ? `--${key.browser}` : '';
+    const browserSuffix = key.browser
+      ? `--${key.browser.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+      : '';
     return `${key.targetId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${key.viewport.width}x${key.viewport.height}.png`;
+  }
+
+  private async getCommands() {
+    try {
+      return await import('@aws-sdk/client-s3');
+    } catch {
+      return {
+        PutObjectCommand: class PutObjectCommand {
+          constructor(public input: unknown) {}
+        },
+        GetObjectCommand: class GetObjectCommand {
+          constructor(public input: unknown) {}
+        },
+        HeadObjectCommand: class HeadObjectCommand {
+          constructor(public input: unknown) {}
+        },
+      };
+    }
+  }
+
+  async uploadBlob(hash: string, buffer: Buffer): Promise<string> {
+    const { PutObjectCommand } = await this.getCommands();
+    const objectKey = `${this.prefix}/blobs/${hash}.png`;
+    await this.getClient().send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: objectKey,
+        Body: buffer,
+        ContentType: 'image/png',
+      }),
+    );
+    return this.formatUrl(objectKey);
+  }
+
+  async downloadBlob(hash: string): Promise<Buffer | null> {
+    if (!this.s3Client) return null;
+    const { GetObjectCommand } = await this.getCommands();
+    const objectKey = `${this.prefix}/blobs/${hash}.png`;
+    try {
+      const response = await this.getClient().send(
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: objectKey,
+        }),
+      );
+      const chunks: Uint8Array[] = [];
+      if (response.Body) {
+        for await (const chunk of response.Body) {
+          chunks.push(chunk);
+        }
+      }
+      return Buffer.concat(chunks);
+    } catch (err: unknown) {
+      if (isS3NotFound(err)) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  async hasBlob(hash: string): Promise<boolean> {
+    if (!this.s3Client) return false;
+    const { HeadObjectCommand } = await this.getCommands();
+    const objectKey = `${this.prefix}/blobs/${hash}.png`;
+    try {
+      await this.getClient().send(
+        new HeadObjectCommand({
+          Bucket: this.bucket,
+          Key: objectKey,
+        }),
+      );
+      return true;
+    } catch (err: unknown) {
+      if (isS3NotFound(err)) {
+        return false;
+      }
+      throw err;
+    }
   }
 
   async uploadCandidate(
@@ -52,7 +155,7 @@ export class S3StorageAdapter implements StorageAdapter {
     key: SnapshotKey,
     imageBuffer: Buffer,
   ): Promise<string> {
-    const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const { PutObjectCommand } = await this.getCommands();
     const objectKey = `${this.prefix}/runs/${runId}/candidates/${this.getFilename(key)}`;
     await this.getClient().send(
       new PutObjectCommand({
@@ -62,7 +165,7 @@ export class S3StorageAdapter implements StorageAdapter {
         ContentType: 'image/png',
       }),
     );
-    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${objectKey}`;
+    return this.formatUrl(objectKey);
   }
 
   async uploadDiff(
@@ -70,7 +173,7 @@ export class S3StorageAdapter implements StorageAdapter {
     key: SnapshotKey,
     imageBuffer: Buffer,
   ): Promise<string> {
-    const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const { PutObjectCommand } = await this.getCommands();
     const objectKey = `${this.prefix}/runs/${runId}/diffs/${this.getFilename(key)}`;
     await this.getClient().send(
       new PutObjectCommand({
@@ -80,14 +183,17 @@ export class S3StorageAdapter implements StorageAdapter {
         ContentType: 'image/png',
       }),
     );
-    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${objectKey}`;
+    return this.formatUrl(objectKey);
   }
 
   async downloadBaseline(
     baselineCommit: string,
     key: SnapshotKey,
   ): Promise<Buffer | null> {
-    const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+    if (!this.s3Client) {
+      return null;
+    }
+    const { GetObjectCommand } = await this.getCommands();
     const objectKey = `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(key)}`;
     try {
       const response = await this.getClient().send(
@@ -103,8 +209,11 @@ export class S3StorageAdapter implements StorageAdapter {
         }
       }
       return Buffer.concat(chunks);
-    } catch {
-      return null;
+    } catch (err: unknown) {
+      if (isS3NotFound(err)) {
+        return null;
+      }
+      throw err;
     }
   }
 
@@ -113,7 +222,7 @@ export class S3StorageAdapter implements StorageAdapter {
     key: SnapshotKey,
     imageBuffer: Buffer,
   ): Promise<void> {
-    const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const { PutObjectCommand } = await this.getCommands();
     const objectKey = `${this.prefix}/baselines/${commitSha}/${this.getFilename(key)}`;
     await this.getClient().send(
       new PutObjectCommand({
@@ -126,7 +235,7 @@ export class S3StorageAdapter implements StorageAdapter {
   }
 
   async saveReport(report: TestRunReport): Promise<string> {
-    const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const { PutObjectCommand } = await this.getCommands();
     const key = `${this.prefix}/runs/${report.runId}/report.json`;
     await this.getClient().send(
       new PutObjectCommand({
@@ -136,7 +245,7 @@ export class S3StorageAdapter implements StorageAdapter {
         ContentType: 'application/json',
       }),
     );
-    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
+    return this.formatUrl(key);
   }
 }
 

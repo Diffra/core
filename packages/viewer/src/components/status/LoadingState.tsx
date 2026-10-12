@@ -8,7 +8,7 @@ export interface LoadingStateProps {
 export const LoadingState: React.FC<LoadingStateProps> = ({ remoteUrl }) => {
   return (
     <div className="w-screen h-screen flex flex-col items-center justify-center bg-zinc-50 text-zinc-800 select-none text-ui-base p-6">
-      <div className="flex flex-col items-center gap-3 p-8 bg-white border border-zinc-200/80 rounded-2xl shadow-xs max-w-md w-full text-center">
+      <div className="flex flex-col items-center gap-3 p-8 bg-white border border-zinc-200/80 rounded-2xl max-w-md w-full text-center">
         <Loader2 className="w-6 h-6 text-zinc-900 animate-spin" />
         <h2 className="text-ui-heading font-medium text-zinc-900 m-0">
           Loading Visual Regression Report

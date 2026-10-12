@@ -75,15 +75,15 @@ export const DiffHighlightView: React.FC = () => {
       const hb = 102;
 
       for (let i = 0; i < baseData.length; i += 4) {
-        const br = baseData[i]!;
-        const bg = baseData[i + 1]!;
-        const bb = baseData[i + 2]!;
-        const ba = baseData[i + 3]!;
+        const br = baseData[i] ?? 0;
+        const bg = baseData[i + 1] ?? 0;
+        const bb = baseData[i + 2] ?? 0;
+        const ba = baseData[i + 3] ?? 0;
 
-        const cr = candData[i]!;
-        const cg = candData[i + 1]!;
-        const cb = candData[i + 2]!;
-        const ca = candData[i + 3]!;
+        const cr = candData[i] ?? 0;
+        const cg = candData[i + 1] ?? 0;
+        const cb = candData[i + 2] ?? 0;
+        const ca = candData[i + 3] ?? 0;
 
         const dr = Math.abs(cr - br);
         const dg = Math.abs(cg - bg);
@@ -135,7 +135,7 @@ export const DiffHighlightView: React.FC = () => {
   if (!activeStory) return null;
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 bg-white border border-zinc-200/80 rounded-2xl overflow-auto canvas-backdrop min-h-0 w-full h-full select-none text-ui-base shadow-xs">
+    <div className="flex-1 flex items-center justify-center p-4 bg-white border border-zinc-200/80 rounded-2xl overflow-auto canvas-backdrop min-h-0 w-full h-full select-none text-ui-base">
       {loading ? (
         <div className="p-8 text-ui-medium text-zinc-400 flex items-center justify-center">
           Rendering diff highlight...

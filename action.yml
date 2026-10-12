@@ -24,9 +24,9 @@ inputs:
     description: 'URL of a running Storybook server (e.g. http://localhost:6006)'
     required: false
   storybookPort:
-    description: 'Port to run the local preview server on if using storybookBuildDir'
+    description: 'Port to run the local preview server on if using storybookBuildDir (0 for dynamic port)'
     required: false
-    default: '6006'
+    default: '0'
   exitZeroOnChanges:
     description: 'Pass the action step (exit 0) even if visual differences are detected, or specify a branch name'
     required: false

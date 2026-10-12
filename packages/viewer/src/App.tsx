@@ -11,11 +11,17 @@ import type { TestRunReport } from './types/index.js';
 export interface AppProps {
   manifest?: TestRunReport;
   initialData?: TestRunReport;
+  reportUrl?: string;
 }
 
-export const App: React.FC<AppProps> = ({ manifest, initialData }) => {
+export const App: React.FC<AppProps> = ({
+  manifest,
+  initialData,
+  reportUrl,
+}) => {
   const { status, data, error, remoteUrl, retry } = useReportLoader(
     manifest || initialData,
+    reportUrl,
   );
 
   if (status === 'loading') {

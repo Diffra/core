@@ -4,7 +4,7 @@ import type React from 'react';
 export const StandbyState: React.FC = () => {
   return (
     <div className="w-screen h-screen flex flex-col items-center justify-center bg-zinc-50 text-zinc-800 select-none text-ui-base p-6">
-      <div className="flex flex-col items-center gap-4 p-8 bg-white border border-zinc-200/80 rounded-2xl shadow-xs max-w-lg w-full text-center">
+      <div className="flex flex-col items-center gap-4 p-8 bg-white border border-zinc-200/80 rounded-2xl max-w-lg w-full text-center">
         <div className="w-10 h-10 rounded-full bg-zinc-100 text-zinc-900 flex items-center justify-center">
           <FileText className="w-5 h-5" />
         </div>

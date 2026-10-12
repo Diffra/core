@@ -168,17 +168,55 @@ export const UrlTargetConfigSchema = z.object({
   name: z.string().optional(),
   group: z.string().optional(),
   snapshot: SnapshotConfigSchema.optional(),
+  headers: z.record(z.string(), z.string()).optional(),
+  auth: z
+    .object({
+      username: z.string(),
+      password: z.string().optional(),
+    })
+    .optional(),
+  cookies: z
+    .array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+        domain: z.string().optional(),
+        path: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const UrlDriverConfigSchema = z.object({
   driver: z.literal('url'),
   baseUrl: z.string().optional(),
   urls: z.array(z.union([z.string(), UrlTargetConfigSchema])),
+  headers: z.record(z.string(), z.string()).optional(),
+  auth: z
+    .object({
+      username: z.string(),
+      password: z.string().optional(),
+    })
+    .optional(),
+  cookies: z
+    .array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+        domain: z.string().optional(),
+        path: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const ImageDriverConfigSchema = z.object({
   driver: z.literal('image'),
-  dir: z.string(),
+  dir: z.union([z.string(), z.array(z.string())]).optional(),
+  dirs: z.array(z.string()).optional(),
+  glob: z.union([z.string(), z.array(z.string())]).optional(),
+  patterns: z.union([z.string(), z.array(z.string())]).optional(),
+  validateFormat: z.boolean().optional(),
 });
 
 export const FigmaDriverConfigSchema = z.object({
@@ -190,6 +228,10 @@ export const FigmaDriverConfigSchema = z.object({
   version: z.string().optional(),
   scale: z.number().optional(),
   snapshot: SnapshotConfigSchema.optional(),
+  endpoint: z.string().optional(),
+  baseUrl: z.string().optional(),
+  maxRetries: z.number().optional(),
+  maxCacheEntries: z.number().optional(),
 });
 
 export const VisualDriverSchema = z.custom<VisualDriver>(

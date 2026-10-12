@@ -1,12 +1,13 @@
 import fs from 'node:fs/promises';
 import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { approveBaselines, runVisualRegression } from '../src/index.js';
 
 describe('Real End-to-End Visual Regression Pipeline on Real Storybook 8', () => {
   let server: http.Server;
-  const PORT = 6006;
+  let storybookUrl: string;
   const storybookPackageDir = path.resolve(
     import.meta.dirname,
     '../../demo-storybook',
@@ -16,11 +17,23 @@ describe('Real End-to-End Visual Regression Pipeline on Real Storybook 8', () =>
   beforeAll(async () => {
     // Serve real static Storybook build
     server = http.createServer(async (req, res) => {
-      const url = new URL(req.url || '/', `http://127.0.0.1:${PORT}`);
+      const url = new URL(req.url || '/', 'http://dynamic.local');
       let reqPath = url.pathname;
       if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
 
-      const filePath = path.join(staticDir, reqPath);
+      const resolvedStaticDir = path.resolve(staticDir);
+      const filePath = path.resolve(resolvedStaticDir, `.${reqPath}`);
+
+      // Verify path traversal boundary
+      if (
+        filePath !== resolvedStaticDir &&
+        !filePath.startsWith(resolvedStaticDir + path.sep)
+      ) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('Forbidden');
+        return;
+      }
+
       try {
         const content = await fs.readFile(filePath);
         const ext = path.extname(filePath);
@@ -44,17 +57,26 @@ describe('Real End-to-End Visual Regression Pipeline on Real Storybook 8', () =>
       }
     });
 
-    await new Promise<void>((resolve) =>
-      server.listen(PORT, '127.0.0.1', () => resolve()),
-    );
+    await new Promise<void>((resolve) => {
+      server.listen(0, () => resolve());
+    });
+
+    const addr = server.address() as AddressInfo;
+    const host = addr.family === 'IPv6' ? `[${addr.address}]` : addr.address;
+    storybookUrl = `http://${host}:${addr.port}`;
   });
 
   afterAll(async () => {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-    await fs.rm(path.resolve(storybookPackageDir, '.diffra'), {
-      recursive: true,
-      force: true,
-    });
+    try {
+      if (server) {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
+    } finally {
+      await fs.rm(path.resolve(storybookPackageDir, '.diffra'), {
+        recursive: true,
+        force: true,
+      });
+    }
   });
 
   beforeEach(async () => {
@@ -68,7 +90,7 @@ describe('Real End-to-End Visual Regression Pipeline on Real Storybook 8', () =>
     const report = await runVisualRegression({
       cwd: storybookPackageDir,
       config: {
-        drivers: { driver: 'storybook', url: `http://127.0.0.1:${PORT}` },
+        drivers: { driver: 'storybook', url: storybookUrl },
         runner: { concurrency: 2 },
         snapshot: { delay: 150 },
       },
@@ -107,7 +129,7 @@ describe('Real End-to-End Visual Regression Pipeline on Real Storybook 8', () =>
     const secondReport = await runVisualRegression({
       cwd: storybookPackageDir,
       config: {
-        drivers: { driver: 'storybook', url: `http://127.0.0.1:${PORT}` },
+        drivers: { driver: 'storybook', url: storybookUrl },
         runner: { concurrency: 2 },
         snapshot: { delay: 150 },
       },

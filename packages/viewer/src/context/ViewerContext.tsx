@@ -149,7 +149,7 @@ export const ViewerProvider: React.FC<ViewerProviderProps> = ({
   };
 
   const setActiveStoryIndex = (index: number) => {
-    if (!manifest?.results || !manifest.results[index]) return;
+    if (!manifest?.results?.[index]) return;
     selectStoryById(manifest.results[index].id);
   };
 

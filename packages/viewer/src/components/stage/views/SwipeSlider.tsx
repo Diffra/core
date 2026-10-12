@@ -41,7 +41,7 @@ export const SwipeSlider: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 bg-white border border-zinc-200/80 rounded-2xl overflow-auto canvas-backdrop min-h-0 w-full h-full select-none text-ui-base shadow-xs">
+    <div className="flex-1 flex items-center justify-center p-4 bg-white border border-zinc-200/80 rounded-2xl overflow-auto canvas-backdrop min-h-0 w-full h-full select-none text-ui-base">
       <div
         ref={containerRef}
         role="slider"
@@ -85,7 +85,7 @@ export const SwipeSlider: React.FC = () => {
 
         {/* Slider Divider Handle */}
         <div className="swipe-divider-line">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center pointer-events-auto cursor-ew-resize border border-zinc-700 hover:bg-zinc-800 transition-colors shadow-sm">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center pointer-events-auto cursor-ew-resize border border-zinc-700 hover:bg-zinc-800 transition-colors">
             <SlidersHorizontal className="w-4 h-4" />
           </div>
         </div>

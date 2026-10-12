@@ -177,6 +177,7 @@ function normalizeReport(rawInput: unknown): TestRunReport {
 
 export function useReportLoader(
   initialData?: TestRunReport,
+  explicitReportUrl?: string,
 ): ReportLoaderState {
   const [data, setData] = useState<TestRunReport | null>(
     initialData ? normalizeReport(initialData) : null,
@@ -185,7 +186,9 @@ export function useReportLoader(
     initialData ? 'ready' : 'loading',
   );
   const [error, setError] = useState<string | null>(null);
-  const [remoteUrl, setRemoteUrl] = useState<string | null>(null);
+  const [remoteUrl, setRemoteUrl] = useState<string | null>(
+    explicitReportUrl || null,
+  );
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
   const retry = () => {
@@ -203,39 +206,41 @@ export function useReportLoader(
     let isMounted = true;
 
     async function loadReport() {
-      // 1. Check for remote report URL in query params
-      if (typeof window !== 'undefined') {
+      // 1. Check for explicit report URL or remote report URL in query params
+      let queryUrl = explicitReportUrl;
+      if (!queryUrl && typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
-        const queryUrl =
+        queryUrl =
           params.get('report') ||
           params.get('reportUrl') ||
           params.get('reporturl') ||
           params.get('url') ||
-          params.get('data');
+          params.get('data') ||
+          undefined;
+      }
 
-        if (queryUrl) {
-          if (!isMounted) return;
-          setRemoteUrl(queryUrl);
-          setStatus('loading');
-          setError(null);
+      if (queryUrl) {
+        if (!isMounted) return;
+        setRemoteUrl(queryUrl);
+        setStatus('loading');
+        setError(null);
 
-          try {
-            const response = await fetch(queryUrl);
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status} ${response.statusText}`);
-            }
-            const json: unknown = await response.json();
-            if (!isMounted) return;
-            setData(normalizeReport(json));
-            setStatus('ready');
-            return;
-          } catch (err) {
-            if (!isMounted) return;
-            const message = err instanceof Error ? err.message : String(err);
-            setError(message);
-            setStatus('error');
-            return;
+        try {
+          const response = await fetch(queryUrl);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status} ${response.statusText}`);
           }
+          const json: unknown = await response.json();
+          if (!isMounted) return;
+          setData(normalizeReport(json));
+          setStatus('ready');
+          return;
+        } catch (err) {
+          if (!isMounted) return;
+          const message = err instanceof Error ? err.message : String(err);
+          setError(message);
+          setStatus('error');
+          return;
         }
       }
 
@@ -277,7 +282,7 @@ export function useReportLoader(
     return () => {
       isMounted = false;
     };
-  }, [initialData, reloadTrigger]);
+  }, [initialData, explicitReportUrl, reloadTrigger]);
 
   return { status, data, error, remoteUrl, retry };
 }

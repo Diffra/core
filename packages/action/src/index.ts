@@ -1,5 +1,3 @@
-import fs from 'node:fs/promises';
-import http from 'node:http';
 import path from 'node:path';
 import * as core from '@actions/core';
 import * as github from '@actions/github';
@@ -8,42 +6,54 @@ import {
   formatMarkdownSummary,
   runVisualRegression,
 } from '@diffra/core';
+import { matchesBranchOrBool } from './branch.js';
+import {
+  createPreviewHandler,
+  formatServerUrl,
+  startPreviewServer,
+  stopPreviewServer,
+} from './preview-server.js';
 
-const DEFAULT_SERVER_PORT = 6006;
+export {
+  createPreviewHandler,
+  formatServerUrl,
+  matchesBranchOrBool,
+  startPreviewServer,
+  stopPreviewServer,
+};
+
 const MAX_CONCURRENCY = 16;
 
-export function matchesBranchOrBool(
-  inputValue: string,
-  currentRef: string,
-  defaultBranch?: string,
-): boolean {
-  if (!inputValue || inputValue === 'false') return false;
-  if (inputValue === 'true') return true;
-
-  const currentBranch = currentRef.replace(/^refs\/heads\//, '');
-  if (inputValue === 'default-branch') {
-    return defaultBranch
-      ? currentBranch === defaultBranch
-      : currentBranch === 'main' || currentBranch === 'master';
-  }
-  return (
-    currentBranch === inputValue || currentRef === `refs/heads/${inputValue}`
-  );
-}
-
 export async function run(): Promise<void> {
-  let staticServer: http.Server | null = null;
+  let staticServer: import('node:http').Server | null = null;
   const currentRef = github.context.ref || process.env.GITHUB_REF || '';
 
   try {
-    const rawProjectToken =
-      core.getInput('projectToken') ||
-      core.getInput('token') ||
-      process.env.GITHUB_TOKEN;
-    if (rawProjectToken) {
-      core.setSecret(rawProjectToken);
+    // 1. Independent secret extraction and masking
+    const projectToken = core.getInput('projectToken');
+    if (projectToken) {
+      core.setSecret(projectToken);
     }
-    const token = rawProjectToken;
+
+    const token = core.getInput('token') || process.env.GITHUB_TOKEN;
+    if (token) {
+      core.setSecret(token);
+    }
+
+    const sensitiveEnvKeys = [
+      'AWS_SECRET_ACCESS_KEY',
+      'AWS_SESSION_TOKEN',
+      'AZURE_STORAGE_CONNECTION_STRING',
+      'AZURE_STORAGE_KEY',
+      'SLACK_WEBHOOK_URL',
+      'FIGMA_ACCESS_TOKEN',
+    ];
+    for (const key of sensitiveEnvKeys) {
+      const val = process.env[key];
+      if (val) {
+        core.setSecret(val);
+      }
+    }
 
     const rawWorkingDir = core.getInput('workingDir') || '.';
     const workingDir = path.resolve(process.cwd(), rawWorkingDir);
@@ -77,73 +87,23 @@ export async function run(): Promise<void> {
       defaultBranch,
     );
 
-    // 1. Static Preview Server with Path Traversal Boundary Verification
+    // 2. Static Preview Server on dynamic port 0 with boundary verification
     if (storybookBuildDir && !storybookUrl) {
-      const port = portInput ? parseInt(portInput, 10) : DEFAULT_SERVER_PORT;
+      const targetPort = portInput ? parseInt(portInput, 10) : 0;
       const staticRoot = path.resolve(workingDir, storybookBuildDir);
 
-      staticServer = http.createServer(async (req, res) => {
-        try {
-          const parsedUrl = new URL(req.url || '/', 'http://localhost');
-          let normalizedPath = path.normalize(parsedUrl.pathname);
-          if (normalizedPath === '/' || normalizedPath === '\\') {
-            normalizedPath = '/index.html';
-          }
-
-          const safePath = path.resolve(staticRoot, `.${normalizedPath}`);
-          if (
-            !safePath.startsWith(staticRoot) &&
-            !safePath.startsWith(`${staticRoot}/`)
-          ) {
-            res.writeHead(403, { 'Content-Type': 'text/plain' });
-            res.end('Forbidden');
-            return;
-          }
-
-          const content = await fs.readFile(safePath);
-          const ext = path.extname(safePath).toLowerCase();
-          const mimeTypes: Record<string, string> = {
-            '.html': 'text/html; charset=utf-8',
-            '.js': 'application/javascript; charset=utf-8',
-            '.mjs': 'application/javascript; charset=utf-8',
-            '.css': 'text/css; charset=utf-8',
-            '.json': 'application/json; charset=utf-8',
-            '.png': 'image/png',
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.svg': 'image/svg+xml',
-            '.webp': 'image/webp',
-            '.woff': 'font/woff',
-            '.woff2': 'font/woff2',
-            '.ttf': 'font/ttf',
-          };
-
-          const contentType = mimeTypes[ext] || 'application/octet-stream';
-          res.writeHead(200, {
-            'Content-Type': contentType,
-            'X-Content-Type-Options': 'nosniff',
-          });
-          res.end(content);
-        } catch {
-          res.writeHead(404, { 'Content-Type': 'text/plain' });
-          res.end('Not found');
-        }
+      const preview = await startPreviewServer({
+        root: staticRoot,
+        port: targetPort,
       });
-
-      await new Promise<void>((resolve, reject) => {
-        staticServer?.on('error', reject);
-        staticServer?.listen(port, '127.0.0.1', () => resolve());
-      });
-
-      const addr = staticServer.address();
-      const actualPort = typeof addr === 'object' && addr ? addr.port : port;
-      storybookUrl = `http://127.0.0.1:${actualPort}`;
+      staticServer = preview.server;
+      storybookUrl = preview.url;
       core.info(`Started static preview server on ${storybookUrl}`);
     }
 
     core.info('Starting Diffra visual regression test run...');
 
-    // 2. Configuration Setup
+    // 3. Configuration Setup
     const snapshotOverrides: Record<string, unknown> = {};
     const runnerOverrides: Record<string, unknown> = {};
 
@@ -183,12 +143,12 @@ export async function run(): Promise<void> {
             ? JSON.parse(urlsInput)
             : urlsInput
                 .split(',')
-                .map((s) => s.trim())
+                .map((s: string) => s.trim())
                 .filter(Boolean);
         } catch {
           urls = urlsInput
             .split(',')
-            .map((s) => s.trim())
+            .map((s: string) => s.trim())
             .filter(Boolean);
         }
       }
@@ -206,7 +166,7 @@ export async function run(): Promise<void> {
     if (Object.keys(runnerOverrides).length > 0)
       configOverrides.runner = runnerOverrides;
 
-    // 3. GitHub PR Comment & Commit Status Configuration
+    // 4. GitHub PR Comment & Commit Status Configuration
     const repoOwner = github.context.repo.repo
       ? github.context.repo.owner
       : undefined;
@@ -233,18 +193,7 @@ export async function run(): Promise<void> {
       configOverrides.viewerUrl = viewerUrl;
     }
 
-    if (token && repoString) {
-      configOverrides.notifier = {
-        github: {
-          token,
-          repo: repoString,
-          prNumber,
-          viewerUrl,
-        },
-      };
-    }
-
-    // 4. Test Execution
+    // 5. Test Execution
     const report = await runVisualRegression({
       cwd: workingDir,
       config: configOverrides,
@@ -259,9 +208,23 @@ export async function run(): Promise<void> {
       report.runId,
       'report.json',
     );
-    const reportUrl = `file://${reportJsonPath}`;
+    const reportUrl = viewerUrl
+      ? `${viewerUrl.replace(/\/$/, '')}/?run=${report.runId}`
+      : `file://${reportJsonPath}`;
 
-    // 5. Standard Action Outputs
+    if (token && repoString) {
+      configOverrides.notifier = {
+        github: {
+          token,
+          repo: repoString,
+          prNumber,
+          viewerUrl,
+          reportUrl,
+        },
+      };
+    }
+
+    // 6. Standard Action Outputs
     core.setOutput('url', reportUrl);
     core.setOutput('buildUrl', reportUrl);
     core.setOutput('reportUrl', reportUrl);
@@ -277,7 +240,7 @@ export async function run(): Promise<void> {
     core.info(`  Changed:   ${report.summary.changed}`);
     core.info(`  Report:    ${reportUrl}\n`);
 
-    // 6. GitHub Actions Job Step Summary
+    // 7. GitHub Actions Job Step Summary
     try {
       const summaryMarkdown = formatMarkdownSummary(
         report,
@@ -287,7 +250,7 @@ export async function run(): Promise<void> {
       await core.summary.addRaw(summaryMarkdown).write();
     } catch {}
 
-    // 7. Emit GitHub Annotations / Warnings for Changed Targets
+    // 8. Emit GitHub Annotations / Warnings for Changed Targets
     for (const result of report.results) {
       if (result.status === 'changed') {
         const pct = result.diff?.diffPercentage.toFixed(2) ?? '0.00';
@@ -309,7 +272,7 @@ export async function run(): Promise<void> {
       return;
     }
 
-    // 8. Auto-Accept on Merge or Target Branch
+    // 9. Auto-Accept on Merge or Target Branch
     if (shouldAutoAccept) {
       core.info(
         `Promoting candidate snapshots as the new baseline for ${currentRef}...`,
@@ -353,7 +316,7 @@ export async function run(): Promise<void> {
     core.setFailed(`Diffra action failed: ${msg}`);
   } finally {
     if (staticServer) {
-      staticServer.close();
+      await stopPreviewServer(staticServer);
     }
   }
 }

@@ -6,7 +6,7 @@
   "description": "Vite TypeScript web application demo with Diffra visual regression configured",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc -p tsconfig.json",
     "preview": "vite preview --port 4173",
     "test:visual": "diffra test",
     "test:visual:approve": "diffra approve",
@@ -20,9 +20,9 @@
     "@diffra/engine": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.5",
     "typescript": "^7.0.2",
-    "vite": "^8.3.2",
+    "vite": "^8.3.4",
     "vitest": "^5.0.3"
   }
 }
