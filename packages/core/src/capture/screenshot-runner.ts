@@ -41,6 +41,12 @@ export interface CaptureOptions {
   delay?: number;
   pauseAnimationAtEnd?: boolean;
   cwd?: string;
+  /**
+   * Receives each image as soon as it is captured. When set, images are not
+   * kept in the outcome, so a run uses memory for the images in flight rather
+   * than for all of them. A throwing handler records that target as failed.
+   */
+  onCapture?: (result: CaptureResult) => Promise<void>;
 }
 
 const DEFAULT_CONCURRENCY = 4;
@@ -92,6 +98,23 @@ export async function runCaptures(
   const results: CaptureResult[] = [];
   const browserTasks: CaptureTask[] = [];
 
+  const deliver = async (result: CaptureResult) => {
+    if (!options.onCapture) {
+      results.push(result);
+      return;
+    }
+    try {
+      await options.onCapture(result);
+    } catch (err) {
+      failures.push({
+        target: result.target,
+        viewport: result.viewport,
+        project: result.project,
+        error: `Could not process the capture: ${describeError(err)}`,
+      });
+    }
+  };
+
   // 1. Separate tasks handled directly by custom driver capture hooks (e.g. Figma API, static images)
   const captureAllGroups = new Map<VisualDriver, CaptureTask[]>();
 
@@ -111,7 +134,7 @@ export async function runCaptures(
           { config: {}, cwd: options.cwd || process.cwd() },
         );
         if (buf && buf.length > 0) {
-          results.push({
+          await deliver({
             target,
             viewport: task.viewport,
             project: task.project,
@@ -161,7 +184,7 @@ export async function runCaptures(
         }
         for (const res of batchResults) {
           if (res.buffer && res.buffer.length > 0) {
-            results.push(res);
+            await deliver(res);
             pending.set(taskKey(res), (pending.get(taskKey(res)) ?? 0) - 1);
           }
         }
@@ -214,6 +237,7 @@ export async function runCaptures(
 
       const targetParams: SnapshotConfig = target.snapshot || {};
 
+      let captured: CaptureResult | undefined;
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         const workerPage = await pool.acquirePage(viewport, project, {
           pauseAnimationAtEnd: targetParams.pauseAnimationAtEnd,
@@ -348,12 +372,12 @@ export async function runCaptures(
               await workerPage.page.screenshot(screenshotOptions);
           }
 
-          results.push({
+          captured = {
             target,
             viewport,
             project,
             buffer: screenshotBuffer,
-          });
+          };
           break;
         } catch (err) {
           const message = describeError(err);
@@ -367,6 +391,9 @@ export async function runCaptures(
           await pool.releasePage(workerPage);
         }
       }
+      // Handed over after the page is released, so comparing one capture
+      // does not hold a browser page that another capture could use.
+      if (captured) await deliver(captured);
     }
   };
 

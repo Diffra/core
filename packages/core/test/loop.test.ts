@@ -247,6 +247,48 @@ describe('visual regression loop', { timeout: SCENARIO_TIMEOUT_MS }, () => {
     );
   });
 
+  it('fails one target instead of the run when its comparison throws', async () => {
+    class FlakyStorage extends MemoryStorage {
+      override async uploadCandidate(
+        runId: string,
+        key: SnapshotKey,
+        buffer: Buffer,
+      ): Promise<string> {
+        if (key.targetId === 'route--b') {
+          throw new Error('bucket unavailable');
+        }
+        return super.uploadCandidate(runId, key, buffer);
+      }
+    }
+    const steps: Array<[number, number]> = [];
+
+    const report = await runVisualRegression({
+      cwd: repoDir,
+      config: config({ storage: new FlakyStorage() }),
+      onProgress: (_step, current, total) => steps.push([current, total]),
+    });
+
+    expect(statusById(report)).toEqual({
+      'route--a': 'added',
+      'route--b': 'failed',
+    });
+    const failed = report.results.find((r) => r.id === 'route--b');
+    expect(failed?.error).toContain('bucket unavailable');
+    expect(report.summary.failed).toBe(1);
+    // Progress covers every target, and the total is the number of targets.
+    expect(steps).toHaveLength(2);
+    expect(steps.every(([, total]) => total === 2)).toBe(true);
+    expect(steps.at(-1)?.[0]).toBe(2);
+  });
+
+  it('lists results in a stable order', async () => {
+    const report = await runVisualRegression({
+      cwd: repoDir,
+      config: config({}, ['/b', '/a']),
+    });
+    expect(report.results.map((r) => r.id)).toEqual(['route--a', 'route--b']);
+  });
+
   it('keeps a custom storage adapter instance when loading config', async () => {
     const storage = new MemoryStorage();
     const loaded = await loadConfig(repoDir, { storage });
