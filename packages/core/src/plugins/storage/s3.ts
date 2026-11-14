@@ -4,6 +4,7 @@ import type {
   StorageAdapter,
   TestRunReport,
 } from '../../types/index.js';
+import { loadSdk } from './optional-sdk.js';
 
 export interface S3StorageOptions {
   bucket: string;
@@ -43,7 +44,7 @@ export class S3StorageAdapter implements StorageAdapter {
   }
 
   async init(): Promise<void> {
-    const { S3Client } = await import('@aws-sdk/client-s3');
+    const { S3Client } = await this.getSdk();
     this.s3Client = new S3Client({
       region: this.region,
       ...(this.endpoint ? { endpoint: this.endpoint } : {}),
@@ -72,21 +73,33 @@ export class S3StorageAdapter implements StorageAdapter {
     return `${key.targetId.replace(/[^a-zA-Z0-9_-]/g, '_')}${browserSuffix}--${key.viewport.width}x${key.viewport.height}.png`;
   }
 
-  private async getCommands() {
+  private getSdk() {
+    return loadSdk(
+      () => import('@aws-sdk/client-s3'),
+      '@aws-sdk/client-s3',
+      's3',
+    );
+  }
+
+  private getCommands() {
+    return this.getSdk();
+  }
+
+  /** Reads an object, or returns null when it does not exist. */
+  private async getObjectBuffer(objectKey: string): Promise<Buffer | null> {
+    const { GetObjectCommand } = await this.getSdk();
     try {
-      return await import('@aws-sdk/client-s3');
-    } catch {
-      class CommandStub {
-        input: unknown;
-        constructor(input: unknown) {
-          this.input = input;
-        }
+      const response = await this.getClient().send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: objectKey }),
+      );
+      return response.Body
+        ? Buffer.from(await response.Body.transformToByteArray())
+        : Buffer.alloc(0);
+    } catch (err: unknown) {
+      if (isS3NotFound(err)) {
+        return null;
       }
-      return {
-        PutObjectCommand: class PutObjectCommand extends CommandStub {},
-        GetObjectCommand: class GetObjectCommand extends CommandStub {},
-        HeadObjectCommand: class HeadObjectCommand extends CommandStub {},
-      };
+      throw err;
     }
   }
 
@@ -106,28 +119,7 @@ export class S3StorageAdapter implements StorageAdapter {
 
   async downloadBlob(hash: string): Promise<Buffer | null> {
     if (!this.s3Client) return null;
-    const { GetObjectCommand } = await this.getCommands();
-    const objectKey = `${this.prefix}/blobs/${hash}.png`;
-    try {
-      const response = await this.getClient().send(
-        new GetObjectCommand({
-          Bucket: this.bucket,
-          Key: objectKey,
-        }),
-      );
-      const chunks: Uint8Array[] = [];
-      if (response.Body) {
-        for await (const chunk of response.Body) {
-          chunks.push(chunk);
-        }
-      }
-      return Buffer.concat(chunks);
-    } catch (err: unknown) {
-      if (isS3NotFound(err)) {
-        return null;
-      }
-      throw err;
-    }
+    return this.getObjectBuffer(`${this.prefix}/blobs/${hash}.png`);
   }
 
   async hasBlob(hash: string): Promise<boolean> {
@@ -193,28 +185,9 @@ export class S3StorageAdapter implements StorageAdapter {
     if (!this.s3Client) {
       return null;
     }
-    const { GetObjectCommand } = await this.getCommands();
-    const objectKey = `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(key)}`;
-    try {
-      const response = await this.getClient().send(
-        new GetObjectCommand({
-          Bucket: this.bucket,
-          Key: objectKey,
-        }),
-      );
-      const chunks: Uint8Array[] = [];
-      if (response.Body) {
-        for await (const chunk of response.Body) {
-          chunks.push(chunk);
-        }
-      }
-      return Buffer.concat(chunks);
-    } catch (err: unknown) {
-      if (isS3NotFound(err)) {
-        return null;
-      }
-      throw err;
-    }
+    return this.getObjectBuffer(
+      `${this.prefix}/baselines/${baselineCommit}/${this.getFilename(key)}`,
+    );
   }
 
   async downloadCandidate(
@@ -224,28 +197,9 @@ export class S3StorageAdapter implements StorageAdapter {
     if (!this.s3Client) {
       return null;
     }
-    const { GetObjectCommand } = await this.getCommands();
-    const objectKey = `${this.prefix}/runs/${runId}/candidates/${this.getFilename(key)}`;
-    try {
-      const response = await this.getClient().send(
-        new GetObjectCommand({
-          Bucket: this.bucket,
-          Key: objectKey,
-        }),
-      );
-      const chunks: Uint8Array[] = [];
-      if (response.Body) {
-        for await (const chunk of response.Body) {
-          chunks.push(chunk);
-        }
-      }
-      return Buffer.concat(chunks);
-    } catch (err: unknown) {
-      if (isS3NotFound(err)) {
-        return null;
-      }
-      throw err;
-    }
+    return this.getObjectBuffer(
+      `${this.prefix}/runs/${runId}/candidates/${this.getFilename(key)}`,
+    );
   }
 
   async uploadBaseline(

@@ -67,6 +67,11 @@
       "types": "./dist/report/generator.d.ts",
       "import": "./dist/report/generator.js",
       "default": "./dist/report/generator.js"
+    },
+    "./server": {
+      "types": "./dist/server/static.d.ts",
+      "import": "./dist/server/static.js",
+      "default": "./dist/server/static.js"
     }
   },
   "files": [

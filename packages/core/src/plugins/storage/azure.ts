@@ -4,6 +4,7 @@ import type {
   StorageAdapter,
   TestRunReport,
 } from '../../types/index.js';
+import { loadSdk } from './optional-sdk.js';
 
 export interface AzureStorageOptions {
   container: string;
@@ -40,7 +41,11 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
   }
 
   async init(): Promise<void> {
-    const { BlobServiceClient } = await import('@azure/storage-blob');
+    const { BlobServiceClient } = await loadSdk(
+      () => import('@azure/storage-blob'),
+      '@azure/storage-blob',
+      'azure',
+    );
     if (!this.connectionString) {
       throw new Error('Azure connectionString is required');
     }

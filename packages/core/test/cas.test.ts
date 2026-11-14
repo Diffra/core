@@ -89,9 +89,9 @@ describe('Content-Addressed Storage (CAS)', () => {
 
       // downloadBlob found
       mockSend.mockResolvedValueOnce({
-        Body: (async function* () {
-          yield new Uint8Array(imgBuf);
-        })(),
+        Body: {
+          transformToByteArray: async () => new Uint8Array(imgBuf),
+        },
       });
       const downloaded = await s3.downloadBlob(hash);
       expect(downloaded).toEqual(imgBuf);

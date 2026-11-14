@@ -1,21 +1,14 @@
 import fs from 'node:fs/promises';
-import http from 'node:http';
-import type { AddressInfo } from 'node:net';
+import type http from 'node:http';
 import path from 'node:path';
 import { BUNDLE_INDEX_FILE, runDirectory } from '@diffra/core';
+import {
+  createStaticHandler,
+  formatServerUrl,
+  startStaticServer,
+} from '@diffra/core/server';
 
-const MIME_TYPES: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'application/javascript; charset=utf-8',
-  '.mjs': 'application/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.svg': 'image/svg+xml',
-  '.webp': 'image/webp',
-};
+export { formatServerUrl };
 
 const DEFAULT_OUTPUT_DIR = '.diffra';
 const LATEST_REPORT_FILE = 'latest-report.json';
@@ -39,102 +32,12 @@ export interface ServeInstance {
   ) => Promise<void>;
 }
 
-/**
- * Normalizes host and port into a clean HTTP URL using server.address().
- */
-export function formatServerUrl(server: http.Server): string {
-  const addr = server.address();
-  if (!addr || typeof addr !== 'object') {
-    return 'http://127.0.0.1';
-  }
-  const host =
-    addr.family === 'IPv6' && addr.address === '::1'
-      ? '[::1]'
-      : addr.address === '::' || addr.address === '0.0.0.0'
-        ? '127.0.0.1'
-        : addr.address;
-  return `http://${host}:${addr.port}`;
-}
-
-function respond(
-  res: http.ServerResponse,
-  status: number,
-  contentType: string,
-  body: string | Buffer,
-): void {
-  res.writeHead(status, {
-    'Content-Type': contentType,
-    'X-Content-Type-Options': 'nosniff',
+/** Serves a review bundle directory with strict path traversal protection. */
+export function createServeHandler(options: { staticRoot: string }) {
+  return createStaticHandler({
+    root: options.staticRoot,
+    indexFile: BUNDLE_INDEX_FILE,
   });
-  res.end(body);
-}
-
-const respondText = (res: http.ServerResponse, status: number, text: string) =>
-  respond(res, status, 'text/plain; charset=utf-8', text);
-
-/**
- * Creates an HTTP request listener that serves a review bundle directory, with
- * strict path traversal protection.
- */
-export function createServeHandler(options: {
-  staticRoot: string;
-}): (req: http.IncomingMessage, res: http.ServerResponse) => Promise<void> {
-  const resolvedRoot = path.resolve(options.staticRoot);
-
-  return async (req, res) => {
-    try {
-      const rawUrl = req.url || '/';
-      const [pathPart = '/'] = rawUrl.split(/[?#]/);
-      let decodedPath: string;
-      try {
-        decodedPath = decodeURIComponent(pathPart);
-      } catch {
-        respondText(res, 403, 'Forbidden');
-        return;
-      }
-      if (decodedPath === '/') {
-        decodedPath = `/${BUNDLE_INDEX_FILE}`;
-      }
-
-      const safePath = path.resolve(resolvedRoot, `.${decodedPath}`);
-      if (
-        safePath !== resolvedRoot &&
-        !safePath.startsWith(resolvedRoot + path.sep)
-      ) {
-        respondText(res, 403, 'Forbidden');
-        return;
-      }
-
-      // Symlink canonical realpath boundary validation per AGENTS.md Rule 6
-      try {
-        const realTarget = await fs.realpath(safePath);
-        const realRoot = await fs
-          .realpath(resolvedRoot)
-          .catch(() => resolvedRoot);
-        if (
-          realTarget !== realRoot &&
-          !realTarget.startsWith(realRoot + path.sep)
-        ) {
-          respondText(res, 403, 'Forbidden');
-          return;
-        }
-      } catch (err: unknown) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          respondText(res, 404, 'Not found');
-          return;
-        }
-        throw err;
-      }
-
-      const content = await fs.readFile(safePath);
-      const contentType =
-        MIME_TYPES[path.extname(safePath).toLowerCase()] ||
-        'application/octet-stream';
-      respond(res, 200, contentType, content);
-    } catch {
-      respondText(res, 404, 'Not found');
-    }
-  };
 }
 
 /** Finds the review bundle directory to serve. */
@@ -170,34 +73,14 @@ export async function resolveBundleDir(
   return runDirectory(outputDir, runId);
 }
 
-/**
- * Starts a zero-dependency static server for a review bundle on a dynamic
- * port (or the configured one).
- */
+/** Starts a static server for a review bundle on the given or a free port. */
 export async function startServeServer(
   options: ServeOptions = {},
 ): Promise<ServeInstance> {
-  const staticRoot = await resolveBundleDir(options);
-  const handler = createServeHandler({ staticRoot });
-
-  const server = http.createServer(handler);
-  const targetPort = typeof options.port === 'number' ? options.port : 0;
-
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(targetPort, () => resolve());
+  const root = await resolveBundleDir(options);
+  return startStaticServer({
+    root,
+    indexFile: BUNDLE_INDEX_FILE,
+    port: options.port,
   });
-
-  const addr = server.address() as AddressInfo;
-  const port = typeof addr === 'object' && addr ? addr.port : targetPort;
-  const url = formatServerUrl(server);
-
-  const stop = async () => {
-    server.closeAllConnections?.();
-    await new Promise<void>((resolve) => {
-      server.close(() => resolve());
-    });
-  };
-
-  return { server, url, port, stop, handler };
 }

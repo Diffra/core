@@ -54,6 +54,7 @@ export * from './plugins/notifiers/summary.js';
 export * from './report/bundle.js';
 export * from './report/generator.js';
 export * from './report/merger.js';
+export * from './server/static.js';
 export * from './types/index.js';
 export * from './utils/viewport.js';
 

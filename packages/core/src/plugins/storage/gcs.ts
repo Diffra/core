@@ -4,6 +4,7 @@ import type {
   StorageAdapter,
   TestRunReport,
 } from '../../types/index.js';
+import { loadSdk } from './optional-sdk.js';
 
 export interface GCSStorageOptions {
   bucket: string;
@@ -40,7 +41,11 @@ export class GCSStorageAdapter implements StorageAdapter {
   }
 
   async init(): Promise<void> {
-    const { Storage } = await import('@google-cloud/storage');
+    const { Storage } = await loadSdk(
+      () => import('@google-cloud/storage'),
+      '@google-cloud/storage',
+      'gcs',
+    );
     this.gcsStorage = new Storage();
   }
 
