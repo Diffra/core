@@ -20,7 +20,17 @@ import { resolveDiffEngine } from './plugins/diff/index.js';
 import { resolveNotifiers } from './plugins/notifiers/index.js';
 import { PluginRunner } from './plugins/runner.js';
 import { resolveStorageAdapter } from './plugins/storage/index.js';
-import { isTestRunReport, saveReportManifest } from './report/generator.js';
+import {
+  ReviewBundle,
+  resolveOutputDir,
+  reviewUrl,
+  runDirectory,
+} from './report/bundle.js';
+import {
+  buildReportManifest,
+  isTestRunReport,
+  saveReportManifest,
+} from './report/generator.js';
 import type {
   DiffraConfig,
   Project,
@@ -41,6 +51,7 @@ export * from './git/baseline.js';
 export * from './playwright/index.js';
 export * from './plugins/index.js';
 export * from './plugins/notifiers/summary.js';
+export * from './report/bundle.js';
 export * from './report/generator.js';
 export * from './report/merger.js';
 export * from './types/index.js';
@@ -106,6 +117,12 @@ export async function findStoryFiles(
   return matchedFiles;
 }
 
+/** The finished report plus where its review bundle was written. */
+export interface RunResult extends TestRunReport {
+  /** Directory holding index.html, report.json and the images for review */
+  reviewDir: string;
+}
+
 /**
  * Core test runner executing the complete visual regression pipeline with pluggable drivers.
  */
@@ -117,7 +134,7 @@ export async function runVisualRegression(
     shard?: string;
     onProgress?: (step: string, current: number, total: number) => void;
   } = {},
-): Promise<TestRunReport> {
+): Promise<RunResult> {
   const cwd = options.cwd || process.cwd();
   const config = await loadConfig(cwd, options.config, options.configFile);
 
@@ -257,6 +274,8 @@ export async function runVisualRegression(
 
   // 4. Compare with Baseline Screenshots (CAS & Fast-Path Matching)
   const testResults: VisualTestResult[] = [];
+  const outputDir = resolveOutputDir(config, cwd);
+  const bundle = new ReviewBundle(runDirectory(outputDir, runId));
   const baselines = createBaselineResolver(
     storage,
     await getBaselineHistory(
@@ -319,7 +338,11 @@ export async function runVisualRegression(
         viewport,
         browser: browserName,
         status: 'added',
-        candidate: { path: candidatePath, hash: candidateHash },
+        candidate: {
+          path: candidatePath,
+          hash: candidateHash,
+          url: await bundle.addImage(buffer),
+        },
         metadata: target.metadata,
       });
       continue;
@@ -385,9 +408,21 @@ export async function runVisualRegression(
         browser: browserName,
         status: 'changed',
         diff: diffResult,
-        baseline: { hash: baselineHash },
-        candidate: { path: candidatePath, hash: candidateHash },
-        diffImage: diffPath ? { path: diffPath } : undefined,
+        baseline: {
+          hash: baselineHash,
+          url: await bundle.addImage(baselineBuffer),
+        },
+        candidate: {
+          path: candidatePath,
+          hash: candidateHash,
+          url: await bundle.addImage(buffer),
+        },
+        diffImage: diffResult.diffImage
+          ? {
+              path: diffPath,
+              url: await bundle.addImage(diffResult.diffImage),
+            }
+          : undefined,
         metadata: target.metadata,
       });
     } else {
@@ -437,6 +472,15 @@ export async function runVisualRegression(
     },
     summary,
     results: testResults,
+    links: config.reportBaseUrl
+      ? {
+          review: reviewUrl({
+            reportBaseUrl: config.reportBaseUrl,
+            runId,
+            bundleDir: bundle.dir,
+          }),
+        }
+      : undefined,
   };
 
   const reportJsonPath = await storage.saveReport(report);
@@ -445,6 +489,7 @@ export async function runVisualRegression(
   if (!URL_SCHEME_PATTERN.test(reportJsonPath)) {
     await saveReportManifest(report, reportJsonPath);
   }
+  await bundle.finalize(buildReportManifest(report));
 
   // 6. Run Notifiers & Plugin Completion Hooks
   for (const notifier of notifiers) {
@@ -460,7 +505,7 @@ export async function runVisualRegression(
 
   await pluginRunner.hookTestComplete(report);
 
-  return report;
+  return { ...report, reviewDir: bundle.dir };
 }
 
 /**
@@ -486,13 +531,7 @@ export async function approveBaselines(
 
   let report = options.report;
   if (!report) {
-    let outDir = '.diffra';
-    if (config.storage && typeof config.storage === 'object') {
-      if ('outputDir' in config.storage && config.storage.outputDir) {
-        outDir = config.storage.outputDir;
-      }
-    }
-    const outputDir = path.resolve(cwd, outDir);
+    const outputDir = resolveOutputDir(config, cwd);
     const reportPath = options.runId
       ? path.join(outputDir, 'runs', options.runId, 'report.json')
       : path.join(outputDir, 'latest-report.json');

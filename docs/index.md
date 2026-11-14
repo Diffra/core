@@ -50,3 +50,4 @@ Find the guides and references tailored to your development stack and workflow:
 ### 7. Architecture and engine internals
 * [Core comparison engine](architecture/core-engine.md): Native Rust SIMD pixel diffing, YIQ color space, and clustering algorithms.
 * [Execution pipeline](architecture/execution-pipeline.md): Step-by-step test execution lifecycle from discovery to report generation.
+* [Review bundle](architecture/review-bundle.md): The static review site every run produces, and how review links are chosen.

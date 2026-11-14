@@ -6,6 +6,9 @@ export const DiffHighlightView: React.FC = () => {
   const { activeStory } = useViewer();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loading, setLoading] = useState(true);
+  // True when pixels cannot be read in this browser context, for example when
+  // a report is opened from disk. The diff image made at test time is shown.
+  const [pixelsUnavailable, setPixelsUnavailable] = useState(false);
 
   const baselineUrl = activeStory?.baselineUrl || '';
   const candidateUrl = activeStory?.candidateUrl || '';
@@ -16,6 +19,7 @@ export const DiffHighlightView: React.FC = () => {
 
     let isMounted = true;
     setLoading(true);
+    setPixelsUnavailable(false);
 
     const baseImg = new Image();
     baseImg.crossOrigin = 'anonymous';
@@ -23,11 +27,23 @@ export const DiffHighlightView: React.FC = () => {
     candImg.crossOrigin = 'anonymous';
 
     let loadedCount = 0;
+    const fallBackToDiffImage = () => {
+      if (!isMounted) return;
+      setPixelsUnavailable(true);
+      setLoading(false);
+    };
     const checkRender = () => {
       loadedCount++;
       if (loadedCount < 2) return;
       if (!isMounted) return;
-
+      try {
+        renderPixels();
+      } catch {
+        // Reading pixels of a cross-origin or file image throws a SecurityError.
+        fallBackToDiffImage();
+      }
+    };
+    const renderPixels = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -113,16 +129,9 @@ export const DiffHighlightView: React.FC = () => {
     };
 
     baseImg.onload = checkRender;
-    baseImg.onerror = () => {
-      loadedCount++;
-      if (loadedCount >= 2) setLoading(false);
-    };
-
+    baseImg.onerror = fallBackToDiffImage;
     candImg.onload = checkRender;
-    candImg.onerror = () => {
-      loadedCount++;
-      if (loadedCount >= 2) setLoading(false);
-    };
+    candImg.onerror = fallBackToDiffImage;
 
     baseImg.src = baselineUrl || candidateUrl || diffUrl;
     candImg.src = candidateUrl || baselineUrl || diffUrl;
@@ -141,12 +150,20 @@ export const DiffHighlightView: React.FC = () => {
           Rendering diff highlight...
         </div>
       ) : null}
-      <canvas
-        ref={canvasRef}
-        className={`block max-w-full h-auto pointer-events-none ${
-          loading ? 'hidden' : 'block'
-        }`}
-      />
+      {pixelsUnavailable ? (
+        <img
+          src={diffUrl || candidateUrl}
+          alt={`Changed regions of ${activeStory.name}`}
+          className="block max-w-full h-auto pointer-events-none"
+        />
+      ) : (
+        <canvas
+          ref={canvasRef}
+          className={`block max-w-full h-auto pointer-events-none ${
+            loading ? 'hidden' : 'block'
+          }`}
+        />
+      )}
     </div>
   );
 };

@@ -288,15 +288,16 @@ describe('@diffra/cli', () => {
       await fs.rm(tempDir, { recursive: true, force: true });
     });
 
-    it('serves <diffra-viewer> HTML with nosniff on root route', async () => {
+    it('serves the bundle index.html with nosniff on the root route', async () => {
       const tempDir = await fs.mkdtemp(
         path.join(os.tmpdir(), 'diffra-serve-html-'),
       );
-      const reportFile = path.join(tempDir, 'latest-report.json');
-      await fs.writeFile(reportFile, JSON.stringify({ runId: 'test-run' }));
+      await fs.writeFile(
+        path.join(tempDir, 'index.html'),
+        '<div id="root"></div>',
+      );
 
       const handler = createServeHandler({
-        reportPath: reportFile,
         staticRoot: tempDir,
       });
 
@@ -304,18 +305,16 @@ describe('@diffra/cli', () => {
       expect(res.status).toBe(200);
       expect(res.headers['X-Content-Type-Options']).toBe('nosniff');
       expect(res.headers['Content-Type']).toContain('text/html');
-      expect(res.body).toContain(
-        '<diffra-viewer data-report-url="./report.json"></diffra-viewer>',
-      );
+      expect(res.body).toContain('<div id="root"></div>');
 
       await fs.rm(tempDir, { recursive: true, force: true });
     });
 
-    it('serves report.json manifest on /report.json route', async () => {
+    it('serves report.json from the bundle directory', async () => {
       const tempDir = await fs.mkdtemp(
         path.join(os.tmpdir(), 'diffra-serve-json-'),
       );
-      const reportFile = path.join(tempDir, 'latest-report.json');
+      const reportFile = path.join(tempDir, 'report.json');
       const sampleReport = {
         runId: 'manifest-verification-99',
         summary: { total: 5, changed: 2 },
@@ -324,7 +323,6 @@ describe('@diffra/cli', () => {
       await fs.writeFile(reportFile, JSON.stringify(sampleReport));
 
       const handler = createServeHandler({
-        reportPath: reportFile,
         staticRoot: tempDir,
       });
 
@@ -347,7 +345,6 @@ describe('@diffra/cli', () => {
       await fs.writeFile(reportFile, JSON.stringify({ runId: 'test-run' }));
 
       const handler = createServeHandler({
-        reportPath: reportFile,
         staticRoot: tempDir,
       });
 

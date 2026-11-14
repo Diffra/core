@@ -15,6 +15,7 @@ import {
   startPreviewServer,
   stopPreviewServer,
 } from './preview-server.js';
+import { chooseReviewLink, workflowRunUrl } from './review.js';
 
 export {
   createPreviewHandler,
@@ -79,19 +80,6 @@ export function driverFromInputs(inputs: DriverInputs): unknown {
     };
   }
   return driver || undefined;
-}
-
-/** Builds the review link for a finished run. */
-export function buildReportUrl(options: {
-  viewerUrl?: string;
-  runId: string;
-  workingDir: string;
-}): string {
-  const { viewerUrl, runId, workingDir } = options;
-  if (viewerUrl) {
-    return `${viewerUrl.replace(/\/$/, '')}/?run=${runId}`;
-  }
-  return `file://${path.resolve(workingDir, '.diffra/runs', runId, 'report.json')}`;
 }
 
 function maskSecrets(token: string | undefined): void {
@@ -236,11 +224,8 @@ export async function run(): Promise<void> {
     const { owner, repo } = github.context.repo;
     const repoSlug =
       owner && repo ? `${owner}/${repo}` : process.env.GITHUB_REPOSITORY;
-    const viewerUrl =
-      core.getInput('viewerUrl') ||
-      process.env.DIFFRA_VIEWER_URL ||
-      (owner && repo ? `https://${owner}.github.io/${repo}` : undefined);
-    if (viewerUrl) configOverrides.viewerUrl = viewerUrl;
+    const reportBaseUrl = core.getInput('reportBaseUrl');
+    if (reportBaseUrl) configOverrides.reportBaseUrl = reportBaseUrl;
 
     verbose(`working directory: ${workingDir}`);
     verbose(`config overrides: ${JSON.stringify(configOverrides)}`);
@@ -254,10 +239,10 @@ export async function run(): Promise<void> {
       },
     });
 
-    const reportUrl = buildReportUrl({
-      viewerUrl,
-      runId: report.runId,
-      workingDir,
+    const reportUrl = chooseReviewLink({
+      hosted: report.links?.review,
+      workflowRun: workflowRunUrl(),
+      reviewDir: report.reviewDir,
     });
 
     // The pull request comment and commit status need the finished report and
@@ -267,12 +252,12 @@ export async function run(): Promise<void> {
         token,
         repo: repoSlug,
         prNumber: pullRequestNumber(),
-        viewerUrl,
         reportUrl,
       }).notify(report);
     }
 
     core.setOutput('url', reportUrl);
+    core.setOutput('reportDir', report.reviewDir);
     core.setOutput('buildUrl', reportUrl);
     core.setOutput('storybookUrl', storybookUrl || '');
     core.setOutput('changeCount', String(report.summary.changed));
@@ -283,7 +268,7 @@ export async function run(): Promise<void> {
 
     try {
       await core.summary
-        .addRaw(formatMarkdownSummary(report, reportUrl, viewerUrl))
+        .addRaw(formatMarkdownSummary(report, reportUrl))
         .write();
     } catch (error) {
       verbose(`could not write the job summary: ${String(error)}`);

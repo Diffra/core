@@ -106,6 +106,13 @@ Configures parallel browser worker execution and CI integration:
 | `projects` | `Project[]` | `[{ name: 'chromium', browser: 'chromium' }]` | Playwright projects and browser engines (`chromium`, `firefox`, `webkit`). |
 | `launchOptions` | `LaunchOptions` | `undefined` | Custom Playwright browser launch options. |
 
+Two more top-level options apply to a whole run:
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `reportBaseUrl` | `string` | `undefined` | Public URL under which the output directory is published. Also read from `DIFFRA_REPORT_BASE_URL`. |
+| `runner.captureAttempts` | `number` | `2` | Capture attempts per target before it is reported as failed. |
+
 ### Domain 4: `storage`
 Configures baseline and candidate storage:
 

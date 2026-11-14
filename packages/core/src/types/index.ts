@@ -349,7 +349,8 @@ export interface TestRunSummary {
 }
 
 export interface ReportLinks {
-  viewer?: string;
+  /** Hosted address of the review bundle, when reportBaseUrl is configured */
+  review?: string;
   baselineReport?: string;
   branchLatest?: string;
 }
@@ -374,7 +375,6 @@ export type ReporterConfig =
       token?: string;
       repo?: string;
       prNumber?: number;
-      viewerUrl?: string;
     }
   | {
       type: 'slack';
@@ -452,6 +452,9 @@ export interface DiffraConfig {
 
   /** Explicit in-memory targets or target provider */
   targets?: VisualTarget[] | (() => Promise<VisualTarget[]> | VisualTarget[]);
+
+  /** Public URL under which the output directory is published (see docs/architecture/review-bundle.md) */
+  reportBaseUrl?: string;
 }
 
 export function defineConfig(config: DiffraConfig): DiffraConfig {

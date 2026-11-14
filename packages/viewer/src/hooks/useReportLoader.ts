@@ -53,13 +53,10 @@ export interface RawTestResult {
     height: number;
   };
   candidateUrl?: string;
-  candidatePath?: string;
   candidate?: RawImageArtifact;
   baselineUrl?: string;
-  baselinePath?: string;
   baseline?: RawImageArtifact;
   diffUrl?: string;
-  diffPath?: string;
   diffImage?: RawImageArtifact;
   diff?: RawDiffResult;
   diffResult?: RawDiffResult;
@@ -97,7 +94,27 @@ export interface RawTestRunReport {
   results?: RawTestResult[];
 }
 
-function normalizeReport(rawInput: unknown): TestRunReport {
+/**
+ * Resolves an image address from a report. Relative addresses are relative to
+ * the report file, so for a report fetched from elsewhere they are resolved
+ * against its address rather than the page's.
+ */
+function resolveAssetUrl(
+  url: string | undefined,
+  reportBaseUrl: string | undefined,
+): string | undefined {
+  if (!url || !reportBaseUrl) return url;
+  try {
+    return new URL(url, reportBaseUrl).href;
+  } catch {
+    return url;
+  }
+}
+
+function normalizeReport(
+  rawInput: unknown,
+  reportBaseUrl?: string,
+): TestRunReport {
   if (!rawInput || typeof rawInput !== 'object') {
     return {
       runId: '',
@@ -132,16 +149,21 @@ function normalizeReport(rawInput: unknown): TestRunReport {
     unchanged: raw.summary?.unchanged ?? 0,
   };
 
+  // Only `url` fields are loadable by a browser. `path` is where storage keeps
+  // an image and may be a local file path, so it is never used as an image src.
   const results = (raw.results || []).map((r) => {
-    const candidateUrl =
-      r.candidateUrl ||
-      r.candidate?.url ||
-      r.candidate?.path ||
-      r.candidatePath;
-    const baselineUrl =
-      r.baselineUrl || r.baseline?.url || r.baseline?.path || r.baselinePath;
-    const diffUrl =
-      r.diffUrl || r.diffImage?.url || r.diffImage?.path || r.diffPath;
+    const candidateUrl = resolveAssetUrl(
+      r.candidateUrl || r.candidate?.url,
+      reportBaseUrl,
+    );
+    const baselineUrl = resolveAssetUrl(
+      r.baselineUrl || r.baseline?.url,
+      reportBaseUrl,
+    );
+    const diffUrl = resolveAssetUrl(
+      r.diffUrl || r.diffImage?.url,
+      reportBaseUrl,
+    );
     const diff = r.diff || r.diffResult;
 
     return {
@@ -235,7 +257,8 @@ export function useReportLoader(
           }
           const json: unknown = await response.json();
           if (!isMounted) return;
-          setData(normalizeReport(json));
+          const reportAddress = new URL(queryUrl, window.location.href).href;
+          setData(normalizeReport(json, reportAddress));
           setStatus('ready');
           return;
         } catch (err) {

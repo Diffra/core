@@ -446,9 +446,14 @@ describe('Tier 1: Feature Coverage (Opaque-Box Happy-Path Tests in Isolation)', 
       JSON.stringify({ runId: 'f19-e2e', summary: { total: 0 } }),
       'utf-8',
     );
+    await fs.writeFile(
+      path.join(testDir, 'index.html'),
+      '<div id="root"></div>',
+      'utf-8',
+    );
 
     const { server, port } = await startServeServer({
-      dir: testDir,
+      reportPath: testDir,
       port: 0,
     });
     try {
@@ -458,7 +463,7 @@ describe('Tier 1: Feature Coverage (Opaque-Box Happy-Path Tests in Isolation)', 
 
       const rootRes = await testServerRequest(server, '/');
       expect(rootRes.status).toBe(200);
-      expect(rootRes.body).toContain('<diffra-viewer');
+      expect(rootRes.body).toContain('id="root"');
 
       const traversalRes = await testServerRequest(
         server,

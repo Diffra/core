@@ -39,7 +39,7 @@ diffra test [options]
 | `--shard <index/total>` | `string` | `undefined` | Execute a deterministic partition slice of tests (e.g. `1/4`). |
 | `--delay <ms>` | `number` | `undefined` | Settle wait time in ms after component render before screenshot. |
 | `--pass-on-changes` | `boolean` | `false` | Exits with status code `0` even if visual differences are detected. |
-| `--open` | `boolean` | `false` | Automatically starts the review server and opens the report in your browser. |
+| `--open` | `boolean` | `false` | Opens the review page in your browser when the run finishes. The page is always written and its location printed. |
 
 #### Exit codes
 * `0`: All visual tests matched baselines cleanly, or `--pass-on-changes` was supplied.
@@ -81,7 +81,7 @@ diffra merge-reports <shardPaths...> [options]
 
 ### 4. diffra serve
 
-Starts a local HTTP server serving report JSON and images to the interactive review UI.
+Serves a review bundle (the latest run by default) over HTTP on a local port.
 
 ```bash
 diffra serve [options]
@@ -91,5 +91,5 @@ diffra serve [options]
 
 | Flag | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `-p, --port <number>` | `number` | `9000` | Port for the review report server. |
-| `-r, --report <path>` | `string` | Auto-detected | Path to a specific `report.json` file or directory. |
+| `-p, --port <number>` | `number` | free port | Port for the review server. |
+| `-r, --report <path>` | `string` | latest run | A review bundle directory, or the `report.json` inside one. |

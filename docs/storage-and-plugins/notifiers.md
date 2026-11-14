@@ -18,7 +18,6 @@ export default defineConfig({
       token: process.env.GITHUB_TOKEN,
       repo: process.env.GITHUB_REPOSITORY,
       prNumber: process.env.GITHUB_PR_NUMBER ? parseInt(process.env.GITHUB_PR_NUMBER, 10) : undefined,
-      viewerUrl: 'https://my-org.github.io/my-repo',
     }),
   ],
 });

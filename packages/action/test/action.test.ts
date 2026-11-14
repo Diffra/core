@@ -41,6 +41,8 @@ vi.mock('@actions/github', () => ({
 vi.mock('@diffra/core', () => ({
   runVisualRegression: vi.fn().mockResolvedValue({
     runId: 'mock-run-123',
+    reviewDir: '/tmp/review/mock-run-123',
+    links: { review: 'https://diffra-viewer.company.com/runs/mock-run-123/' },
     timestamp: '2026-10-11T12:00:00Z',
     summary: {
       total: 2,
@@ -54,6 +56,8 @@ vi.mock('@diffra/core', () => ({
   }),
   approveBaselines: vi.fn().mockResolvedValue({ count: 2 }),
   formatMarkdownSummary: vi.fn().mockReturnValue('## Diffra Summary'),
+  createGitHubNotifier: vi.fn().mockReturnValue({ notify: vi.fn() }),
+  BUNDLE_INDEX_FILE: 'index.html',
 }));
 
 import { matchesBranchOrBool } from '../src/branch.js';
@@ -248,15 +252,14 @@ describe('@diffra/action execution, secret masking, and review link', () => {
     delete process.env.AWS_SECRET_ACCESS_KEY;
   });
 
-  it('formats clean review link using viewerUrl when configured', async () => {
-    mockInputs.viewerUrl = 'https://diffra-viewer.company.com';
+  it('uses the hosted review link recorded by core and never a file:// link', async () => {
     await run();
 
     expect(mockOutputs.url).toBe(
-      'https://diffra-viewer.company.com/?run=mock-run-123',
+      'https://diffra-viewer.company.com/runs/mock-run-123/',
     );
     expect(mockOutputs.buildUrl).toBe(
-      'https://diffra-viewer.company.com/?run=mock-run-123',
+      'https://diffra-viewer.company.com/runs/mock-run-123/',
     );
     expect(mockOutputs.url).not.toContain('file://');
   });

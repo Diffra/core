@@ -7,8 +7,7 @@ export const DIFFRA_COMMENT_MARKER = '<!-- diffra-visual-report -->';
  */
 export function formatMarkdownSummary(
   report: TestRunReport,
-  reportUrl?: string,
-  viewerUrl?: string,
+  reviewUrl?: string,
 ): string {
   const { summary, results, git } = report;
   const hasFailures = summary.failed > 0;
@@ -32,21 +31,11 @@ export function formatMarkdownSummary(
   const baselineCommit = git?.baselineCommit;
   md += `**Branch:** \`${branch}\` | **Commit:** \`${commit.slice(0, 7)}\` | **Baseline:** \`${baselineCommit ? baselineCommit.slice(0, 7) : 'None'}\`\n\n`;
 
-  const configuredViewer =
-    viewerUrl || process.env.DIFFRA_VIEWER_URL || process.env.GITHUB_PAGES_URL;
+  // A file:// address only means something on the machine that produced it.
+  const link = reviewUrl ?? report.links?.review;
+  const interactiveUrl = link && !link.startsWith('file://') ? link : undefined;
 
-  let interactiveUrl =
-    reportUrl && !reportUrl.startsWith('file://') ? reportUrl : undefined;
-  if (configuredViewer) {
-    const cleanViewer = configuredViewer.replace(/\/$/, '');
-    if (reportUrl && !reportUrl.startsWith('file://')) {
-      interactiveUrl = `${cleanViewer}/?report=${encodeURIComponent(reportUrl)}`;
-    } else {
-      interactiveUrl = `${cleanViewer}/?run=${report.runId}`;
-    }
-  }
-
-  if (interactiveUrl && !interactiveUrl.startsWith('file://')) {
+  if (interactiveUrl) {
     md += `👉 **[View Interactive Visual Report](${interactiveUrl})**\n\n`;
   }
 

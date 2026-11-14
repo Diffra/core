@@ -41,6 +41,10 @@ vi.mock('@actions/github', () => ({
 vi.mock('@diffra/core', () => ({
   runVisualRegression: vi.fn().mockResolvedValue({
     runId: 'stress-run-777',
+    reviewDir: '/tmp/review/stress-run-777',
+    links: {
+      review: 'https://visual-regression.acme.corp/runs/stress-run-777/',
+    },
     timestamp: '2026-10-11T12:00:00Z',
     summary: {
       total: 1,
@@ -54,6 +58,8 @@ vi.mock('@diffra/core', () => ({
   }),
   approveBaselines: vi.fn().mockResolvedValue({ count: 1 }),
   formatMarkdownSummary: vi.fn().mockReturnValue('## Diffra Summary'),
+  createGitHubNotifier: vi.fn().mockReturnValue({ notify: vi.fn() }),
+  BUNDLE_INDEX_FILE: 'index.html',
 }));
 
 import { run } from '../src/index.js';
@@ -109,16 +115,14 @@ describe('Milestone 3 Adversarial Challenge: Action Secret Masking & Review Link
     delete process.env.FIGMA_ACCESS_TOKEN;
   });
 
-  it('outputs clean review links starting with viewerUrl and free of file://', async () => {
-    mockInputs.viewerUrl = 'https://visual-regression.acme.corp';
-
+  it('outputs the hosted review link and never a file:// link', async () => {
     await run();
 
     expect(mockOutputs.url).toBe(
-      'https://visual-regression.acme.corp/?run=stress-run-777',
+      'https://visual-regression.acme.corp/runs/stress-run-777/',
     );
     expect(mockOutputs.buildUrl).toBe(
-      'https://visual-regression.acme.corp/?run=stress-run-777',
+      'https://visual-regression.acme.corp/runs/stress-run-777/',
     );
     expect(mockOutputs.url).not.toContain('file://');
   });

@@ -44,6 +44,7 @@ jobs:
         run: pnpm build-storybook
 
       - name: Run Diffra Action
+        id: diffra
         uses: Diffra/core@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -55,6 +56,13 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           DIFFRA_STORAGE_BUCKET: 'my-team-visual-baselines'
           DIFFRA_STORAGE_REGION: 'us-east-1'
+
+      - name: Upload review bundle
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: diffra-report
+          path: ${{ steps.diffra.outputs.reportDir }}
 ```
 
 ### How the automated pull request workflow works
@@ -74,7 +82,7 @@ jobs:
 
 1. **Pull Request trigger**: Every push or PR automatically triggers your GitHub Actions runner.
 2. **Deterministic baseline diffing**: Diffra determines the exact common Git ancestor (`git merge-base`) and streams baseline snapshots on demand from your private cloud bucket (S3, Cloudflare R2, Google Cloud Storage, Azure Blob).
-3. **Automated PR review comment**: Diffra posts a status check and rich sticky comment with a direct link to inspect visual changes in the Scandinavian review UI (`https://viewer.diffra.dev/?report=...`).
+3. **Automated PR review comment**: Diffra posts a status check and rich sticky comment with a direct link to inspect visual changes in the Scandinavian review UI (the [review bundle](docs/architecture/review-bundle.md), hosted at your `reportBaseUrl` or attached as a workflow artifact).
 4. **Auto-approval on merge**: When pull requests merge into `main`, candidate snapshots are automatically promoted as the authoritative baseline for future branches.
 
 ---
@@ -138,6 +146,7 @@ Explore the complete [Diffra documentation hub](docs/index.md):
   * [GitHub Action reference](docs/reference/action-reference.md)
   * [Core comparison engine & SIMD](docs/architecture/core-engine.md)
   * [Execution pipeline](docs/architecture/execution-pipeline.md)
+  * [Review bundle](docs/architecture/review-bundle.md)
 
 ---
 

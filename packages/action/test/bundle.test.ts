@@ -15,7 +15,7 @@ import { ACTION_ENTRY } from '../vite.config.js';
  */
 
 const REPO_SLUG = 'acme/widgets';
-const VIEWER_URL = 'https://viewer.example.test';
+const REPORT_BASE_URL = 'https://reports.example.test/diffra';
 const TIMEOUT_MS = 90_000;
 
 interface ApiRequest {
@@ -125,6 +125,7 @@ describe('bundled action', () => {
   async function runAction(
     inputs: Record<string, string>,
     ref: string,
+    extraEnv: Record<string, string> = {},
   ): Promise<ActionRun> {
     const outputFile = path.join(workDir, 'github-output.txt');
     const summaryFile = path.join(workDir, 'github-summary.md');
@@ -141,13 +142,14 @@ describe('bundled action', () => {
       GITHUB_REF: ref,
       GITHUB_API_URL: apiUrl,
       INPUT_TOKEN: 'test-token',
-      INPUT_VIEWERURL: VIEWER_URL,
+      INPUT_REPORTBASEURL: REPORT_BASE_URL,
       INPUT_WORKINGDIR: repoDir,
       INPUT_CONCURRENCY: '1',
       INPUT_DRIVER: 'url',
       INPUT_STORYBOOKURL: pageUrl,
       INPUT_URLS: '/',
       INPUT_AUTOACCEPTCHANGES: 'false',
+      ...extraEnv,
     };
     for (const [name, value] of Object.entries(inputs)) {
       env[`INPUT_${name.toUpperCase()}`] = value;
@@ -200,8 +202,22 @@ describe('bundled action', () => {
       expect(result.outputs.storyCount).toBe('1');
       expect(result.outputs.failedCount).toBe('0');
       expect(result.outputs.url).toMatch(
-        new RegExp(`^${VIEWER_URL}/\\?run=run-`),
+        new RegExp(`^${REPORT_BASE_URL}/runs/run-\\d+/$`),
       );
+
+      // The review page is written next to the run and ships its own viewer,
+      // which the bundle carries because core runs from inside it.
+      const reportDir = result.outputs.reportDir ?? '';
+      for (const file of [
+        'index.html',
+        'report.json',
+        'viewer.bundle.js',
+        'viewer.css',
+      ]) {
+        await expect(
+          fs.access(path.join(reportDir, file)),
+        ).resolves.toBeUndefined();
+      }
       expect(result.summary).toContain('Diffra Visual Regression');
 
       expect(statusPosts()).toHaveLength(1);
@@ -218,9 +234,18 @@ describe('bundled action', () => {
   it(
     'fails the step and the commit status when a target cannot be captured',
     async () => {
+      // Without a hosted location the link is the workflow run, which lists
+      // the uploaded review bundle.
       const result = await runAction(
-        { urls: `/,${deadUrl}` },
+        { urls: `/,${deadUrl}`, reportBaseUrl: '' },
         'refs/pull/7/merge',
+        {
+          GITHUB_SERVER_URL: 'https://github.example.test',
+          GITHUB_RUN_ID: '4242',
+        },
+      );
+      expect(result.outputs.url).toBe(
+        `https://github.example.test/${REPO_SLUG}/actions/runs/4242`,
       );
 
       expect(result.code).toBe(1);
@@ -230,6 +255,18 @@ describe('bundled action', () => {
       expect(String(statusPosts()[0]?.body.description)).toContain(
         'could not be captured',
       );
+    },
+    TIMEOUT_MS,
+  );
+
+  it(
+    'links the local review page when there is nowhere to publish it',
+    async () => {
+      const result = await runAction(
+        { reportBaseUrl: '' },
+        'refs/pull/7/merge',
+      );
+      expect(result.outputs.url).toMatch(/^file:\/\/.*\/index\.html$/);
     },
     TIMEOUT_MS,
   );

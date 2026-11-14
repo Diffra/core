@@ -26,10 +26,21 @@ function playwrightCoreDir(): string {
   );
 }
 
+/** Folder next to the bundle that core looks in for the review interface. */
+const VIEWER_SHIM_DIR = 'viewer';
+
+function viewerFiles(): { script: string; styles: string } {
+  const coreRequire = createRequire(require.resolve('@diffra/core'));
+  return {
+    script: coreRequire.resolve('@diffra/viewer/bundle'),
+    styles: coreRequire.resolve('@diffra/viewer/style.css'),
+  };
+}
+
 function shipPlaywrightFiles(): Plugin {
   let outDir = OUT_DIR;
   return {
-    name: 'diffra-ship-playwright-files',
+    name: 'diffra-ship-runtime-files',
     configResolved(config) {
       outDir = path.resolve(config.root, config.build.outDir);
     },
@@ -40,6 +51,16 @@ function shipPlaywrightFiles(): Plugin {
       for (const file of ['package.json', 'browsers.json']) {
         fs.copyFileSync(path.join(source, file), path.join(target, file));
       }
+
+      // Review bundles are written by core, which finds the viewer here.
+      const viewer = viewerFiles();
+      const viewerTarget = path.join(outDir, VIEWER_SHIM_DIR);
+      fs.mkdirSync(viewerTarget, { recursive: true });
+      fs.copyFileSync(
+        viewer.script,
+        path.join(viewerTarget, 'viewer.bundle.js'),
+      );
+      fs.copyFileSync(viewer.styles, path.join(viewerTarget, 'viewer.css'));
     },
   };
 }

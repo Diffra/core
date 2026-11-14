@@ -76,7 +76,7 @@ Diffra automatically:
 | `diffThreshold` | `number` | `0.063` | Perceptual sensitivity threshold (`0.00` to `1.00`). |
 | `concurrency` | `number` | `4` | Number of parallel browser workers. |
 | `workingDir` | `string` | `.` | Working directory for monorepo package subdirectories. |
-| `viewerUrl` | `string` | `undefined` | Base URL of your deployed review viewer (e.g. GitHub Pages). |
+| `reportBaseUrl` | `string` | `undefined` | Public URL under which the `.diffra` output directory is published. Review links become `<reportBaseUrl>/runs/<runId>/`. Without it, links point at the workflow run. |
 
 ---
 

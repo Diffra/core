@@ -40,7 +40,7 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b",
+    "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.test.json",

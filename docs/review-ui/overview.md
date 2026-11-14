@@ -1,6 +1,6 @@
 # Review interface overview
 
-The `@diffra/viewer` package provides a standalone Scandinavian minimalist review user interface embedded in generated HTML reports and served by `diffra serve`.
+The `@diffra/viewer` package provides a standalone Scandinavian minimalist review user interface included in every run's [review bundle](../architecture/review-bundle.md) and served by `diffra serve`.
 
 ---
 

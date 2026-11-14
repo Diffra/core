@@ -1,5 +1,8 @@
 import type { StorageConfig } from '../types/index.js';
 
+/** Public URL under which the output directory is published. */
+export const REPORT_BASE_URL_ENV = 'DIFFRA_REPORT_BASE_URL';
+
 /** Environment variables that select and configure baseline storage. */
 export const STORAGE_ENV = {
   provider: 'DIFFRA_STORAGE_PROVIDER',

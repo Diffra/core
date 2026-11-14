@@ -132,7 +132,7 @@ jobs:
 
 1. Push your branch to GitHub and open a Pull Request.
 2. The GitHub Action executes, captures screenshots across all configured routes and viewports, and compares them against `main` baselines in your cloud storage.
-3. A status check and PR comment are automatically posted with a direct link to the visual review UI (`https://viewer.diffra.dev/?report=...`).
+3. A status check and PR comment are automatically posted with a direct link to the visual review UI (the [review bundle](../architecture/review-bundle.md), hosted at your `reportBaseUrl` or attached as a workflow artifact).
 4. Merging the PR into `main` automatically promotes candidate screenshots to cloud storage as the new baseline.
 
 ---

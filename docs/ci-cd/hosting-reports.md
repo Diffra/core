@@ -1,105 +1,80 @@
-# Self-hosted report deployment
+# Hosting review reports
 
-Diffra produces static, standalone visual regression reports that can be deployed to any static hosting provider (GitHub Pages, Cloudflare Pages, Amazon S3, Cloudflare R2, Vercel, or Netlify) without recurring subscription costs.
-
----
-
-## Deterministic directory structure
-
-Diffra formats test output into a deterministic directory hierarchy that enables cross-branch baseline jumping:
-
-```
-.diffra/ (or https://<org>.github.io/<repo>/)
-├── runs/
-│   └── run-1708701234/
-│       ├── report.json         # Complete JSON manifest for this run
-│       ├── candidates/         # Candidate PNG images
-│       └── diffs/              # Diff masks and heatmap assets
-├── branches/
-│   ├── main/
-│   │   └── latest/
-│   │       └── report.json     # Latest baseline report for main branch
-│   └── feature_navbar/
-│       └── latest/
-│           └── report.json     # Latest report for feature branch
-└── latest/
-    └── report.json             # Global pointer to most recent run
-```
+Every run writes a review bundle, a static directory that is a complete review site. Hosting reports means choosing where people open that directory. See [Review bundle](../architecture/review-bundle.md) for the layout and the rules for image references.
 
 ---
 
-## Strategy 1: GitHub Pages deployment
+## Option 1: Workflow artifact (no infrastructure)
 
-Automatically publish the latest reports to GitHub Pages on every pull request or push to `main`:
+Give the Diffra step an `id` and upload its `reportDir` output as an artifact. Without a `reportBaseUrl`, the pull request links to the workflow run, where the artifact is listed.
 
 ```yaml
-# In .github/workflows/deploy-report.yml
-name: Deploy Diffra Review UI
+- name: Run Diffra Action
+  id: diffra
+  uses: Diffra/core@v1
 
-on:
-  push:
-    branches: [main]
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: 'pages'
-  cancel-in-progress: true
-
-jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
-
-      - name: Upload .diffra directory as artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: '.diffra'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+- name: Upload review bundle
+  if: always()
+  uses: actions/upload-artifact@v7
+  with:
+    name: diffra-report
+    path: ${{ steps.diffra.outputs.reportDir }}
 ```
 
-Set `viewerUrl` in `diffra.config.ts` or GitHub Actions:
+Download the artifact, unzip it, and open `index.html`. It works from disk with no server.
+
+---
+
+## Option 2: Publish the output directory
+
+Publish the contents of `.diffra/` to any static host and tell Diffra where it lives with `reportBaseUrl`. Review links then point at `<reportBaseUrl>/runs/<runId>/`, and reviewers open them in the browser with no download.
 
 ```typescript
 export default defineConfig({
-  viewerUrl: 'https://my-org.github.io/my-repo',
+  reportBaseUrl: 'https://my-org.github.io/my-repo',
 });
 ```
 
----
+The same setting is available as the `reportBaseUrl` action input and the `DIFFRA_REPORT_BASE_URL` environment variable.
 
-## Strategy 2: Amazon S3 or Cloudflare R2 hosting
+### GitHub Pages
 
-Sync `.diffra/` output directly to an S3 or R2 bucket configured for static website hosting:
+```yaml
+- name: Upload review reports
+  uses: actions/upload-pages-artifact@v5
+  with:
+    path: '.diffra'
 
-```bash
-aws s3 sync .diffra/ s3://my-visual-reports-bucket/ --delete
+- name: Deploy to GitHub Pages
+  uses: actions/deploy-pages@v5
 ```
 
----
+Pages sites are public unless your plan makes them private, so publish only what you are happy to share.
 
-## Strategy 3: Local report review server
-
-When developing locally or in an offline environment:
+### Amazon S3, Cloudflare R2, or any bucket with static hosting
 
 ```bash
-# Serve latest report on http://localhost:9000
+aws s3 sync .diffra/ s3://my-visual-reports-bucket/
+```
+
+Set `reportBaseUrl` to the public address of the bucket. Baselines are stored separately by the [storage adapter](../storage-and-plugins/storage-adapters.md), so the bucket you publish reports from does not need to be the one that holds baselines.
+
+---
+
+## Option 3: Local review server
+
+When developing locally:
+
+```bash
+# Serve the latest run on a free port
 diffra serve
 
-# Serve on custom port with specific report file
-diffra serve --port 3000 --report .diffra/runs/run-1708701234/report.json
+# Serve a specific run on a chosen port
+diffra serve --port 3000 --report .diffra/runs/run-1708701234
 ```
+
+---
+
+## Using a hosted copy of the review interface
+
+A copy of the review interface can load any published `report.json` with `?report=<url>`. Relative image URLs in the report resolve against the report's own address.

@@ -9,7 +9,6 @@ export interface GitHubNotifierOptions {
   commitSha?: string;
   /** Review link, or a function building it once the run id is known */
   reportUrl?: string | ((report: TestRunReport) => string);
-  viewerUrl?: string;
   /** REST API base, for GitHub Enterprise Server (default: GITHUB_API_URL) */
   apiUrl?: string;
 }
@@ -63,7 +62,6 @@ export class GitHubNotifier implements NotifierAdapter {
   private readonly prNumber?: number;
   private readonly commitSha?: string;
   private readonly reportUrl?: string | ((report: TestRunReport) => string);
-  private readonly viewerUrl?: string;
   private readonly apiUrl: string;
 
   constructor(options: GitHubNotifierOptions = {}) {
@@ -73,7 +71,6 @@ export class GitHubNotifier implements NotifierAdapter {
     this.prNumber = options.prNumber;
     this.commitSha = options.commitSha;
     this.reportUrl = options.reportUrl;
-    this.viewerUrl = options.viewerUrl || process.env.DIFFRA_VIEWER_URL;
     this.apiUrl = (
       options.apiUrl ||
       process.env.GITHUB_API_URL ||
@@ -94,9 +91,9 @@ export class GitHubNotifier implements NotifierAdapter {
     };
 
     const reportUrl =
-      typeof this.reportUrl === 'function'
+      (typeof this.reportUrl === 'function'
         ? this.reportUrl(report)
-        : this.reportUrl;
+        : this.reportUrl) ?? report.links?.review;
 
     // 1. Commit Status Check
     const sha = this.commitSha || report.git?.commit;
@@ -134,7 +131,7 @@ export class GitHubNotifier implements NotifierAdapter {
     const prNumber = await resolvePullRequestNumber(this.prNumber);
     if (prNumber) {
       try {
-        const body = formatMarkdownSummary(report, reportUrl, this.viewerUrl);
+        const body = formatMarkdownSummary(report, reportUrl);
         const commentsUrl = `${this.apiUrl}/repos/${this.repo}/issues/${prNumber}/comments`;
 
         const listRes = await fetch(commentsUrl, { headers });

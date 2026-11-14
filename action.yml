@@ -48,8 +48,8 @@ inputs:
     description: 'Working directory for projects in a monorepo'
     required: false
     default: '.'
-  viewerUrl:
-    description: 'Hosted viewer URL (e.g. GitHub Pages https://<org>.github.io/<repo>/)'
+  reportBaseUrl:
+    description: 'Public URL under which the .diffra output directory is published. Review links become <reportBaseUrl>/runs/<runId>/'
     required: false
   debug:
     description: 'Log the resolved configuration and extra diagnostics'
@@ -67,6 +67,8 @@ outputs:
     description: 'Process exit status code'
   changeCount:
     description: 'Number of visual differences detected'
+  reportDir:
+    description: 'Directory holding the review bundle (index.html, report.json, images)'
   failedCount:
     description: 'Number of targets that could not be captured'
   storyCount:

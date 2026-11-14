@@ -117,7 +117,7 @@ jobs:
 2. Open a Pull Request on GitHub.
 3. The Diffra GitHub Action executes automatically, renders your story index, compares candidate screenshots against the `main` branch baselines in your cloud bucket, and posts:
    * **Commit status check**: Passed or changed.
-   * **Sticky PR comment**: Direct link to inspect changes in the review UI (`https://viewer.diffra.dev/?report=...`).
+   * **Sticky PR comment**: Direct link to inspect changes in the review UI (the [review bundle](../architecture/review-bundle.md), hosted at your `reportBaseUrl` or attached as a workflow artifact).
 4. When the PR merges into `main`, candidate screenshots are automatically promoted to cloud storage as the new baseline.
 
 ---

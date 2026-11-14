@@ -63,7 +63,6 @@ describe('Milestone 4 Adversarial Stress Harness', () => {
       await fs.writeFile(reportFile, JSON.stringify({ runId: 'adv-run' }));
 
       const handler = createServeHandler({
-        reportPath: reportFile,
         staticRoot,
       });
 
@@ -108,7 +107,6 @@ describe('Milestone 4 Adversarial Stress Harness', () => {
       await fs.writeFile(reportFile, JSON.stringify({ runId: 'adv-url' }));
 
       const handler = createServeHandler({
-        reportPath: reportFile,
         staticRoot,
       });
 
@@ -180,7 +178,6 @@ describe('Milestone 4 Adversarial Stress Harness', () => {
       await fs.symlink(path.join(outsideDir, 'nonexistent.txt'), brokenSym);
 
       const handler = createServeHandler({
-        reportPath: reportFile,
         staticRoot,
       });
 
@@ -224,9 +221,12 @@ describe('Milestone 4 Adversarial Stress Harness', () => {
       );
       const reportFile = path.join(tempDir, 'report.json');
       await fs.writeFile(reportFile, JSON.stringify({ runId: 'adv-query' }));
+      await fs.writeFile(
+        path.join(tempDir, 'index.html'),
+        '<div id="root"></div>',
+      );
 
       const handler = createServeHandler({
-        reportPath: reportFile,
         staticRoot: tempDir,
       });
 
@@ -237,9 +237,7 @@ describe('Milestone 4 Adversarial Stress Harness', () => {
       );
       expect(resIndexQuery.status).toBe(200);
       expect(resIndexQuery.headers['X-Content-Type-Options']).toBe('nosniff');
-      expect(resIndexQuery.body).toContain(
-        '<diffra-viewer data-report-url="./report.json">',
-      );
+      expect(resIndexQuery.body).toContain('<div id="root"></div>');
 
       // Malformed query string does not break /report.json route
       const resReportQuery = await dispatchMockRequest(

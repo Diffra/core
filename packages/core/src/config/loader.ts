@@ -3,7 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { cosmiconfig } from 'cosmiconfig';
 import type { DiffraConfig } from '../types/index.js';
-import { storageConfigFromEnv } from './env.js';
+import { REPORT_BASE_URL_ENV, storageConfigFromEnv } from './env.js';
 import { DiffraConfigSchema } from './schema.js';
 
 const MODULE_NAME = 'diffra';
@@ -97,6 +97,10 @@ export async function loadConfig(
     if (fromEnv) {
       merged.storage = fromEnv;
     }
+  }
+
+  if (merged.reportBaseUrl === undefined && env[REPORT_BASE_URL_ENV]) {
+    merged.reportBaseUrl = env[REPORT_BASE_URL_ENV];
   }
 
   const parsed = DiffraConfigSchema.safeParse(merged);

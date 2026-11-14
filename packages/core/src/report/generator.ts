@@ -2,20 +2,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { TestRunReport } from '../types/index.js';
 
-export const DEFAULT_VIEWER_URL =
-  process.env.DIFFRA_VIEWER_URL || 'https://viewer.diffra.dev';
-
-/**
- * Builds the interactive viewer URL for a given report JSON endpoint.
- */
-export function buildViewerUrl(
-  reportJsonUrl: string,
-  viewerBaseUrl = DEFAULT_VIEWER_URL,
-): string {
-  const cleanViewer = (viewerBaseUrl || DEFAULT_VIEWER_URL).replace(/\/$/, '');
-  return `${cleanViewer}/?report=${encodeURIComponent(reportJsonUrl)}`;
-}
-
 /**
  * Runtime type guard verifying if an unknown data object matches the TestRunReport shape.
  */
@@ -31,6 +17,33 @@ export function isTestRunReport(data: unknown): data is TestRunReport {
   );
 }
 
+function sanitizeBranch(branch: string): string {
+  return branch.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+/**
+ * Adds the navigation links between a run's report, its baseline's report and
+ * the latest report of its branch.
+ */
+export function buildReportManifest(report: TestRunReport): TestRunReport {
+  const safeBranch = sanitizeBranch(report.git?.branch || 'main');
+  const safeBaselineBranch = sanitizeBranch(
+    report.git?.baselineBranch || 'main',
+  );
+  return {
+    ...report,
+    links: {
+      ...report.links,
+      baselineReport:
+        report.links?.baselineReport ||
+        `../../branches/${safeBaselineBranch}/latest/report.json`,
+      branchLatest:
+        report.links?.branchLatest ||
+        `../../branches/${safeBranch}/latest/report.json`,
+    },
+  };
+}
+
 /**
  * Saves the structured test run report JSON without inlining binary images.
  */
@@ -41,26 +54,8 @@ export async function saveReportManifest(
   const dir = path.dirname(outputReportJsonPath);
   await fs.mkdir(dir, { recursive: true });
 
-  const branch = report.git?.branch || 'main';
-  const baselineBranch = report.git?.baselineBranch || 'main';
-  const safeBranch = branch.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const safeBaselineBranch = baselineBranch.replace(/[^a-zA-Z0-9_-]/g, '_');
-
-  const baselineReportUrl =
-    report.links?.baselineReport ||
-    `../../branches/${safeBaselineBranch}/latest/report.json`;
-  const branchLatestUrl =
-    report.links?.branchLatest ||
-    `../../branches/${safeBranch}/latest/report.json`;
-
-  const manifest: TestRunReport = {
-    ...report,
-    links: {
-      ...report.links,
-      baselineReport: baselineReportUrl,
-      branchLatest: branchLatestUrl,
-    },
-  };
+  const safeBranch = sanitizeBranch(report.git?.branch || 'main');
+  const manifest = buildReportManifest(report);
 
   await fs.writeFile(
     outputReportJsonPath,

@@ -258,7 +258,6 @@ export const ReporterConfigSchema = z.union([
     token: z.string().optional(),
     repo: z.string().optional(),
     prNumber: z.number().optional(),
-    viewerUrl: z.string().optional(),
   }),
   z.object({
     type: z.literal('slack'),
@@ -315,6 +314,7 @@ export const DiffraConfigSchema = z.object({
   plugins: z.array(DiffraPluginSchema).default([]),
   diffEngine: DiffEngineAdapterSchema.optional(),
   targets: TargetProviderSchema.optional(),
+  reportBaseUrl: z.string().optional(),
 });
 
 export type DiffraConfigInput = z.input<typeof DiffraConfigSchema>;

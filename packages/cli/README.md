@@ -63,7 +63,7 @@ diffra merge-reports --shard-dir ./shard-1 --shard-dir ./shard-2 --output-dir .d
 
 ### `diffra serve`
 
-Generates an interactive review link to inspect test results and visual differences in the review UI.
+Serves the latest review bundle on a local port so you can inspect visual differences in the review UI.
 
 ```bash
 diffra serve
@@ -81,7 +81,7 @@ diffra serve
 | `--diff-threshold` | `number` | Perceptual color delta threshold (default: `0.063`) |
 | `--concurrency` | `number` | Parallel browser workers |
 | `--shard` | `string` | CI shard index and total count (e.g. `1/4`) |
-| `--open` | `boolean` | Display viewer link upon run completion |
+| `--open` | `boolean` | Open the review page in your browser when the run finishes |
 | `--output-dir` | `string` | Output directory for reports and snapshots |
 | `--pass-on-changes` | `boolean` | Exit with status code 0 even if changes are detected |
 

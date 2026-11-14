@@ -86,7 +86,11 @@ function pageHtml(color: string): string {
   return `<!doctype html><html><body style="margin:0"><div style="width:${VIEWPORT.width}px;height:${VIEWPORT.height}px;background:${color}"></div></body></html>`;
 }
 
-describe('visual regression loop', () => {
+// Each scenario launches Chromium up to three times, which can exceed the
+// default timeout when the whole suite runs in parallel.
+const SCENARIO_TIMEOUT_MS = 60_000;
+
+describe('visual regression loop', { timeout: SCENARIO_TIMEOUT_MS }, () => {
   let repoDir: string;
   let server: http.Server;
   let baseUrl: string;
@@ -187,6 +191,60 @@ describe('visual regression loop', () => {
     expect(changed?.diff?.boundingBoxes.length).toBeGreaterThan(0);
     expect(changed?.diffImage?.path).toBeDefined();
     expect(third.summary).toMatchObject({ changed: 1, unchanged: 1 });
+  });
+
+  it('writes a self-contained review bundle with relative image URLs', async () => {
+    const first = await runVisualRegression({ cwd: repoDir, config: config() });
+    await approveBaselines({ cwd: repoDir, report: first });
+    pageColors.set('/a', '#cc2255');
+
+    const report = await runVisualRegression({
+      cwd: repoDir,
+      config: config(),
+    });
+    const dir = report.reviewDir;
+
+    for (const file of [
+      'index.html',
+      'report.json',
+      'viewer.bundle.js',
+      'viewer.css',
+    ]) {
+      await expect(fs.access(path.join(dir, file))).resolves.toBeUndefined();
+    }
+
+    const changed = report.results.find((r) => r.id === 'route--a');
+    const unchanged = report.results.find((r) => r.id === 'route--b');
+    for (const image of [
+      changed?.candidate,
+      changed?.baseline,
+      changed?.diffImage,
+    ]) {
+      expect(image?.url).toMatch(/^images\/[0-9a-f]{64}\.png$/);
+      const bytes = await fs.readFile(path.join(dir, image?.url ?? 'missing'));
+      expect(bytes.subarray(1, 4).toString()).toBe('PNG');
+    }
+    // Targets that need no review carry no images, which keeps bundles small.
+    expect(unchanged?.candidate.url).toBeUndefined();
+
+    // The shared copies name no local storage locations.
+    const shared = await fs.readFile(path.join(dir, 'report.json'), 'utf-8');
+    const page = await fs.readFile(path.join(dir, 'index.html'), 'utf-8');
+    expect(shared).not.toContain(repoDir);
+    expect(page).not.toContain(repoDir);
+    expect(page).toContain('id="diffra-data"');
+    expect(page).toContain('images/');
+  });
+
+  it('links the hosted review page when reportBaseUrl is configured', async () => {
+    const report = await runVisualRegression({
+      cwd: repoDir,
+      config: config({ reportBaseUrl: 'https://reports.example.test/diffra/' }),
+    });
+
+    expect(report.links?.review).toBe(
+      `https://reports.example.test/diffra/runs/${report.runId}/`,
+    );
   });
 
   it('keeps a custom storage adapter instance when loading config', async () => {

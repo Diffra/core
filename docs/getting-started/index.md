@@ -23,7 +23,7 @@ Diffra integrates directly into your existing pull request review lifecycle:
 
 1. **Push or Pull Request**: A developer opens or updates a pull request.
 2. **Automated headless capture**: Your GitHub Actions runner executes the Diffra action, captures screenshots for each target in parallel, and computes perceptual differences against the cloud baseline (`origin/main`).
-3. **Automated PR review link**: Diffra posts a status check and rich comment directly on the PR linking to the visual review report (`https://viewer.diffra.dev/?report=...`).
+3. **Automated PR review link**: Diffra posts a status check and rich comment directly on the PR linking to the visual review report (the [review bundle](../architecture/review-bundle.md), hosted at your `reportBaseUrl` or attached as a workflow artifact).
 4. **Auto-accept on merge**: When the pull request merges into `main`, candidate screenshots are automatically accepted into your private cloud storage as the updated baseline.
 
 ---

@@ -459,11 +459,10 @@ describe('Milestone 3 Adversarial Challenge: PR Summary Review Links & Security'
     ],
   };
 
-  it('uses viewerUrl and NEVER outputs file:// links when viewerUrl is provided', () => {
-    const viewerUrl = 'https://review.diffra.io';
-    const reportUrl = `${viewerUrl}/?run=adv-run-999`;
+  it('links the hosted review page and NEVER outputs file:// links', () => {
+    const reportUrl = 'https://review.diffra.io/runs/adv-run-999/';
 
-    const summary = formatMarkdownSummary(sampleReport, reportUrl, viewerUrl);
+    const summary = formatMarkdownSummary(sampleReport, reportUrl);
 
     // Must contain viewer URL
     expect(summary).toContain('https://review.diffra.io');
@@ -472,15 +471,11 @@ describe('Milestone 3 Adversarial Challenge: PR Summary Review Links & Security'
     expect(summary).not.toContain('file://');
   });
 
-  it('strictly excludes file:// URLs when no viewer is configured and reportUrl is local file', () => {
-    const localReportUrl =
-      'file:///Users/rawlings/core/.diffra/runs/adv-run-999/report.json';
+  it('strictly excludes file:// URLs when the review page is only a local file', () => {
+    const localReviewUrl =
+      'file:///Users/rawlings/core/.diffra/runs/adv-run-999/index.html';
 
-    const summary = formatMarkdownSummary(
-      sampleReport,
-      localReportUrl,
-      undefined,
-    );
+    const summary = formatMarkdownSummary(sampleReport, localReviewUrl);
 
     // Must NOT contain file:// anywhere in markdown
     expect(summary).not.toContain('file://');
@@ -491,20 +486,13 @@ describe('Milestone 3 Adversarial Challenge: PR Summary Review Links & Security'
     expect(summary).not.toContain('](file://');
   });
 
-  it('uses DIFFRA_VIEWER_URL environment variable when viewerUrl option is omitted', () => {
-    process.env.DIFFRA_VIEWER_URL = 'https://env-viewer.diffra.org';
-    const localReportUrl =
-      'file:///Users/rawlings/core/.diffra/runs/adv-run-999/report.json';
+  it('uses the hosted review link recorded in the report when none is passed', () => {
+    const summary = formatMarkdownSummary({
+      ...sampleReport,
+      links: { review: 'https://reports.example.test/runs/adv-run-999/' },
+    });
 
-    const summary = formatMarkdownSummary(
-      sampleReport,
-      localReportUrl,
-      undefined,
-    );
-
-    expect(summary).toContain('https://env-viewer.diffra.org/?run=adv-run-999');
-    expect(summary).not.toContain('file://');
-
-    delete process.env.DIFFRA_VIEWER_URL;
+    expect(summary).toContain('https://reports.example.test/runs/adv-run-999/');
+    expect(summary).toContain('[View Interactive Visual Report]');
   });
 });

@@ -75,6 +75,7 @@ jobs:
 | `diffThreshold` | No | `'0.063'` | Perceptual sensitivity threshold |
 | `concurrency` | No | `'4'` | Number of parallel browser workers |
 | `workingDir` | No | `'.'` | Working directory for monorepo packages |
+| `reportBaseUrl` | No | `undefined` | Public URL under which the `.diffra` output directory is published. Review links become `<reportBaseUrl>/runs/<runId>/`; without it, links point at the workflow run, so upload `reportDir` as an artifact |
 
 Baselines must outlive the job, so CI runs need cloud storage. Select it with environment variables:
 
@@ -102,6 +103,7 @@ The action downloads Chromium itself when it is missing.
 | `storybookUrl` | URL of the Storybook preview server used during capture |
 | `code` | Process exit status code |
 | `changeCount` | Number of visual differences detected |
+| `reportDir` | Directory holding the review bundle (`index.html`, `report.json`, `images/`) |
 | `failedCount` | Number of targets that could not be captured |
 | `storyCount` | Total number of stories and viewport combinations tested |
 | `status` | Final execution status (`passed`, `changes_found`, or `failed`) |

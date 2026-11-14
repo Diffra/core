@@ -3,7 +3,7 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import {
   approveBaselines,
-  buildViewerUrl,
+  BUNDLE_INDEX_FILE,
   mergeReports,
   runVisualRegression,
 } from '@diffra/core';
@@ -13,6 +13,7 @@ import {
   startServeServer,
 } from './serve.js';
 import { colors } from './utils/colors.js';
+import { openInBrowser } from './utils/open.js';
 
 export { createServeHandler, formatServerUrl, startServeServer };
 
@@ -29,7 +30,7 @@ ${colors.bold('Commands:')}
   test           Run visual regression suite (default)
   approve        Approve candidate screenshots as the new baseline
   merge-reports  Merge multiple shard report manifests into a consolidated run
-  serve          Open local static review viewer for inspection
+  serve          Serve the latest review bundle on a local port
   help           Show this help information
 
 ${colors.bold('Options:')}
@@ -85,7 +86,6 @@ export const CLI_OPTIONS = {
   open: { type: 'boolean' },
   port: { type: 'string', short: 'p' },
   report: { type: 'string', short: 'r' },
-  'viewer-url': { type: 'string' },
   'update-baseline': { type: 'boolean' },
   filter: { type: 'string', short: 'f' },
   ci: { type: 'boolean' },
@@ -279,24 +279,12 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           console.log('');
         }
 
-        const reportJsonPath = path.resolve(
-          process.cwd(),
-          values['output-dir'] || '.diffra',
-          'runs',
-          report.runId,
-          'report.json',
-        );
-        console.log(
-          `${colors.cyan('Report Manifest:')} file://${reportJsonPath}\n`,
-        );
+        const reviewPage = pathToFileURL(
+          path.join(report.reviewDir, BUNDLE_INDEX_FILE),
+        ).href;
+        console.log(`${colors.cyan('Review:')} ${reviewPage}\n`);
         if (values.open) {
-          const viewerUrl = buildViewerUrl(
-            `file://${reportJsonPath}`,
-            values['viewer-url'],
-          );
-          console.log(
-            `${colors.green('✓')} Review report at: ${colors.bold(colors.cyan(viewerUrl))}\n`,
-          );
+          openInBrowser(reviewPage);
         }
 
         if (values['update-baseline'] && report.summary.changed > 0) {
@@ -431,22 +419,21 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
     }
 
     case 'serve': {
-      let reportPath = values.report;
-
-      if (!reportPath) {
-        reportPath = path.resolve(
-          process.cwd(),
-          values['output-dir'] || '.diffra',
-          'latest-report.json',
-        );
-      }
-
       const port = values.port ? parseInt(values.port, 10) : undefined;
-      const { server, url, stop } = await startServeServer({
-        reportPath,
-        outputDir: values['output-dir'],
-        port,
-      });
+      let instance: Awaited<ReturnType<typeof startServeServer>>;
+      try {
+        instance = await startServeServer({
+          reportPath: values.report,
+          outputDir: values['output-dir'],
+          port,
+        });
+      } catch (error) {
+        console.error(
+          `\n${colors.red(error instanceof Error ? error.message : String(error))}`,
+        );
+        return 1;
+      }
+      const { server, url, stop } = instance;
 
       console.log(`\n${colors.bold(colors.cyan('Diffra Report Viewer'))}`);
       console.log(
