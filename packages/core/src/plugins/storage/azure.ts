@@ -148,6 +148,23 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
     }
   }
 
+  async downloadCandidate(
+    runId: string,
+    key: SnapshotKey,
+  ): Promise<Buffer | null> {
+    if (!this.containerClient) return null;
+    const blobName = `${this.prefix}/runs/${runId}/candidates/${this.getFilename(key)}`;
+    const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
+    try {
+      return await blockBlobClient.downloadToBuffer();
+    } catch (err: unknown) {
+      if (isAzureNotFound(err)) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
   async uploadBaseline(
     commitSha: string,
     key: SnapshotKey,

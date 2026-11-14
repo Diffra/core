@@ -17,6 +17,7 @@ const mockReport: TestRunReport = {
     changed: 1,
     added: 1,
     removed: 0,
+    failed: 0,
     unchanged: 0,
   },
   results: [

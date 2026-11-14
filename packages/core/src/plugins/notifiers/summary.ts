@@ -11,18 +11,21 @@ export function formatMarkdownSummary(
   viewerUrl?: string,
 ): string {
   const { summary, results, git } = report;
+  const hasFailures = summary.failed > 0;
   const hasChanges = summary.changed > 0 || summary.removed > 0;
-  const statusIcon = hasChanges ? '⚠️' : '✅';
-  const statusTitle = hasChanges
-    ? `Visual Regression Detected (${summary.changed} changed)`
-    : `All Visual Tests Passed (${summary.total} targets)`;
+  const statusIcon = hasFailures ? '❌' : hasChanges ? '⚠️' : '✅';
+  const statusTitle = hasFailures
+    ? `${summary.failed} target${summary.failed === 1 ? '' : 's'} could not be captured`
+    : hasChanges
+      ? `Visual Regression Detected (${summary.changed} changed)`
+      : `All Visual Tests Passed (${summary.total} targets)`;
 
   let md = `${DIFFRA_COMMENT_MARKER}\n`;
   md += `## ${statusIcon} Diffra Visual Regression: ${statusTitle}\n\n`;
 
-  md += `| Total | Changed | Added | Removed | Passed |\n`;
-  md += `| :---: | :---: | :---: | :---: | :---: |\n`;
-  md += `| **${summary.total}** | **${summary.changed > 0 ? `🟠 ${summary.changed}` : '0'}** | **${summary.added > 0 ? `🟢 ${summary.added}` : '0'}** | **${summary.removed > 0 ? `🔴 ${summary.removed}` : '0'}** | **${summary.passed ?? summary.unchanged}** |\n\n`;
+  md += `| Total | Changed | Added | Removed | Failed | Passed |\n`;
+  md += `| :---: | :---: | :---: | :---: | :---: | :---: |\n`;
+  md += `| **${summary.total}** | **${summary.changed > 0 ? `🟠 ${summary.changed}` : '0'}** | **${summary.added > 0 ? `🟢 ${summary.added}` : '0'}** | **${summary.removed > 0 ? `🔴 ${summary.removed}` : '0'}** | **${summary.failed > 0 ? `❌ ${summary.failed}` : '0'}** | **${summary.passed ?? summary.unchanged}** |\n\n`;
 
   const branch = git?.branch || 'main';
   const commit = git?.commit || '';
@@ -49,7 +52,10 @@ export function formatMarkdownSummary(
 
   const changedStories = results.filter(
     (r) =>
-      r.status === 'changed' || r.status === 'added' || r.status === 'removed',
+      r.status === 'changed' ||
+      r.status === 'added' ||
+      r.status === 'removed' ||
+      r.status === 'failed',
   );
 
   if (changedStories.length > 0) {
@@ -67,7 +73,9 @@ export function formatMarkdownSummary(
           ? '🟠 Changed'
           : item.status === 'added'
             ? '🟢 Added'
-            : '🔴 Removed';
+            : item.status === 'failed'
+              ? '❌ Failed'
+              : '🔴 Removed';
 
       const groupName = item.group || 'Component';
       const storyLink =

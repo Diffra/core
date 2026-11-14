@@ -145,6 +145,28 @@ export class LocalFilesystemAdapter implements StorageAdapter {
     return filePath;
   }
 
+  async downloadCandidate(
+    runId: string,
+    key: SnapshotKey,
+  ): Promise<Buffer | null> {
+    const filePath = path.join(
+      this.outputDir,
+      'runs',
+      runId,
+      'candidates',
+      this.getFilename(key),
+    );
+    this.assertWithinBoundary(filePath, this.outputDir, 'downloadCandidate');
+    try {
+      return await fs.readFile(filePath);
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return null;
+      }
+      throw err;
+    }
+  }
+
   async downloadBaseline(
     baselineCommit: string,
     key: SnapshotKey,

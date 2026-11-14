@@ -217,6 +217,37 @@ export class S3StorageAdapter implements StorageAdapter {
     }
   }
 
+  async downloadCandidate(
+    runId: string,
+    key: SnapshotKey,
+  ): Promise<Buffer | null> {
+    if (!this.s3Client) {
+      return null;
+    }
+    const { GetObjectCommand } = await this.getCommands();
+    const objectKey = `${this.prefix}/runs/${runId}/candidates/${this.getFilename(key)}`;
+    try {
+      const response = await this.getClient().send(
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: objectKey,
+        }),
+      );
+      const chunks: Uint8Array[] = [];
+      if (response.Body) {
+        for await (const chunk of response.Body) {
+          chunks.push(chunk);
+        }
+      }
+      return Buffer.concat(chunks);
+    } catch (err: unknown) {
+      if (isS3NotFound(err)) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
   async uploadBaseline(
     commitSha: string,
     key: SnapshotKey,

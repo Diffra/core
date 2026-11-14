@@ -86,11 +86,14 @@ export class GitHubNotifier implements NotifierAdapter {
     const sha = this.commitSha || report.git?.commit;
     if (sha && sha !== 'uncommitted') {
       try {
-        const state = report.summary.changed > 0 ? 'failure' : 'success';
+        const { changed, failed } = report.summary;
+        const state = changed > 0 || failed > 0 ? 'failure' : 'success';
         const description =
-          report.summary.changed > 0
-            ? `Found ${report.summary.changed} visual diffs.`
-            : 'All visual regressions passed.';
+          failed > 0
+            ? `${failed} target${failed === 1 ? '' : 's'} could not be captured.`
+            : changed > 0
+              ? `Found ${changed} visual diffs.`
+              : 'All visual regressions passed.';
 
         const checkUrl = `https://api.github.com/repos/${this.repo}/statuses/${sha}`;
         await fetch(checkUrl, {

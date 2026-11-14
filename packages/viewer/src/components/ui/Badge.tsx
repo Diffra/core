@@ -1,7 +1,13 @@
 import type React from 'react';
 
 export interface BadgeProps {
-  variant?: 'added' | 'changed' | 'removed' | 'unchanged' | 'default';
+  variant?:
+    | 'added'
+    | 'changed'
+    | 'removed'
+    | 'failed'
+    | 'unchanged'
+    | 'default';
   children: React.ReactNode;
   className?: string;
   showDot?: boolean;
@@ -18,6 +24,7 @@ export const Badge: React.FC<BadgeProps> = ({
       changed: 'bg-amber-100/90 text-amber-900',
       added: 'bg-emerald-100/90 text-emerald-900',
       removed: 'bg-rose-100/90 text-rose-900',
+      failed: 'bg-red-100/90 text-red-900',
       unchanged: 'bg-zinc-200/60 text-zinc-700',
       default: 'bg-zinc-200/60 text-zinc-700',
     }[variant] || 'bg-zinc-200/60 text-zinc-700';
@@ -27,6 +34,7 @@ export const Badge: React.FC<BadgeProps> = ({
       changed: 'bg-amber-600',
       added: 'bg-emerald-600',
       removed: 'bg-rose-600',
+      failed: 'bg-red-600',
       unchanged: 'bg-zinc-400',
       default: 'bg-zinc-400',
     }[variant] || 'bg-zinc-400';

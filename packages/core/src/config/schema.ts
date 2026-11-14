@@ -106,7 +106,9 @@ export const ProjectSchema: z.ZodType<Project> = z.object({
 
 export const RunnerConfigSchema = z.object({
   concurrency: z.number().int().positive().default(DEFAULT_CONCURRENCY),
+  captureAttempts: z.number().int().positive().optional(),
   baselineBranch: z.string().optional(),
+  baselineHistoryDepth: z.number().int().positive().optional(),
   shard: z.string().optional(),
   projects: z.array(ProjectSchema).optional(),
   launchOptions: z
@@ -149,12 +151,14 @@ export const StorageAdapterSchema = z.custom<StorageAdapter>(
   (val) => isRecord(val) && typeof val.uploadCandidate === 'function',
 );
 
+// The adapter schema must come first: plain-object schemas strip unknown keys,
+// so a custom adapter instance would otherwise parse as a local provider config.
 export const StorageConfigSchema = z.union([
+  StorageAdapterSchema,
   LocalStorageConfigSchema,
   S3StorageConfigSchema,
   GCSStorageConfigSchema,
   AzureStorageConfigSchema,
-  StorageAdapterSchema,
 ]);
 
 export const StorybookDriverConfigSchema = z.object({

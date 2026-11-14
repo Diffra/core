@@ -238,6 +238,7 @@ export async function run(): Promise<void> {
     core.info(`  Passed:    ${report.summary.unchanged}`);
     core.info(`  Added:     ${report.summary.added}`);
     core.info(`  Changed:   ${report.summary.changed}`);
+    core.info(`  Failed:    ${report.summary.failed}`);
     core.info(`  Report:    ${reportUrl}\n`);
 
     // 7. GitHub Actions Job Step Summary
@@ -263,6 +264,15 @@ export async function run(): Promise<void> {
           },
         );
       }
+    }
+
+    if (report.summary.failed > 0) {
+      core.setOutput('code', '1');
+      core.setOutput('status', 'failed');
+      core.setFailed(
+        `Diffra could not capture ${report.summary.failed} target(s). Baselines were not promoted.`,
+      );
+      return;
     }
 
     if (shouldExitOnceUploaded) {

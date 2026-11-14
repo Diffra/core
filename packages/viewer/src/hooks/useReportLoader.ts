@@ -44,7 +44,7 @@ export interface RawTestResult {
   name?: string;
   group?: string;
   component?: string;
-  status?: 'added' | 'changed' | 'removed' | 'unchanged';
+  status?: 'added' | 'changed' | 'removed' | 'failed' | 'unchanged';
   diffPercentage?: number;
   diffCount?: number;
   viewport?: {
@@ -91,6 +91,7 @@ export interface RawTestRunReport {
     changed?: number;
     added?: number;
     removed?: number;
+    failed?: number;
     unchanged?: number;
   };
   results?: RawTestResult[];
@@ -108,6 +109,7 @@ function normalizeReport(rawInput: unknown): TestRunReport {
         changed: 0,
         added: 0,
         removed: 0,
+        failed: 0,
         unchanged: 0,
       },
       results: [],
@@ -126,6 +128,7 @@ function normalizeReport(rawInput: unknown): TestRunReport {
     changed: raw.summary?.changed ?? 0,
     added: raw.summary?.added ?? 0,
     removed: raw.summary?.removed ?? 0,
+    failed: raw.summary?.failed ?? 0,
     unchanged: raw.summary?.unchanged ?? 0,
   };
 

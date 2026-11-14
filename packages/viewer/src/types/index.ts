@@ -15,7 +15,7 @@ export interface TestResult {
   id: string;
   name: string;
   component: string;
-  status: 'added' | 'changed' | 'removed' | 'unchanged';
+  status: 'added' | 'changed' | 'removed' | 'failed' | 'unchanged';
   diffPercentage: number;
   diffCount: number;
   viewport: Viewport;
@@ -30,6 +30,7 @@ export interface ReportSummary {
   changed: number;
   added: number;
   removed: number;
+  failed: number;
   unchanged: number;
 }
 
@@ -54,5 +55,6 @@ export type FilterStatus =
   | 'changed'
   | 'added'
   | 'removed'
+  | 'failed'
   | 'unchanged';
 export type ZoomLevel = '50%' | '75%' | '100%' | '150%' | '200%' | 'fit';

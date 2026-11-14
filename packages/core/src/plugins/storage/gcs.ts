@@ -145,6 +145,27 @@ export class GCSStorageAdapter implements StorageAdapter {
     }
   }
 
+  async downloadCandidate(
+    runId: string,
+    key: SnapshotKey,
+  ): Promise<Buffer | null> {
+    if (!this.gcsStorage) {
+      return null;
+    }
+    const file = this.getClient()
+      .bucket(this.bucket)
+      .file(`${this.prefix}/runs/${runId}/candidates/${this.getFilename(key)}`);
+    try {
+      const [contents] = await file.download();
+      return contents;
+    } catch (err: unknown) {
+      if (isGCSNotFound(err)) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
   async uploadBaseline(
     commitSha: string,
     key: SnapshotKey,

@@ -1,14 +1,20 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createBaselineResolver } from './baselines.js';
 import {
+  type CaptureFailure,
   type CaptureResult,
   type CaptureTask,
-  captureTargets,
+  runCaptures,
 } from './capture/screenshot-runner.js';
 import { loadConfig } from './config/loader.js';
 import { resolveDrivers } from './drivers/index.js';
-import { getGitInfo } from './git/baseline.js';
+import {
+  DEFAULT_BASELINE_HISTORY_DEPTH,
+  getBaselineHistory,
+  getGitInfo,
+} from './git/baseline.js';
 import { resolveDiffEngine } from './plugins/diff/index.js';
 import { resolveNotifiers } from './plugins/notifiers/index.js';
 import { PluginRunner } from './plugins/runner.js';
@@ -24,6 +30,8 @@ import type {
   VisualTestResult,
 } from './types/index.js';
 import { normalizeViewport } from './utils/viewport.js';
+
+const URL_SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
 
 export * from './config/index.js';
 export * from './drivers/index.js';
@@ -206,13 +214,17 @@ export async function runVisualRegression(
 
   // 3. Capture Candidate Screenshots
   let rawCaptures: CaptureResult[] = [];
+  let captureFailures: CaptureFailure[] = [];
   try {
-    rawCaptures = await captureTargets(tasks, undefined, {
+    const outcome = await runCaptures(tasks, undefined, {
+      attempts: config.runner?.captureAttempts,
       concurrency: config.runner?.concurrency ?? DEFAULT_CONCURRENCY,
       delay: config.snapshot?.delay ?? DEFAULT_DELAY_MS,
       pauseAnimationAtEnd: config.snapshot?.pauseAnimationAtEnd ?? true,
       cwd,
     });
+    rawCaptures = outcome.results;
+    captureFailures = outcome.failures;
   } finally {
     for (const driver of drivers) {
       if (driver.teardown) {
@@ -237,6 +249,28 @@ export async function runVisualRegression(
 
   // 4. Compare with Baseline Screenshots (CAS & Fast-Path Matching)
   const testResults: VisualTestResult[] = [];
+  const baselines = createBaselineResolver(
+    storage,
+    await getBaselineHistory(
+      gitInfo.baselineCommit,
+      config.runner?.baselineHistoryDepth ?? DEFAULT_BASELINE_HISTORY_DEPTH,
+      cwd,
+    ),
+  );
+
+  for (const failure of captureFailures) {
+    testResults.push({
+      id: failure.target.id,
+      name: failure.target.name,
+      group: failure.target.group || 'General',
+      viewport: failure.viewport,
+      browser: failure.project?.browser || failure.project?.name || 'chromium',
+      status: 'failed',
+      candidate: {},
+      error: failure.error,
+      metadata: failure.target.metadata,
+    });
+  }
 
   for (const [i, capture] of captures.entries()) {
     const { target, viewport, project, buffer } = capture;
@@ -267,10 +301,7 @@ export async function runVisualRegression(
     );
 
     // Fetch baseline
-    const baselineBuffer = await storage.downloadBaseline(
-      gitInfo.baselineCommit,
-      snapshotKey,
-    );
+    const baselineBuffer = await baselines.find(snapshotKey);
 
     if (!baselineBuffer) {
       testResults.push({
@@ -374,6 +405,7 @@ export async function runVisualRegression(
   const changedCount = testResults.filter((r) => r.status === 'changed').length;
   const addedCount = testResults.filter((r) => r.status === 'added').length;
   const removedCount = testResults.filter((r) => r.status === 'removed').length;
+  const failedCount = testResults.filter((r) => r.status === 'failed').length;
 
   const summary = {
     total: testResults.length,
@@ -381,6 +413,7 @@ export async function runVisualRegression(
     changed: changedCount,
     added: addedCount,
     removed: removedCount,
+    failed: failedCount,
     unchanged: unchangedCount,
   };
 
@@ -399,7 +432,11 @@ export async function runVisualRegression(
   };
 
   const reportJsonPath = await storage.saveReport(report);
-  await saveReportManifest(report, reportJsonPath);
+  // Adapters for remote stores return a URL, which is not a place the local
+  // report manifest can be written next to.
+  if (!URL_SCHEME_PATTERN.test(reportJsonPath)) {
+    await saveReportManifest(report, reportJsonPath);
+  }
 
   // 6. Run Notifiers & Plugin Completion Hooks
   for (const notifier of notifiers) {
@@ -429,7 +466,7 @@ export async function approveBaselines(
     runId?: string;
     report?: TestRunReport;
   } = {},
-): Promise<{ count: number }> {
+): Promise<{ count: number; failed: number }> {
   const cwd = options.cwd || process.cwd();
   const config = await loadConfig(cwd, options.config, options.configFile);
   const baselineBranch = config.runner?.baselineBranch;
@@ -474,29 +511,29 @@ export async function approveBaselines(
   }
 
   let approvedCount = 0;
+  let failedCount = 0;
   for (const res of report.results) {
-    const candidatePath = res.candidate?.path;
-    if (candidatePath) {
-      try {
-        const candidateBuf = await fs.readFile(candidatePath);
-        await storage.uploadBaseline(
-          gitInfo.commit,
-          {
-            targetId: res.id,
-            viewport: res.viewport,
-            browser: res.browser,
-          },
-          candidateBuf,
-        );
-        approvedCount++;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn(
-          `[diffra] Could not approve baseline for ${res.id}: ${msg}`,
-        );
+    // A failed capture produced no image, so there is nothing to promote.
+    if (res.status === 'failed') continue;
+
+    const key = {
+      targetId: res.id,
+      viewport: res.viewport,
+      browser: res.browser,
+    };
+    try {
+      const candidate = await storage.downloadCandidate(report.runId, key);
+      if (!candidate) {
+        throw new Error(`no candidate image stored for run ${report.runId}`);
       }
+      await storage.uploadBaseline(gitInfo.commit, key, candidate);
+      approvedCount++;
+    } catch (err) {
+      failedCount++;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[diffra] Could not approve baseline for ${res.id}: ${msg}`);
     }
   }
 
-  return { count: approvedCount };
+  return { count: approvedCount, failed: failedCount };
 }

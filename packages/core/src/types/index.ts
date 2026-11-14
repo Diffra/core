@@ -217,8 +217,14 @@ export interface RunnerConfig {
   /** Number of parallel browser workers (default: 4) */
   concurrency?: number;
 
+  /** Capture attempts per target before it is reported as failed (default: 2) */
+  captureAttempts?: number;
+
   /** Target Git branch for merge-base baseline discovery (default: 'origin/main') */
   baselineBranch?: string;
+
+  /** How many first-parent commits to search for a stored baseline (default: 10) */
+  baselineHistoryDepth?: number;
 
   /** CI shard coordinate (e.g. "1/4") */
   shard?: string;
@@ -282,6 +288,8 @@ export interface StorageAdapter {
     buffer: Buffer,
   ): Promise<string>;
   uploadDiff(runId: string, key: SnapshotKey, buffer: Buffer): Promise<string>;
+  /** Reads back a candidate previously stored by uploadCandidate for a run. */
+  downloadCandidate(runId: string, key: SnapshotKey): Promise<Buffer | null>;
   downloadBaseline(commit: string, key: SnapshotKey): Promise<Buffer | null>;
   uploadBaseline(
     commit: string,
@@ -298,7 +306,12 @@ export interface StorageAdapter {
 // 5. Reporters & Results Domain
 // ============================================================================
 
-export type SnapshotStatus = 'unchanged' | 'changed' | 'added' | 'removed';
+export type SnapshotStatus =
+  | 'unchanged'
+  | 'changed'
+  | 'added'
+  | 'removed'
+  | 'failed';
 
 export interface ImageArtifact {
   path?: string;
@@ -317,6 +330,8 @@ export interface VisualTestResult {
   baseline?: ImageArtifact;
   candidate: ImageArtifact;
   diffImage?: ImageArtifact;
+  /** Why the snapshot could not be produced, set when status is failed. */
+  error?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -326,6 +341,7 @@ export interface TestRunSummary {
   changed: number;
   added: number;
   removed: number;
+  failed: number;
   unchanged: number;
 }
 

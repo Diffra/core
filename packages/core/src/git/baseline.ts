@@ -244,3 +244,24 @@ export async function getGitInfo(
     repositoryUrl,
   };
 }
+
+/** How many first-parent commits to search for baselines by default. */
+export const DEFAULT_BASELINE_HISTORY_DEPTH = 10;
+
+/**
+ * Lists the commit followed by its first-parent ancestors, newest first.
+ * A baseline is only stored for commits that ran visual tests, so lookups
+ * walk this list until one of them has a stored baseline.
+ */
+export async function getBaselineHistory(
+  commit: string,
+  depth = DEFAULT_BASELINE_HISTORY_DEPTH,
+  cwd = process.cwd(),
+): Promise<string[]> {
+  const raw = await runGit(
+    ['rev-list', '--first-parent', `--max-count=${Math.max(1, depth)}`, commit],
+    cwd,
+  );
+  const commits = raw.split('\n').filter(Boolean);
+  return commits.length > 0 ? commits : [commit];
+}

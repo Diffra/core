@@ -62,6 +62,7 @@ export async function mergeReports(
   const changedCount = allResults.filter((r) => r.status === 'changed').length;
   const addedCount = allResults.filter((r) => r.status === 'added').length;
   const removedCount = allResults.filter((r) => r.status === 'removed').length;
+  const failedCount = allResults.filter((r) => r.status === 'failed').length;
 
   const summary = {
     total: allResults.length,
@@ -69,6 +70,7 @@ export async function mergeReports(
     changed: changedCount,
     added: addedCount,
     removed: removedCount,
+    failed: failedCount,
     unchanged: unchangedCount,
   };
 

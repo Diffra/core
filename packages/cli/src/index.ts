@@ -239,10 +239,26 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           `  ${colors.red('●')} Removed:   ${colors.bold(report.summary.removed)}`,
         );
         console.log(
+          `  ${colors.red('●')} Failed:    ${colors.bold(report.summary.failed)}`,
+        );
+        console.log(
           `  ${colors.gray('●')} Passed:    ${colors.bold(report.summary.passed ?? report.summary.unchanged)}`,
         );
         console.log(`  ${colors.bold('Total:')}      ${report.summary.total}`);
         console.log('');
+
+        if (report.summary.failed > 0) {
+          console.log(colors.red(colors.bold('Failed Targets:')));
+          for (const item of report.results.filter(
+            (r) => r.status === 'failed',
+          )) {
+            const groupName = item.group || 'Component';
+            console.log(
+              `  ${colors.red('×')} ${colors.bold(groupName)} / ${item.name} ${colors.gray(item.error ?? '')}`,
+            );
+          }
+          console.log('');
+        }
 
         if (report.summary.changed > 0) {
           console.log(colors.yellow(colors.bold('Changed Targets:')));
@@ -300,6 +316,9 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
 
         if (values.json) {
           console.log(JSON.stringify(report, null, 2));
+          if (report.summary.failed > 0) {
+            return 1;
+          }
           if (
             report.summary.changed > 0 &&
             !values['pass-on-changes'] &&
@@ -308,6 +327,17 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
             return 1;
           }
           return 0;
+        }
+
+        if (report.summary.failed > 0) {
+          console.log(
+            colors.red(
+              colors.bold(
+                `Visual regression test failed: ${report.summary.failed} target(s) could not be captured.`,
+              ),
+            ),
+          );
+          return 1;
         }
 
         if (

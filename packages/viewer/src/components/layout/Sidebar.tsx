@@ -25,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ searchInputRef }) => {
     { id: 'all', label: 'All' },
     { id: 'changed', label: 'Changed' },
     { id: 'added', label: 'Added' },
+    { id: 'failed', label: 'Failed' },
     { id: 'unchanged', label: 'Passed' },
   ];
 
