@@ -2,7 +2,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { BUNDLE_INDEX_FILE } from '@diffra/core';
 
-/** Name the documented upload step gives the review bundle artifact. */
+/** Name of the workflow artifact that holds the review bundle. */
 export const REVIEW_ARTIFACT_NAME = 'diffra-report';
 
 /** The page of the current workflow run, where its artifacts are listed. */
@@ -18,17 +18,20 @@ export function workflowRunUrl(
 
 /**
  * Picks the address reviewers are sent to: the published copy when
- * reportBaseUrl is configured, then the workflow run that holds the uploaded
- * bundle, and finally the local file (which only means something on the runner).
+ * reportBaseUrl is configured, then the uploaded artifact, then the workflow
+ * run that lists artifacts, and finally the local file (which only means
+ * something on the runner).
  */
 export function chooseReviewLink(options: {
   hosted?: string;
+  artifact?: string;
   workflowRun?: string;
   reviewDir: string;
 }): string {
-  const { hosted, workflowRun, reviewDir } = options;
+  const { hosted, artifact, workflowRun, reviewDir } = options;
   return (
     hosted ??
+    artifact ??
     workflowRun ??
     pathToFileURL(path.join(reviewDir, BUNDLE_INDEX_FILE)).href
   );

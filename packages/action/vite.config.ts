@@ -65,6 +65,29 @@ function shipPlaywrightFiles(): Plugin {
   };
 }
 
+/**
+ * Stream libraries import browser polyfills of Node modules by path, such as
+ * `process/` or `string_decoder/lib/string_decoder.js`, so they can also run
+ * in a browser. In Node the built-in module is the same thing, and the
+ * polyfill path would otherwise be left as an import the bundle cannot
+ * satisfy. Real built-in subpaths such as `fs/promises` are untouched.
+ */
+function nodeBuiltinsInsteadOfPolyfills(): Plugin {
+  const builtins = new Set(builtinModules);
+  return {
+    name: 'diffra-node-builtins',
+    enforce: 'pre',
+    resolveId(source) {
+      if (source.startsWith('node:') || builtins.has(source)) return null;
+      const [name] = source.split('/');
+      if (name && source !== name && builtins.has(name)) {
+        return { id: `node:${name}`, external: true };
+      }
+      return null;
+    },
+  };
+}
+
 // An ES module has no CommonJS globals, which bundled dependencies expect.
 // __dirname points into the shipped Playwright folder (see above).
 const COMMONJS_SHIM = [
@@ -77,7 +100,7 @@ const COMMONJS_SHIM = [
 ].join(' ');
 
 export default defineConfig({
-  plugins: [shipPlaywrightFiles()],
+  plugins: [nodeBuiltinsInsteadOfPolyfills(), shipPlaywrightFiles()],
   build: {
     ssr: path.resolve(import.meta.dirname, 'src/index.ts'),
     outDir: OUT_DIR,

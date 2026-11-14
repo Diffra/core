@@ -41,7 +41,7 @@ Because `url` is relative, moving or publishing the bundle directory never break
 The link posted on a pull request depends on where the bundle is published:
 
 1. **Hosted**: if `reportBaseUrl` is set (config, the `reportBaseUrl` action input, or `DIFFRA_REPORT_BASE_URL`), the link is `<reportBaseUrl>/runs/<runId>/`. `reportBaseUrl` is the public URL of the output directory, for example a GitHub Pages site, a public bucket or a CDN.
-2. **Workflow run**: in GitHub Actions without a hosted location, the link is the workflow run page. Upload the bundle there with `actions/upload-artifact` (the action's `reportDir` output is the path), then download, unzip, and open `index.html`.
+2. **Workflow artifact**: in GitHub Actions without a hosted location, the action uploads the bundle as the `diffra-report` artifact and links to it. Download, unzip, and open `index.html`. If the upload is disabled or fails, the link is the workflow run page.
 3. **Local**: otherwise the link is the `file://` path of `index.html`.
 
 ---

@@ -48,6 +48,10 @@ inputs:
     description: 'Working directory for projects in a monorepo'
     required: false
     default: '.'
+  uploadReport:
+    description: "Upload the review bundle as the 'diffra-report' workflow artifact when no reportBaseUrl is set"
+    required: false
+    default: 'true'
   reportBaseUrl:
     description: 'Public URL under which the .diffra output directory is published. Review links become <reportBaseUrl>/runs/<runId>/'
     required: false

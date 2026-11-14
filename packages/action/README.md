@@ -75,7 +75,8 @@ jobs:
 | `diffThreshold` | No | `'0.063'` | Perceptual sensitivity threshold |
 | `concurrency` | No | `'4'` | Number of parallel browser workers |
 | `workingDir` | No | `'.'` | Working directory for monorepo packages |
-| `reportBaseUrl` | No | `undefined` | Public URL under which the `.diffra` output directory is published. Review links become `<reportBaseUrl>/runs/<runId>/`; without it, links point at the workflow run, so upload `reportDir` as an artifact |
+| `reportBaseUrl` | No | `undefined` | Public URL under which the `.diffra` output directory is published. Review links become `<reportBaseUrl>/runs/<runId>/`; without it, the bundle is uploaded as the `diffra-report` workflow artifact and links point at it |
+| `uploadReport` | No | `'true'` | Set to `false` to skip the artifact upload |
 
 Baselines must outlive the job, so CI runs need cloud storage. Select it with environment variables:
 

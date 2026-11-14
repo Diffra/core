@@ -16,6 +16,7 @@ import {
   stopPreviewServer,
 } from './preview-server.js';
 import { chooseReviewLink, workflowRunUrl } from './review.js';
+import { uploadReviewBundle } from './review-artifact.js';
 
 export {
   createPreviewHandler,
@@ -239,8 +240,17 @@ export async function run(): Promise<void> {
       },
     });
 
+    // Without a hosted copy, attach the bundle to the workflow run so the link
+    // in the pull request leads somewhere real.
+    const hosted = report.links?.review;
+    const artifact =
+      !hosted && core.getInput('uploadReport') !== 'false'
+        ? await uploadReviewBundle(report.reviewDir, (m) => core.warning(m))
+        : undefined;
+
     const reportUrl = chooseReviewLink({
-      hosted: report.links?.review,
+      hosted,
+      artifact,
       workflowRun: workflowRunUrl(),
       reviewDir: report.reviewDir,
     });

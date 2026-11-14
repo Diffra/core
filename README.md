@@ -44,7 +44,6 @@ jobs:
         run: pnpm build-storybook
 
       - name: Run Diffra Action
-        id: diffra
         uses: Diffra/core@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -56,13 +55,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           DIFFRA_STORAGE_BUCKET: 'my-team-visual-baselines'
           DIFFRA_STORAGE_REGION: 'us-east-1'
-
-      - name: Upload review bundle
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: diffra-report
-          path: ${{ steps.diffra.outputs.reportDir }}
 ```
 
 ### How the automated pull request workflow works

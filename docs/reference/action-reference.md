@@ -31,7 +31,8 @@ Schema and configuration options reference for the official Diffra GitHub Action
 | `autoAcceptChanges`| No | `'default-branch'` | Automatically promote candidate screenshots as the new baseline on the default branch, or on a named branch. |
 | `exitOnceUploaded` | No | `false` | Exit with code `0` immediately after snapshots are saved. |
 | `workingDir` | No | `.` | Working directory for monorepo setups. |
-| `reportBaseUrl` | No | `undefined` | Public URL under which the `.diffra` output directory is published. Review links become `<reportBaseUrl>/runs/<runId>/`. Without it, links point at the workflow run. |
+| `uploadReport` | No | `'true'` | Upload the review bundle as the `diffra-report` workflow artifact when no `reportBaseUrl` is set. |
+| `reportBaseUrl` | No | `undefined` | Public URL under which the `.diffra` output directory is published. Review links become `<reportBaseUrl>/runs/<runId>/`. Without it, links point at the uploaded artifact. |
 | `debug` | No | `false` | Log the resolved configuration and extra diagnostics. |
 
 ---

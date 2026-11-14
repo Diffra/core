@@ -6,22 +6,9 @@ Every run writes a review bundle, a static directory that is a complete review s
 
 ## Option 1: Workflow artifact (no infrastructure)
 
-Give the Diffra step an `id` and upload its `reportDir` output as an artifact. Without a `reportBaseUrl`, the pull request links to the workflow run, where the artifact is listed.
+With no `reportBaseUrl` set, the action uploads the bundle as the `diffra-report` workflow artifact and the pull request links to it. Download the artifact, unzip it, and open `index.html`. It works from disk with no server.
 
-```yaml
-- name: Run Diffra Action
-  id: diffra
-  uses: Diffra/core@v1
-
-- name: Upload review bundle
-  if: always()
-  uses: actions/upload-artifact@v7
-  with:
-    name: diffra-report
-    path: ${{ steps.diffra.outputs.reportDir }}
-```
-
-Download the artifact, unzip it, and open `index.html`. It works from disk with no server.
+Set the `uploadReport` input to `false` to turn the upload off. If an upload fails, the run still passes and the pull request links to the workflow run instead.
 
 ---
 
