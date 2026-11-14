@@ -10,7 +10,8 @@ export * from './clustering.js';
 export * from './png.js';
 export * from './types.js';
 
-const DEFAULT_THRESHOLD = 0.063;
+/** Perceptual threshold used when none is given. */
+export const DEFAULT_THRESHOLD = 0.063;
 
 /** Environment variable naming a native binding file, for custom builds. */
 export const NATIVE_BINDING_ENV = 'DIFFRA_NATIVE_BINDING';

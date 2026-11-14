@@ -1,3 +1,4 @@
+import { DEFAULT_THRESHOLD } from '@diffra/engine';
 import { z } from 'zod';
 import type {
   DiffEngineAdapter,
@@ -12,7 +13,7 @@ import type {
   VisualTarget,
 } from '../types/index.js';
 
-export const DEFAULT_DIFF_THRESHOLD = 0.063;
+export const DEFAULT_DIFF_THRESHOLD = DEFAULT_THRESHOLD;
 export const DEFAULT_DELAY_MS = 100;
 export const DEFAULT_CONCURRENCY = 4;
 export const DEFAULT_OUTPUT_DIR = '.diffra';

@@ -63,8 +63,7 @@ export function resolveStorageAdapter(
   return createLocalStorage({
     outputDir:
       ('outputDir' in storageConfig && storageConfig.outputDir) || '.diffra',
-    baselineDir:
-      ('dir' in storageConfig && storageConfig.dir) || '.diffra/baselines',
+    baselineDir: ('dir' in storageConfig && storageConfig.dir) || undefined,
     cwd,
   });
 }

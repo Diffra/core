@@ -20,6 +20,14 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 const FALLBACK_MIME_TYPE = 'application/octet-stream';
+
+/**
+ * Interface the servers listen on unless told otherwise. Review reports and
+ * build output are for the person running the command, so they are not
+ * exposed to the network by default. IPv4 is used because it listens reliably
+ * where IPv6 loopback is disabled, unlike `localhost`.
+ */
+export const DEFAULT_SERVER_HOST = '127.0.0.1';
 const DEFAULT_INDEX_FILE = 'index.html';
 
 export type RequestHandler = (
@@ -138,6 +146,7 @@ export async function startStaticServer(options: {
   root: string;
   indexFile?: string;
   port?: number;
+  host?: string;
 }): Promise<StaticServer> {
   const handler = createStaticHandler(options);
   const server = http.createServer(handler);
@@ -145,7 +154,9 @@ export async function startStaticServer(options: {
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
-    server.listen(requestedPort, () => resolve());
+    server.listen(requestedPort, options.host ?? DEFAULT_SERVER_HOST, () =>
+      resolve(),
+    );
   });
 
   const address = server.address() as AddressInfo | null;

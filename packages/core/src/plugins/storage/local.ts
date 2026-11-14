@@ -22,8 +22,8 @@ export class LocalFilesystemAdapter implements StorageAdapter {
   constructor(options: LocalStorageOptions = {}) {
     const cwd = options.cwd || process.cwd();
     const out = options.outputDir || '.diffra';
-    const base = options.baselineDir || '.diffra/baselines';
     this.outputDir = path.isAbsolute(out) ? out : path.resolve(cwd, out);
+    const base = options.baselineDir || path.join(this.outputDir, 'baselines');
     this.baselineDir = path.isAbsolute(base) ? base : path.resolve(cwd, base);
     this.blobsDir = path.join(this.outputDir, 'blobs');
   }

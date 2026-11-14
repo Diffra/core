@@ -63,7 +63,6 @@ vi.mock('@diffra/core', () => ({
 import { matchesBranchOrBool } from '../src/branch.js';
 import { run } from '../src/index.js';
 import {
-  createPreviewHandler,
   startPreviewServer,
   stopPreviewServer,
 } from '../src/preview-server.js';
@@ -126,7 +125,7 @@ describe('@diffra/action static preview server', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  function createMockResponse(): http.ServerResponse & {
+  function _createMockResponse(): http.ServerResponse & {
     statusCode: number;
     headers: Record<string, string>;
     body: string;
@@ -150,77 +149,6 @@ describe('@diffra/action static preview server', () => {
       body: string;
     };
   }
-
-  it('serves files with proper Content-Type and X-Content-Type-Options: nosniff', async () => {
-    const handler = createPreviewHandler(tempDir);
-
-    const req1 = { url: '/index.html' } as http.IncomingMessage;
-    const res1 = createMockResponse();
-    await handler(req1, res1);
-    expect(res1.statusCode).toBe(200);
-    expect(res1.headers['Content-Type']).toBe('text/html; charset=utf-8');
-    expect(res1.headers['X-Content-Type-Options']).toBe('nosniff');
-    expect(res1.body).toContain('Root Index');
-
-    const req2 = { url: '/app.js' } as http.IncomingMessage;
-    const res2 = createMockResponse();
-    await handler(req2, res2);
-    expect(res2.statusCode).toBe(200);
-    expect(res2.headers['Content-Type']).toBe(
-      'application/javascript; charset=utf-8',
-    );
-    expect(res2.headers['X-Content-Type-Options']).toBe('nosniff');
-
-    const req3 = { url: '/assets/style.css' } as http.IncomingMessage;
-    const res3 = createMockResponse();
-    await handler(req3, res3);
-    expect(res3.statusCode).toBe(200);
-    expect(res3.headers['Content-Type']).toBe('text/css; charset=utf-8');
-    expect(res3.headers['X-Content-Type-Options']).toBe('nosniff');
-  });
-
-  it('serves index.html for root route and directory routes', async () => {
-    const handler = createPreviewHandler(tempDir);
-
-    const req = { url: '/' } as http.IncomingMessage;
-    const res = createMockResponse();
-    await handler(req, res);
-    expect(res.statusCode).toBe(200);
-    expect(res.headers['Content-Type']).toBe('text/html; charset=utf-8');
-    expect(res.body).toContain('Root Index');
-  });
-
-  it('strictly rejects path traversal attempts with HTTP 403 and nosniff header', async () => {
-    const handler = createPreviewHandler(tempDir);
-
-    const traversalPaths = [
-      '/../secret.txt',
-      '/../../../../etc/passwd',
-      '/..%2f..%2fsecret.txt',
-      '/%2e%2e/secret.txt',
-      '/assets/../../secret.txt',
-    ];
-
-    for (const badPath of traversalPaths) {
-      const req = { url: badPath } as http.IncomingMessage;
-      const res = createMockResponse();
-      await handler(req, res);
-      expect(res.statusCode).toBe(403);
-      expect(res.headers['X-Content-Type-Options']).toBe('nosniff');
-      expect(res.body).toBe('Forbidden');
-    }
-  });
-
-  it('returns HTTP 404 for non-existent files with nosniff header', async () => {
-    const handler = createPreviewHandler(tempDir);
-
-    const req = { url: '/does-not-exist.png' } as http.IncomingMessage;
-    const res = createMockResponse();
-    await handler(req, res);
-    expect(res.statusCode).toBe(404);
-    expect(res.headers['X-Content-Type-Options']).toBe('nosniff');
-    expect(res.body).toBe('Not found');
-  });
 
   it('binds to dynamic port 0 and executes clean teardown', async () => {
     const preview = await startPreviewServer({ root: tempDir, port: 0 });

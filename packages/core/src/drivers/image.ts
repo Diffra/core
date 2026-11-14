@@ -76,6 +76,12 @@ export class ImageDriver implements VisualDriver {
     const targetDirs =
       rawDirs.length > 0 ? Array.from(new Set(rawDirs)) : ['screenshots'];
     const isMultiDir = targetDirs.length > 1;
+    // Folders that share a name need more than the name to stay distinct.
+    const folderNameCounts = new Map<string, number>();
+    for (const dirItem of targetDirs) {
+      const name = path.basename(path.resolve(cwd || process.cwd(), dirItem));
+      folderNameCounts.set(name, (folderNameCounts.get(name) ?? 0) + 1);
+    }
     const validate = this.options?.validateFormat !== false;
     const targets: VisualTarget[] = [];
 
@@ -123,12 +129,19 @@ export class ImageDriver implements VisualDriver {
               groupName = dirName === '.' ? rootName : `${rootName}/${dirName}`;
             }
 
-            const prefix = isMultiDir ? `${path.basename(imagesDir)}_` : '';
-            const id =
-              `image--${prefix}${relPath.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase()}`.replace(
-                /_{2,}/g,
-                '_',
-              );
+            // Directories that share a name (projectA/screenshots and
+            // projectB/screenshots) must not produce the same ids, or one image
+            // would replace the other's baseline. Only those use the path relative
+            // to the project, which is identical on every machine.
+            const folderName = path.basename(imagesDir);
+            const dirKey =
+              (folderNameCounts.get(folderName) ?? 0) > 1
+                ? path.relative(cwd || process.cwd(), imagesDir) || folderName
+                : folderName;
+            const prefix = isMultiDir ? `${dirKey}_` : '';
+            const id = `image--${`${prefix}${relPath}`
+              .replace(/[^a-zA-Z0-9_-]/g, '_')
+              .toLowerCase()}`.replace(/_{2,}/g, '_');
 
             targets.push({
               id,

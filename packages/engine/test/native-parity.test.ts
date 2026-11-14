@@ -115,8 +115,8 @@ const scenarios: Array<{
   },
   {
     name: 'semi-transparent pixels',
-    baseline: canvas((x, y) => [200, 100, 50, x % 2 ? 255 : 128]),
-    candidate: canvas((x, y) => [200, 100, 50, x % 2 ? 255 : 90]),
+    baseline: canvas((x, _y) => [200, 100, 50, x % 2 ? 255 : 128]),
+    candidate: canvas((x, _y) => [200, 100, 50, x % 2 ? 255 : 90]),
   },
   {
     name: 'a stricter threshold',
@@ -129,10 +129,10 @@ const scenarios: Array<{
   },
   {
     name: 'anti-aliasing counted as change',
-    baseline: canvas((x, y) =>
+    baseline: canvas((x, _y) =>
       x < 32 ? [0, 0, 0, 255] : [255, 255, 255, 255],
     ),
-    candidate: canvas((x, y) =>
+    candidate: canvas((x, _y) =>
       x < 31
         ? [0, 0, 0, 255]
         : x === 31

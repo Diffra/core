@@ -81,9 +81,8 @@
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "clean": "tsc -b --clean && rm -rf dist",
-    "typecheck:tests": "tsc -p tsconfig.test.json"
+    "typecheck": "tsc -p tsconfig.test.json",
+    "clean": "tsc -b --clean && rm -rf dist"
   },
   "dependencies": {
     "@diffra/engine": "workspace:*",

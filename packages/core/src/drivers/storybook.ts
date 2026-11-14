@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
-import http from 'node:http';
-import type { AddressInfo } from 'node:net';
+import type http from 'node:http';
 import path from 'node:path';
+import { type StaticServer, startStaticServer } from '../server/static.js';
 import type {
   DriverContext,
   TargetParameters,
@@ -34,8 +34,7 @@ export class StorybookDriver implements VisualDriver {
   name = 'storybook';
   private url?: string;
   private readonly buildDir?: string;
-  private server?: http.Server;
-  private serverUrl?: string;
+  private staticServer?: StaticServer;
 
   constructor(options?: { url?: string; buildDir?: string }) {
     this.url = options?.url;
@@ -43,120 +42,20 @@ export class StorybookDriver implements VisualDriver {
   }
 
   public getServer(): http.Server | undefined {
-    return this.server;
+    return this.staticServer?.server;
   }
 
   async startStaticServer(buildDir: string): Promise<string> {
-    if (this.server && this.serverUrl) {
-      return this.serverUrl;
+    if (this.staticServer) {
+      return this.staticServer.url;
     }
-
-    const resolvedStaticDir = path.resolve(buildDir);
-
-    const server = http.createServer(async (req, res) => {
-      const rawUrl = req.url || '/';
-      let [rawPath = '/'] = rawUrl.split('?');
-      try {
-        rawPath = decodeURIComponent(rawPath);
-      } catch {}
-      let reqPath = rawPath;
-      if (reqPath === '/' || reqPath === '') {
-        reqPath = '/index.html';
-      }
-
-      const filePath = path.resolve(resolvedStaticDir, `.${reqPath}`);
-
-      // Path traversal boundary validation per AGENTS.md Rule 6
-      if (
-        filePath !== resolvedStaticDir &&
-        !filePath.startsWith(resolvedStaticDir + path.sep)
-      ) {
-        res.writeHead(403, {
-          'Content-Type': 'text/plain',
-          'X-Content-Type-Options': 'nosniff',
-        });
-        res.end('Forbidden');
-        return;
-      }
-
-      try {
-        const stat = await fs.stat(filePath);
-        let targetFilePath = filePath;
-        if (stat.isDirectory()) {
-          targetFilePath = path.join(filePath, 'index.html');
-          const indexStat = await fs.stat(targetFilePath).catch(() => null);
-          if (!indexStat?.isFile()) {
-            res.writeHead(404, {
-              'Content-Type': 'text/plain',
-              'X-Content-Type-Options': 'nosniff',
-            });
-            res.end('Not Found');
-            return;
-          }
-        }
-
-        const ext = path.extname(targetFilePath).toLowerCase();
-        const mimeTypes: Record<string, string> = {
-          '.html': 'text/html; charset=utf-8',
-          '.js': 'application/javascript; charset=utf-8',
-          '.mjs': 'application/javascript; charset=utf-8',
-          '.css': 'text/css; charset=utf-8',
-          '.json': 'application/json; charset=utf-8',
-          '.png': 'image/png',
-          '.jpg': 'image/jpeg',
-          '.jpeg': 'image/jpeg',
-          '.svg': 'image/svg+xml',
-          '.woff': 'font/woff',
-          '.woff2': 'font/woff2',
-          '.ico': 'image/x-icon',
-          '.txt': 'text/plain; charset=utf-8',
-        };
-
-        const contentType = mimeTypes[ext] || 'application/octet-stream';
-        const content = await fs.readFile(targetFilePath);
-
-        res.writeHead(200, {
-          'Content-Type': contentType,
-          'X-Content-Type-Options': 'nosniff',
-          'Content-Length': content.length,
-        });
-        res.end(content);
-      } catch {
-        res.writeHead(404, {
-          'Content-Type': 'text/plain',
-          'X-Content-Type-Options': 'nosniff',
-        });
-        res.end('Not Found');
-      }
-    });
-
-    await new Promise<void>((resolve, reject) => {
-      server.listen(0, '127.0.0.1', () => resolve());
-      server.on('error', reject);
-    });
-
-    const addr = server.address() as AddressInfo;
-    const host =
-      addr.family === 'IPv6'
-        ? `[${addr.address}]`
-        : addr.address === '0.0.0.0' || addr.address === '::'
-          ? '127.0.0.1'
-          : addr.address;
-    const allocatedUrl = `http://${host}:${addr.port}`;
-
-    this.server = server;
-    this.serverUrl = allocatedUrl;
-    return allocatedUrl;
+    this.staticServer = await startStaticServer({ root: buildDir });
+    return this.staticServer.url;
   }
 
   async teardown(_context?: DriverContext): Promise<void> {
-    if (this.server) {
-      await new Promise<void>((resolve) => {
-        this.server?.close(() => resolve());
-      });
-      this.server = undefined;
-      this.serverUrl = undefined;
-    }
+    await this.staticServer?.stop();
+    this.staticServer = undefined;
   }
 
   async discover(context: DriverContext): Promise<VisualTarget[]> {
