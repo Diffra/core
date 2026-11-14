@@ -1,29 +1,40 @@
 # Keyboard shortcuts and navigation
 
-Diffra's review interface is built for high-speed keyboard-driven triage.
+The review interface is built for keyboard-driven triage. Press `?` in the interface to see this list.
 
 ---
 
-## Keyboard shortcuts table
+## Navigate
 
-| Key | Action | Description |
-| :--- | :--- | :--- |
-| `1` | Mode: Movement | Switch to pixel movement neon green highlight mode. |
-| `2` | Mode: Split view | Switch to side-by-side synchronized view. |
-| `3` | Mode: Swipe slider | Switch to interactive horizontal swipe slider. |
-| `4` | Mode: Onion skin | Switch to opacity crossfade blending mode. |
-| `5` | Mode: Diff mask | Switch to perceptual delta-E diff mask. |
-| `0` / `Escape` | Overview grid | Return to full gallery thumbnail overview. |
-| `Left Arrow` / `k` | Previous target | Navigate to previous visual target in sidebar list. |
-| `Right Arrow` / `j` | Next target | Navigate to next visual target in sidebar list. |
-| `b` | Toggle Blink | Toggle 2Hz rapid alternating blink in Diff mask mode. |
-| `/` | Focus search | Focus sidebar search filter input. |
-| `[` / `]` | Slider step | Step swipe slider or onion skin opacity left/right. |
+| Key | Action |
+| :--- | :--- |
+| `j` or `Down` | Next snapshot, in the order shown on the home page. |
+| `k` or `Up` | Previous snapshot. |
+| `o` or `Escape` | Back to the overview. |
+| `/` | Focus the search on the home page, or open the snapshot switcher. `Escape` leaves it. |
+
+## Compare
+
+| Key | Action |
+| :--- | :--- |
+| `1` | Diff. |
+| `2` | Side by side. |
+| `3` | Slide. |
+| `4` | Fade. |
+| `b` | Blink between baseline and candidate. Switches to Fade if needed. |
+| `[` and `]` | Move the slide divider or the fade slider by 5%. |
+| `n` and `p` | Next and previous changed area. |
+
+## View
+
+| Key | Action |
+| :--- | :--- |
+| `+` and `-` | Zoom in and out. |
+| `f` | Fit to width. |
+| `?` | Show the shortcut list. |
 
 ---
 
-## Cross-branch navigation
+## Sharing
 
-When inspecting a pull request report, the stage bar displays links for both branches:
-* Clicking the **Baseline commit** navigates directly to the target branch baseline report (`../../branches/<baselineBranch>/latest/report.json`).
-* Clicking the **Candidate branch** navigates to the latest report for the current feature branch.
+The address bar always describes what you are looking at: `#/story/<id>/<mode>`. The `Copy link` button copies it, so a reviewer who opens the link sees the same snapshot in the same mode.

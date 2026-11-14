@@ -1,5 +1,6 @@
 import { Loader2 } from 'lucide-react';
 import type React from 'react';
+import { ICON_CLASS, ICON_STROKE } from '../../tokens/icon.js';
 
 export interface LoadingStateProps {
   remoteUrl?: string | null;
@@ -7,22 +8,22 @@ export interface LoadingStateProps {
 
 export const LoadingState: React.FC<LoadingStateProps> = ({ remoteUrl }) => {
   return (
-    <div className="w-screen h-screen flex flex-col items-center justify-center bg-zinc-50 text-zinc-800 select-none text-ui-base p-6">
-      <div className="flex flex-col items-center gap-3 p-8 bg-white border border-zinc-200/80 rounded-2xl max-w-md w-full text-center">
-        <Loader2 className="w-6 h-6 text-zinc-900 animate-spin" />
-        <h2 className="text-ui-heading font-medium text-zinc-900 m-0">
-          Loading Visual Regression Report
-        </h2>
-        {remoteUrl ? (
-          <p className="text-ui-base text-zinc-500 m-0 break-all">
-            Fetching report data from{' '}
-            <span className="font-medium text-zinc-700">{remoteUrl}</span>...
-          </p>
-        ) : (
-          <p className="text-ui-base text-zinc-500 m-0">
-            Initializing visual regression report...
-          </p>
-        )}
+    <div className="w-screen h-screen flex items-center justify-center bg-paper text-ink select-none p-6">
+      <div className="w-full max-w-md p-8 flex flex-col items-center gap-3 bg-wash rounded-3xl text-center">
+        <Loader2
+          className={`${ICON_CLASS} text-accent animate-spin`}
+          strokeWidth={ICON_STROKE}
+        />
+        <h2 className="m-0 text-ui-title text-ink">Loading report</h2>
+        <p className="m-0 text-ink-3 break-all">
+          {remoteUrl ? (
+            <>
+              Fetching <span className="text-ink-2">{remoteUrl}</span>
+            </>
+          ) : (
+            'Preparing report'
+          )}
+        </p>
       </div>
     </div>
   );

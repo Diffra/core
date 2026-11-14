@@ -1,28 +1,23 @@
 import { FileText } from 'lucide-react';
 import type React from 'react';
+import { ICON_CLASS, ICON_STROKE } from '../../tokens/icon.js';
 
 export const StandbyState: React.FC = () => {
   return (
-    <div className="w-screen h-screen flex flex-col items-center justify-center bg-zinc-50 text-zinc-800 select-none text-ui-base p-6">
-      <div className="flex flex-col items-center gap-4 p-8 bg-white border border-zinc-200/80 rounded-2xl max-w-lg w-full text-center">
-        <div className="w-10 h-10 rounded-full bg-zinc-100 text-zinc-900 flex items-center justify-center">
-          <FileText className="w-5 h-5" />
+    <div className="w-screen h-screen flex items-center justify-center bg-paper text-ink select-none p-6">
+      <div className="w-full max-w-lg p-8 flex flex-col items-center gap-6 bg-wash rounded-3xl text-center">
+        <div className="w-12 h-12 rounded-full bg-paper text-ink flex items-center justify-center">
+          <FileText className={ICON_CLASS} strokeWidth={ICON_STROKE} />
         </div>
-        <div>
-          <h2 className="text-ui-heading font-medium text-zinc-900 m-0">
-            Diffra Visual Report Viewer
-          </h2>
-          <p className="text-ui-base text-zinc-500 mt-1 mb-0">
-            No visual regression report is currently loaded.
-          </p>
+        <div className="flex flex-col gap-1">
+          <h2 className="m-0 text-ui-title text-ink">Diffra report viewer</h2>
+          <p className="m-0 text-ink-3">No report is loaded.</p>
         </div>
 
-        <div className="p-4 bg-zinc-50 rounded-xl text-left w-full text-ui-base text-zinc-700 border border-zinc-200/60">
-          <span className="font-medium text-zinc-900 block mb-1">
-            To view a report:
-          </span>
-          Pass the report JSON URL in the browser address bar:
-          <code className="block mt-2 p-2 bg-white rounded-lg border border-zinc-200/80 text-zinc-800 break-all font-sans text-ui-base">
+        <div className="w-full p-4 rounded-2xl bg-paper text-left text-ink-2">
+          <span className="block mb-2 text-ink">To view a report</span>
+          Pass the report JSON URL in the address bar:
+          <code className="block mt-2 p-3 bg-wash rounded-xl text-ink break-all">
             ?report=https://example.com/report.json
           </code>
         </div>

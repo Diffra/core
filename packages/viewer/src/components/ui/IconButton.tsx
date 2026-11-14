@@ -2,31 +2,39 @@ import type React from 'react';
 
 export interface IconButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  icon?: React.ReactNode;
+  icon: React.ReactNode;
+  /** Visible text. Without it the button is a round icon button. */
   label?: string;
-  shortcut?: string;
+  /** Marks a toggle that is switched on. */
   active?: boolean;
+  /** `outline` draws a hairline ring, for the one primary action in a row. */
+  variant?: 'ghost' | 'outline';
 }
 
 export const IconButton: React.FC<IconButtonProps> = ({
   icon,
   label,
   active = false,
+  variant = 'ghost',
   className = '',
   ...props
-}) => {
-  const activeClass = active
-    ? 'bg-white text-zinc-900 font-medium'
-    : 'bg-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 font-normal';
-
-  return (
-    <button
-      type="button"
-      className={`inline-flex items-center gap-2 border-none rounded-md px-3 py-1.5 text-ui-medium cursor-pointer transition-all duration-150 outline-none select-none ${activeClass} ${className}`}
-      {...props}
-    >
-      {icon}
-      {label ? <span>{label}</span> : null}
-    </button>
-  );
-};
+}) => (
+  <button
+    type="button"
+    className={`h-10 ${
+      label ? 'px-4 gap-2' : 'w-10 justify-center'
+    } inline-flex items-center rounded-full border-none cursor-pointer select-none transition-colors disabled:opacity-40 disabled:cursor-default ${
+      variant === 'outline'
+        ? 'outline outline-ink/15 outline-offset-[-1px]'
+        : ''
+    } ${
+      active
+        ? 'bg-ink text-paper'
+        : 'bg-transparent text-ink-2 hover:text-ink hover:bg-wash disabled:hover:bg-transparent disabled:hover:text-ink-2'
+    } ${className}`}
+    {...props}
+  >
+    {icon}
+    {label}
+  </button>
+);

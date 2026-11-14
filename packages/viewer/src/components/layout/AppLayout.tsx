@@ -1,22 +1,18 @@
 import type React from 'react';
-import { useRef } from 'react';
+import { useViewer } from '../../context/ViewerContext.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
-import { Stage } from '../stage/Stage.js';
-import { Header } from './Header.js';
-import { Sidebar } from './Sidebar.js';
+import { Detail } from '../detail/Detail.js';
+import { Home } from '../home/Home.js';
 
+/** Two screens: the home page for triage, and one snapshot full-bleed. */
 export const AppLayout: React.FC = () => {
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const { activeStory } = useViewer();
 
-  useKeyboardShortcuts(searchInputRef);
+  useKeyboardShortcuts();
 
   return (
-    <div className="flex flex-col w-screen h-screen bg-white text-zinc-900 overflow-hidden font-sans">
-      <Header />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar searchInputRef={searchInputRef} />
-        <Stage />
-      </div>
+    <div className="w-screen h-screen bg-paper text-ink overflow-hidden">
+      {activeStory ? <Detail /> : <Home />}
     </div>
   );
 };

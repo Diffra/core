@@ -1,63 +1,51 @@
 # Comparison inspection modes
 
-Diffra provides six synchronized comparison inspection modes to isolate every type of visual regression, from subtle subpixel font shifts to large layout changes.
+Four modes answer four different questions. All of them share one viewport: a checkerboard surface with one zoom (`Fit`, `100%`, `200%`, `400%`), scrolling for content larger than the surface, and labels inside the canvas. Zoom above `100%` renders pixels without smoothing.
 
 ---
 
-## 1. Pixel movement diff highlight (`Movement`) [Default]
+## Diff
 
-* **Icon**: `ScanEye`
+* **Icon**: `Diff`
 * **Shortcut**: `1`
-* **Best for**: Isolating shifted, resized, or repositioned UI elements.
+* **Question**: what changed?
 
-Highlights changed or shifted pixels in high-visibility neon green (`#00FF66`) overlaid against a desaturated monochrome candidate backdrop. This instantly draws the eye to geometry and layout shifts without color noise.
+Changed pixels are drawn in the accent color over a faded, desaturated copy of the candidate. This makes shifted, resized, or repositioned elements stand out without color noise. It is the default mode.
+
+When the browser cannot read pixels, for example when a report is opened from disk, the diff image made by the engine at test time is shown instead.
 
 ---
 
-## 2. Split view (`Split`)
+## Side by side
 
 * **Icon**: `Columns2`
 * **Shortcut**: `2`
-* **Best for**: Direct side-by-side comparison of baseline and candidate.
+* **Question**: how do the two differ?
 
-Renders baseline and candidate side-by-side with synchronized zoom and pan controls. When you pan or zoom in one pane, the second pane follows synchronously.
+The baseline and the candidate next to each other. Zoom and scroll are shared, so scrolling one pane scrolls the other.
 
 ---
 
-## 3. Swipe slider (`Swipe`)
+## Slide
 
-* **Icon**: `SlidersHorizontal`
+* **Icon**: `MoveHorizontal`
 * **Shortcut**: `3`
-* **Best for**: Inspecting padding, border radius, and alignment discrepancies.
+* **Question**: is this edge, spacing, or radius in the same place?
 
-Provides an interactive vertical divider line that you can drag left and right across the canvas, dynamically clipping between baseline and candidate images.
+A divider you drag across the image. The baseline is on the left and the candidate on the right. Use the left and right arrow keys, or `[` and `]`, to move it in steps.
 
 ---
 
-## 4. Onion skin (`Onion`)
+## Fade
 
-* **Icon**: `Layers`
+* **Icon**: `Blend`
 * **Shortcut**: `4`
-* **Best for**: Detecting subtle color tone shifts, opacity changes, and drop shadows.
+* **Question**: did a color, opacity, or shadow change?
 
-A continuous opacity crossfade slider from 0% (baseline) to 100% (candidate). Dragging the slider smoothly fades between the two screenshots.
-
----
-
-## 5. Diff mask and blink mode (`Mask`)
-
-* **Icon**: `SquareDashed`
-* **Shortcut**: `5` (Blink toggle: `B`)
-* **Best for**: Highlighting exact delta-E threshold violations and bounding boxes.
-
-Displays a high-contrast diff mask highlighting pixels that exceeded the perceptual color delta threshold, with optional red wireframe bounding boxes surrounding clustered changed regions. Pressing `B` toggles a 2Hz alternating blink mode between baseline and candidate.
+The candidate laid over the baseline. The slider blends between them. `Blink` (`b`) flips between the two twice a second, which is the quickest way to see a small shift.
 
 ---
 
-## 6. Gallery overview (`Overview`)
+## Changed areas
 
-* **Icon**: `LayoutGrid`
-* **Shortcut**: `0` or `Escape`
-* **Best for**: High-level visual triage across all tested components and viewports.
-
-Displays a responsive grid of component cards with status badges, instant search filtering, and quick navigation to individual target inspections.
+When a snapshot has more than one changed area, the toolbar shows "3 changed areas" with previous and next buttons (`p` and `n`). Stepping outlines the area and scrolls it into view in every mode, which matters for tall full-page screenshots.

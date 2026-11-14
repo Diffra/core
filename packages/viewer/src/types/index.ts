@@ -11,11 +11,18 @@ export interface BoundingBox {
   maxY: number;
 }
 
+export type TestStatus =
+  | 'added'
+  | 'changed'
+  | 'removed'
+  | 'failed'
+  | 'unchanged';
+
 export interface TestResult {
   id: string;
   name: string;
   component: string;
-  status: 'added' | 'changed' | 'removed' | 'failed' | 'unchanged';
+  status: TestStatus;
   diffPercentage: number;
   diffCount: number;
   viewport: Viewport;
@@ -23,6 +30,8 @@ export interface TestResult {
   candidateUrl?: string;
   diffUrl?: string;
   boundingBoxes?: BoundingBox[];
+  /** Why the snapshot could not be produced. Set when status is failed. */
+  error?: string;
 }
 
 export interface ReportSummary {
@@ -48,13 +57,7 @@ export interface TestRunReport {
   results: TestResult[];
 }
 
-export type ViewMode = 'overview' | 'detail';
-export type DiffMode = 'highlight' | 'split' | 'swipe' | 'onion' | 'mask';
-export type FilterStatus =
-  | 'all'
-  | 'changed'
-  | 'added'
-  | 'removed'
-  | 'failed'
-  | 'unchanged';
-export type ZoomLevel = '50%' | '75%' | '100%' | '150%' | '200%' | 'fit';
+/** How the baseline and candidate are compared. */
+export type DiffMode = 'diff' | 'split' | 'slide' | 'fade';
+
+export type ZoomLevel = 'fit' | '100%' | '200%' | '400%';

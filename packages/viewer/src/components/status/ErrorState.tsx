@@ -1,5 +1,6 @@
 import { AlertCircle } from 'lucide-react';
 import type React from 'react';
+import { ICON_CLASS, ICON_STROKE } from '../../tokens/icon.js';
 
 export interface ErrorStateProps {
   error: string;
@@ -13,35 +14,32 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   onRetry,
 }) => {
   return (
-    <div className="w-screen h-screen flex flex-col items-center justify-center bg-zinc-50 text-zinc-800 select-none text-ui-base p-6">
-      <div className="flex flex-col items-center gap-4 p-8 bg-white border border-rose-200 rounded-2xl max-w-lg w-full text-center">
-        <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
-          <AlertCircle className="w-5 h-5" />
+    <div className="w-screen h-screen flex items-center justify-center bg-paper text-ink select-none p-6">
+      <div className="w-full max-w-lg p-8 flex flex-col items-center gap-6 bg-wash rounded-3xl text-center">
+        <div className="w-12 h-12 rounded-full bg-paper text-failed flex items-center justify-center">
+          <AlertCircle className={ICON_CLASS} strokeWidth={ICON_STROKE} />
         </div>
-        <div>
-          <h2 className="text-ui-heading font-medium text-zinc-900 m-0">
-            Could not load report
-          </h2>
+        <div className="flex flex-col gap-1">
+          <h2 className="m-0 text-ui-title text-ink">Could not load report</h2>
           {remoteUrl ? (
-            <p className="text-ui-base text-zinc-600 mt-1 mb-0 break-all">
-              Failed to fetch report from{' '}
-              <span className="font-medium">{remoteUrl}</span>
+            <p className="m-0 text-ink-3 break-all">
+              Failed to fetch <span className="text-ink-2">{remoteUrl}</span>
             </p>
           ) : null}
         </div>
 
-        <div className="p-3 bg-zinc-50 rounded-xl text-left w-full text-zinc-700 text-ui-base border border-zinc-200/60">
-          <span className="font-medium text-zinc-900">Details: </span>
+        <div className="w-full p-4 rounded-2xl bg-paper text-left text-ink-2">
+          <span className="text-ink">Details: </span>
           {error}
         </div>
 
         {remoteUrl ? (
-          <p className="text-ui-base text-zinc-500 m-0 text-left">
-            Ensure the remote storage server enables{' '}
-            <code className="bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-800">
+          <p className="m-0 text-left text-ink-3">
+            Ensure the remote storage server sends{' '}
+            <code className="px-1.5 py-0.5 rounded bg-paper text-ink">
               Access-Control-Allow-Origin: *
             </code>{' '}
-            (CORS) and the URL is reachable.
+            and the URL is reachable.
           </p>
         ) : null}
 
@@ -49,7 +47,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
           <button
             type="button"
             onClick={onRetry}
-            className="mt-2 px-4 py-2 bg-zinc-900 text-white rounded-xl text-ui-medium font-medium hover:bg-zinc-800 transition-colors border-none cursor-pointer"
+            className="h-10 px-6 bg-ink text-white rounded-full text-ui-semibold hover:bg-accent transition-colors border-none cursor-pointer"
           >
             Retry
           </button>

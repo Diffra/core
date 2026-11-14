@@ -12,13 +12,16 @@ Minimalist Scandinavian visual regression review interface and report viewer.
 
 ## Key features
 
-* **Four inspection modes**:
-  * **Pixel movement (`ScanEye`)**: High-contrast neon green highlighting over a desaturated candidate backdrop.
-  * **Side-by-side (`Columns2`)**: Simultaneous view of baseline and candidate side-by-side.
-  * **Split curtain slider (`SlidersHorizontal`)**: Interactive drag slider to reveal baseline versus candidate with sub-pixel precision.
-  * **Layer onion-skin (`Layers`)**: Continuous alpha opacity crossfade to inspect structural alignments.
-* **Component-first sidebar**: Structured navigation categorized by component and story, complete with live search and popover filters.
-* **Keyboard navigation**: Instant traversal and mode switching (`1`–`4` for modes, `J`/`K` for story navigation, `Space` for A/B toggling).
+* **Built for review**: the home page is a visual triage of what needs a decision, most urgent first, with a thumbnail per snapshot. Hover a card to see what changed. Every snapshot state (changed, new, removed, failed, unchanged) explains itself.
+* **Full-bleed inspection**: one snapshot gets the whole screen, with the controls floating over the image and a quick switcher on the title.
+* **Four comparison modes**, one shared viewport and zoom:
+  * **Diff (`Diff`)**: changed pixels in the accent color over a faded candidate.
+  * **Side by side (`Columns2`)**: baseline and candidate with synchronized scrolling.
+  * **Slide (`MoveHorizontal`)**: a draggable divider between baseline and candidate.
+  * **Fade (`Blend`)**: a crossfade between the two, with blink.
+* **Changed areas**: step through each changed area with `n` and `p`. The area is outlined and scrolled into view.
+* **Exact links**: `#/story/<id>/<mode>` opens the same snapshot in the same mode, and `Copy link` copies it.
+* **Keyboard first**: `j` and `k` for snapshots, `1` to `4` for modes, `b` to blink, `?` for the full list.
 * **Self-contained distribution**: Bundled via Vite as a standalone IIFE bundle (`dist/viewer.bundle.js` and `dist/viewer.css`).
 
 ---

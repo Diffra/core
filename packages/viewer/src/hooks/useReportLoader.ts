@@ -66,6 +66,8 @@ export interface RawTestResult {
     maxX: number;
     maxY: number;
   }>;
+  /** Why the snapshot could not be produced, set when status is failed. */
+  error?: string;
 }
 
 export interface RawTestRunReport {
@@ -182,6 +184,7 @@ function normalizeReport(
       candidateUrl,
       diffUrl,
       boundingBoxes: diff?.boundingBoxes ?? r.boundingBoxes ?? [],
+      error: r.error,
     };
   });
 

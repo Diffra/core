@@ -1,70 +1,201 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { TestRunReport } from '../src/types/index.js';
+import { branchUrl, commitUrl, shortCommit } from '../src/lib/links.js';
+import { stepIndex } from '../src/lib/navigation.js';
+import {
+  availableFilters,
+  buildReviewList,
+  countByStatus,
+  describeRun,
+  flattenGroups,
+} from '../src/lib/review-list.js';
+import { buildRoute, parseRoute } from '../src/lib/route.js';
+import { needsReview } from '../src/lib/status.js';
+import type { TestResult, TestStatus } from '../src/types/index.js';
 
-const mockReport: TestRunReport = {
-  runId: 'test-run-1',
-  timestamp: '2026-08-23T20:00:00.000Z',
-  branch: 'feat/buttons',
-  commit: '1234567',
-  baselineBranch: 'main',
-  baselineCommit: '0000000',
-  baselineReportUrl: '../../branches/main/latest/index.html',
-  branchLatestUrl: '../../branches/feat_buttons/latest/index.html',
-  summary: {
-    total: 2,
-    changed: 1,
-    added: 1,
-    removed: 0,
-    failed: 0,
-    unchanged: 0,
-  },
-  results: [
-    {
-      id: 'button-primary',
-      name: 'Primary',
-      component: 'Button',
-      status: 'changed',
-      diffPercentage: 1.2,
-      diffCount: 50,
-      viewport: { name: 'desktop', width: 1280, height: 800 },
-      baselineUrl: 'data:image/png;base64,mockBaseline',
-      candidateUrl: 'data:image/png;base64,mockCandidate',
-      diffUrl: 'data:image/png;base64,mockDiff',
-      boundingBoxes: [{ minX: 0, minY: 0, maxX: 10, maxY: 10 }],
-    },
-  ],
-};
+function result(
+  name: string,
+  status: TestStatus,
+  component = 'Button',
+  viewport = 'desktop',
+): TestResult {
+  return {
+    id: `${component}--${name}--${viewport}`,
+    name,
+    component,
+    status,
+    diffPercentage: 0,
+    diffCount: 0,
+    viewport: { name: viewport, width: 1280, height: 800 },
+  };
+}
 
-describe('Diffra Viewer Data Models', () => {
-  it('correctly structures and validates test run report with branch interlinking', () => {
-    expect(mockReport.runId).toBe('test-run-1');
-    expect(mockReport.branch).toBe('feat/buttons');
-    expect(mockReport.baselineBranch).toBe('main');
-    expect(mockReport.baselineReportUrl).toBe(
-      '../../branches/main/latest/index.html',
-    );
-    expect(mockReport.branchLatestUrl).toBe(
-      '../../branches/feat_buttons/latest/index.html',
-    );
-    expect(mockReport.results.length).toBe(1);
-    expect(mockReport.results[0]?.status).toBe('changed');
-    expect(mockReport.results[0]?.boundingBoxes?.length).toBe(1);
+const sample: TestResult[] = [
+  result('Primary', 'unchanged'),
+  result('Secondary', 'changed'),
+  result('Disabled', 'added'),
+  result('Header', 'failed', 'Card'),
+  result('Footer', 'unchanged', 'Card'),
+  result('Body', 'changed', 'Card'),
+];
+
+describe('route', () => {
+  const hasSnapshot = (id: string) => id === 'button--primary';
+
+  it('opens the overview for an empty location', () => {
+    expect(parseRoute('', hasSnapshot)).toEqual({ kind: 'overview' });
+    expect(parseRoute('/', hasSnapshot)).toEqual({ kind: 'overview' });
   });
 
-  it('validates summary metrics consistency', () => {
-    const sum = mockReport.summary;
-    expect(sum.total).toBe(
-      sum.changed + sum.added + sum.removed + sum.unchanged,
+  it('reads the snapshot and the mode from a link', () => {
+    expect(parseRoute('/story/button--primary/split', hasSnapshot)).toEqual({
+      kind: 'snapshot',
+      id: 'button--primary',
+      mode: 'split',
+    });
+  });
+
+  it('falls back to the diff mode when the mode is missing or unknown', () => {
+    const expected = { kind: 'snapshot', id: 'a', mode: 'diff' };
+    expect(parseRoute('/story/a', hasSnapshot)).toEqual(expected);
+    expect(parseRoute('/story/a/heatmap', hasSnapshot)).toEqual(expected);
+  });
+
+  it('accepts a bare snapshot id only when it exists', () => {
+    expect(parseRoute('/button--primary', hasSnapshot)).toMatchObject({
+      kind: 'snapshot',
+      id: 'button--primary',
+    });
+    expect(parseRoute('/nothing', hasSnapshot)).toEqual({ kind: 'overview' });
+  });
+
+  it('survives malformed percent encoding', () => {
+    expect(parseRoute('/story/%E0%A4%A/diff', hasSnapshot)).toMatchObject({
+      kind: 'snapshot',
+    });
+  });
+
+  it('round-trips ids that contain slashes', () => {
+    const route = {
+      kind: 'snapshot',
+      id: 'ui/button primary',
+      mode: 'fade',
+    } as const;
+    expect(parseRoute(buildRoute(route), () => false)).toEqual(route);
+  });
+});
+
+describe('review list', () => {
+  const names = (filter: Parameters<typeof buildReviewList>[1]['filter']) =>
+    flattenGroups(buildReviewList(sample, { query: '', filter })).map(
+      (r) => r.name,
+    );
+
+  it('shows only what needs review by default', () => {
+    const shown = flattenGroups(
+      buildReviewList(sample, { query: '', filter: 'review' }),
+    );
+    expect(shown.map((r) => r.status)).not.toContain('unchanged');
+    expect(shown).toHaveLength(4);
+  });
+
+  it('filters to a single status', () => {
+    expect(names('unchanged')).toEqual(['Primary', 'Footer']);
+    expect(names('failed')).toEqual(['Header']);
+    expect(names('removed')).toEqual([]);
+  });
+
+  it('puts the most urgent component and snapshot first', () => {
+    const groups = buildReviewList(sample, { query: '', filter: 'review' });
+    // Card has a failed snapshot, Button only changed and added ones.
+    expect(groups.map((g) => g.component)).toEqual(['Card', 'Button']);
+    expect(groups[0]?.items.map((r) => r.status)).toEqual([
+      'failed',
+      'changed',
+    ]);
+    expect(groups[1]?.items.map((r) => r.status)).toEqual(['changed', 'added']);
+  });
+
+  it('filters by snapshot or component name, ignoring case', () => {
+    const byName = flattenGroups(
+      buildReviewList(sample, { query: ' SECOND', filter: 'review' }),
+    );
+    expect(byName.map((r) => r.name)).toEqual(['Secondary']);
+    const byComponent = flattenGroups(
+      buildReviewList(sample, { query: 'card', filter: 'review' }),
+    );
+    expect(byComponent.map((r) => r.name)).toEqual(['Header', 'Body']);
+  });
+
+  it('offers only the filters that exist in the run', () => {
+    expect(availableFilters(sample)).toEqual([
+      'review',
+      'failed',
+      'changed',
+      'added',
+      'unchanged',
+    ]);
+    expect(availableFilters([])).toEqual(['review']);
+  });
+
+  it('describes the run in words', () => {
+    expect(describeRun(sample)).toBe('1 failed, 2 changed, 1 new');
+    expect(describeRun([result('A', 'unchanged')])).toBe('No visual changes');
+    expect(describeRun([])).toBe('No visual changes');
+  });
+
+  it('counts every status', () => {
+    expect(countByStatus(sample)).toEqual({
+      failed: 1,
+      changed: 2,
+      removed: 0,
+      added: 1,
+      unchanged: 2,
+    });
+    expect(needsReview('unchanged')).toBe(false);
+    expect(needsReview('failed')).toBe(true);
+  });
+});
+
+describe('stepIndex', () => {
+  it('wraps around both ends', () => {
+    expect(stepIndex(2, 3, 1)).toBe(0);
+    expect(stepIndex(0, 3, -1)).toBe(2);
+  });
+
+  it('starts at either end when nothing is selected', () => {
+    expect(stepIndex(null, 3, 1)).toBe(0);
+    expect(stepIndex(null, 3, -1)).toBe(2);
+    expect(stepIndex(-1, 3, 1)).toBe(0);
+  });
+
+  it('returns nothing for an empty list', () => {
+    expect(stepIndex(null, 0, 1)).toBeNull();
+  });
+});
+
+describe('links', () => {
+  it('links nothing when the report names no repository', () => {
+    expect(branchUrl(undefined, 'main')).toBeUndefined();
+    expect(commitUrl(undefined, 'abc1234')).toBeUndefined();
+  });
+
+  it('builds branch and commit links without double slashes', () => {
+    expect(branchUrl('https://github.com/acme/app/', 'feat/x')).toBe(
+      'https://github.com/acme/app/tree/feat/x',
+    );
+    expect(commitUrl('https://github.com/acme/app', 'abc1234')).toBe(
+      'https://github.com/acme/app/commit/abc1234',
     );
   });
 
-  it('supports all 6 comparison modes: split, swipe, onion, mask, heatmap, and highlight', () => {
-    const modes = ['split', 'swipe', 'onion', 'mask', 'heatmap', 'highlight'];
-    expect(modes).toHaveLength(6);
-    expect(modes).toContain('heatmap');
-    expect(modes).toContain('highlight');
+  it('ignores commits that do not exist yet', () => {
+    expect(
+      commitUrl('https://github.com/acme/app', 'uncommitted'),
+    ).toBeUndefined();
+    expect(shortCommit('uncommitted')).toBeUndefined();
+    expect(shortCommit('0123456789abcdef')).toBe('0123456');
   });
 });
 
@@ -122,99 +253,52 @@ describe('Feature 22: Custom Element <diffra-viewer> Registration & Web Componen
   });
 });
 
-describe('Feature 23: Scandinavian UI Automated Compliance Audit', () => {
-  async function getAllSourceFiles(dir: string): Promise<string[]> {
+describe('Interface standards', () => {
+  async function sourceFiles(dir: string): Promise<string[]> {
     const files: string[] = [];
-    const entries = await fs.readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        files.push(...(await getAllSourceFiles(fullPath)));
-      } else if (/\.(tsx|ts|css)$/.test(entry.name)) {
-        files.push(fullPath);
-      }
+    for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) files.push(...(await sourceFiles(full)));
+      else if (/\.(tsx|ts|css)$/.test(entry.name)) files.push(full);
     }
     return files;
   }
 
-  it('strictly contains ZERO shadow-* utility classes across all viewer source files per AGENTS.md § 7', async () => {
+  async function violations(pattern: RegExp, subdir = ''): Promise<string[]> {
     const srcDir = path.resolve(import.meta.dirname, '../src');
-    const sourceFiles = await getAllSourceFiles(srcDir);
-    expect(sourceFiles.length).toBeGreaterThan(10);
-
-    const shadowPattern = /\bshadow-(?:xs|sm|md|lg|xl|2xl|inner)\b/g;
-    const violations: { file: string; line: number; match: string }[] = [];
-
-    for (const filePath of sourceFiles) {
-      const content = await fs.readFile(filePath, 'utf-8');
-      const lines = content.split('\n');
+    const found: string[] = [];
+    for (const file of await sourceFiles(path.join(srcDir, subdir))) {
+      const lines = (await fs.readFile(file, 'utf-8')).split('\n');
       lines.forEach((line, index) => {
-        const matches = line.match(shadowPattern);
-        if (matches) {
-          violations.push({
-            file: path.relative(srcDir, filePath),
-            line: index + 1,
-            match: line.trim(),
-          });
+        if (pattern.test(line)) {
+          found.push(`${path.relative(srcDir, file)}:${index + 1}`);
         }
       });
     }
+    return found;
+  }
 
-    expect(violations).toHaveLength(0);
+  it('uses no drop shadows', async () => {
+    expect(await violations(/\bshadow-(?:xs|sm|md|lg|xl|2xl|inner)\b/)).toEqual(
+      [],
+    );
   });
 
-  it('eliminates noise: zero diff percentages or pixel diff counts in sidebar and badge templates', async () => {
-    const sidebarPath = path.resolve(
-      import.meta.dirname,
-      '../src/components/layout/Sidebar.tsx',
-    );
-    const sidebarContent = await fs.readFile(sidebarPath, 'utf-8');
-
-    // Filter options in sidebar have clean labels without count tallies
-    expect(sidebarContent).toContain("{ id: 'all', label: 'All' }");
-    expect(sidebarContent).toContain("{ id: 'changed', label: 'Changed' }");
-    expect(sidebarContent).toContain("{ id: 'added', label: 'Added' }");
-    expect(sidebarContent).toContain("{ id: 'unchanged', label: 'Passed' }");
-    expect(sidebarContent).not.toMatch(/label:\s*['"]\w+\s*\(\d+\)['"]/);
-
-    const badgePath = path.resolve(
-      import.meta.dirname,
-      '../src/components/ui/Badge.tsx',
-    );
-    const badgeContent = await fs.readFile(badgePath, 'utf-8');
-    // Badges are borderless flat tonal surfaces
-    expect(badgeContent).toContain('border-none');
+  it('uses no text smaller than 1rem', async () => {
+    expect(await violations(/\btext-(?:xs|sm|\[\d+px\])\b/)).toEqual([]);
   });
 
-  it('renders breadcrumb 2 as a clean interactive button without "/" separator in Header.tsx', async () => {
-    const headerPath = path.resolve(
-      import.meta.dirname,
-      '../src/components/layout/Header.tsx',
-    );
-    const headerContent = await fs.readFile(headerPath, 'utf-8');
-
-    // Breadcrumb 2 is rendered as button
-    expect(headerContent).toContain('Breadcrumb 2: Active Story button');
-    // Separator "/" is not present inside breadcrumb
-    expect(headerContent).not.toContain('{activeStory.component} /');
+  it('uses no uppercase styling', async () => {
+    expect(await violations(/\buppercase\b/)).toEqual([]);
   });
 
-  it('configures highlight Movement mode with neon green highlight as zero-config default', async () => {
-    const contextPath = path.resolve(
-      import.meta.dirname,
-      '../src/context/ViewerContext.tsx',
-    );
-    const contextContent = await fs.readFile(contextPath, 'utf-8');
-    expect(contextContent).toContain("useState<DiffMode>('highlight')");
+  it('renders no diff percentages or pixel counts in components', async () => {
+    expect(
+      await violations(/\b(?:diffPercentage|diffCount)\b/, 'components'),
+    ).toEqual([]);
+  });
 
-    const highlightPath = path.resolve(
-      import.meta.dirname,
-      '../src/components/stage/views/DiffHighlightView.tsx',
-    );
-    const highlightContent = await fs.readFile(highlightPath, 'utf-8');
-    // Vivid neon green for changed pixels
-    expect(highlightContent).toContain('const hr = 0;');
-    expect(highlightContent).toContain('const hg = 255;');
-    expect(highlightContent).toContain('const hb = 102;');
+  it('avoids the word legacy in code and comments', async () => {
+    expect(await violations(/legacy/i)).toEqual([]);
   });
 });

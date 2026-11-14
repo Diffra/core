@@ -1,6 +1,8 @@
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useViewer } from '../../../context/ViewerContext.js';
+import { RegionOverlay } from '../RegionOverlay.js';
+import { Viewport } from '../Viewport.js';
 
 export const DiffHighlightView: React.FC = () => {
   const { activeStory } = useViewer();
@@ -85,10 +87,10 @@ export const DiffHighlightView: React.FC = () => {
       const outData = ctx.createImageData(w, h);
       const output = outData.data;
 
-      // Vivid neon green for changed pixels
-      const hr = 0;
-      const hg = 255;
-      const hb = 102;
+      // Changed pixels use the accent colour over a faded backdrop.
+      const hr = 61;
+      const hg = 61;
+      const hb = 245;
 
       for (let i = 0; i < baseData.length; i += 4) {
         const br = baseData[i] ?? 0;
@@ -109,18 +111,19 @@ export const DiffHighlightView: React.FC = () => {
         const isChanged = dr + dg + db + da > 10;
 
         if (isChanged) {
-          // Vivid high-contrast neon changed pixel
+          // Changed pixel
           output[i] = hr;
           output[i + 1] = hg;
           output[i + 2] = hb;
           output[i + 3] = 255;
         } else {
-          // Muted desaturated candidate backdrop
+          // Faded, desaturated candidate backdrop
           const gray = Math.round(cr * 0.299 + cg * 0.587 + cb * 0.114);
-          output[i] = Math.round(gray * 0.45 + 50);
-          output[i + 1] = Math.round(gray * 0.45 + 50);
-          output[i + 2] = Math.round(gray * 0.45 + 50);
-          output[i + 3] = Math.max(ca, 230);
+          const faded = Math.round(gray * 0.2 + 192);
+          output[i] = faded;
+          output[i + 1] = faded;
+          output[i + 2] = faded;
+          output[i + 3] = ca;
         }
       }
 
@@ -144,26 +147,28 @@ export const DiffHighlightView: React.FC = () => {
   if (!activeStory) return null;
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 bg-white border border-zinc-200/80 rounded-2xl overflow-auto canvas-backdrop min-h-0 w-full h-full select-none text-ui-base">
-      {loading ? (
-        <div className="p-8 text-ui-medium text-zinc-400 flex items-center justify-center">
-          Rendering diff highlight...
-        </div>
-      ) : null}
-      {pixelsUnavailable ? (
-        <img
-          src={diffUrl || candidateUrl}
-          alt={`Changed regions of ${activeStory.name}`}
-          className="block max-w-full h-auto pointer-events-none"
-        />
-      ) : (
-        <canvas
-          ref={canvasRef}
-          className={`block max-w-full h-auto pointer-events-none ${
-            loading ? 'hidden' : 'block'
-          }`}
-        />
-      )}
-    </div>
+    <Viewport sourceUrl={candidateUrl || baselineUrl}>
+      {loading ? <div className="text-ink-3">Rendering changes</div> : null}
+      <div
+        className={`relative inline-block image-edge ${
+          loading ? 'hidden' : ''
+        }`}
+      >
+        {pixelsUnavailable ? (
+          <img
+            src={diffUrl || candidateUrl}
+            alt={`Changed areas of ${activeStory.name}`}
+            className="block max-w-none pointer-events-none"
+          />
+        ) : (
+          <canvas
+            ref={canvasRef}
+            aria-label={`Changed areas of ${activeStory.name}`}
+            className="block pointer-events-none"
+          />
+        )}
+        <RegionOverlay />
+      </div>
+    </Viewport>
   );
 };

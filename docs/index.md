@@ -32,7 +32,7 @@ Find the guides and references tailored to your development stack and workflow:
 
 ### 4. Review interface and inspection
 * [Review interface overview](review-ui/overview.md): Scandinavian minimalist design, typography, and layout hierarchy.
-* [Comparison inspection modes](review-ui/inspection-modes.md): Movement highlight, Split view, Swipe slider, Onion skin, and Diff mask.
+* [Comparison inspection modes](review-ui/inspection-modes.md): Diff, Side by side, Slide, and Fade.
 * [Keyboard shortcuts and navigation](review-ui/keyboard-shortcuts.md): Navigation shortcuts, filter popover, and cross-branch jumping.
 
 ### 5. Storage, notifiers, and extensibility

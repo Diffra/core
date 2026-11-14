@@ -3,48 +3,76 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from 'react';
 import { useHashLocation } from 'wouter/use-hash-location';
+import {
+  DEFAULT_FADE,
+  DEFAULT_MODE,
+  DEFAULT_SLIDE,
+  DEFAULT_ZOOM,
+  ZOOM_LEVELS,
+} from '../lib/constants.js';
+import { stepIndex } from '../lib/navigation.js';
+import {
+  availableFilters,
+  buildReviewList,
+  flattenGroups,
+  type ReviewFilter,
+  type ReviewGroup,
+} from '../lib/review-list.js';
+import { buildRoute, parseRoute } from '../lib/route.js';
 import type {
+  BoundingBox,
   DiffMode,
-  FilterStatus,
   TestResult,
   TestRunReport,
-  ViewMode,
   ZoomLevel,
 } from '../types/index.js';
 
 interface ViewerContextValue {
   manifest: TestRunReport;
-  viewMode: ViewMode;
-  activeStoryId: string | null;
-  activeStoryIndex: number;
+
+  /** The snapshot being inspected, or null on the overview. */
   activeStory: TestResult | null;
-  filteredResults: TestResult[];
-  activeMode: DiffMode;
-  filterStatus: FilterStatus;
-  searchQuery: string;
+  mode: DiffMode;
+
+  /** Sidebar content: filtered, sorted and grouped. */
+  groups: ReviewGroup[];
+  /** The same snapshots as a flat list, in sidebar order. */
+  ordered: TestResult[];
+  /** Position of the active snapshot in `ordered`, or -1 when it is hidden. */
+  position: number;
+  /** The filters worth offering for this run. */
+  filters: ReviewFilter[];
+
+  query: string;
+  filter: ReviewFilter;
+  /** Bumps each time something asks for the search to be focused. */
+  searchTick: number;
   zoom: ZoomLevel;
+  fade: number;
+  slide: number;
   isBlinking: boolean;
-  onionOpacity: number;
-  swipePos: number;
-  highlightBoxes: boolean;
+
+  regions: BoundingBox[];
+  /** The region being inspected, or null until the reviewer steps to one. */
+  regionIndex: number | null;
+
   openOverview: () => void;
-  selectStoryById: (id: string) => void;
-  setActiveStoryIndex: (index: number) => void;
-  setActiveMode: (mode: DiffMode) => void;
-  setFilterStatus: (status: FilterStatus) => void;
-  setSearchQuery: (query: string) => void;
+  openSnapshot: (id: string) => void;
+  setMode: (mode: DiffMode) => void;
+  stepSnapshot: (direction: 1 | -1) => void;
+  stepRegion: (direction: 1 | -1) => void;
+  setQuery: (query: string) => void;
+  setFilter: (filter: ReviewFilter) => void;
+  requestSearch: () => void;
   setZoom: (zoom: ZoomLevel) => void;
+  stepZoom: (direction: 1 | -1) => void;
+  setFade: (value: number) => void;
+  setSlide: (value: number) => void;
   toggleBlink: () => void;
-  setOnionOpacity: (opacity: number) => void;
-  setSwipePos: (pos: number) => void;
-  setHighlightBoxes: (highlight: boolean) => void;
-  goToNextStory: () => void;
-  goToPrevStory: () => void;
 }
 
 const ViewerContext = createContext<ViewerContextValue | null>(null);
@@ -58,174 +86,150 @@ export const ViewerProvider: React.FC<ViewerProviderProps> = ({
   manifest,
   children,
 }) => {
-  const [location, setLocation] = useHashLocation();
+  const [location, navigate] = useHashLocation();
 
-  // Parse initial route from hash location
-  const parseRoute = useCallback(
-    (loc: string): { mode: ViewMode; id: string | null } => {
-      if (!loc || loc === '/' || loc === '') {
-        return { mode: 'overview', id: null };
-      }
-      if (loc.startsWith('/story/')) {
-        const id = decodeURIComponent(loc.slice(7));
-        return { mode: 'detail', id };
-      }
-      // Also support direct hash like #components-button--primary
-      const cleanHash = loc.replace(/^\//, '');
-      const matched = manifest?.results?.find((r) => r.id === cleanHash);
-      if (matched) {
-        return { mode: 'detail', id: matched.id };
-      }
-      return { mode: 'overview', id: null };
-    },
-    [manifest?.results],
+  const results = manifest.results;
+
+  const route = useMemo(
+    () => parseRoute(location, (id) => results.some((r) => r.id === id)),
+    [location, results],
   );
 
-  const initialRoute = useMemo(
-    () => parseRoute(location),
-    [location, parseRoute],
+  const activeStory = useMemo(
+    () =>
+      route.kind === 'snapshot'
+        ? (results.find((r) => r.id === route.id) ?? null)
+        : null,
+    [route, results],
   );
+  const mode = route.kind === 'snapshot' ? route.mode : DEFAULT_MODE;
 
-  const [viewMode, setViewMode] = useState<ViewMode>(initialRoute.mode);
-  const [activeStoryId, setActiveStoryId] = useState<string | null>(
-    initialRoute.id || manifest?.results?.[0]?.id || null,
-  );
-  const [activeMode, setActiveMode] = useState<DiffMode>('highlight');
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [zoom, setZoom] = useState<ZoomLevel>('100%');
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<ReviewFilter>('review');
+  const [searchTick, setSearchTick] = useState(0);
+  const [zoom, setZoom] = useState<ZoomLevel>(DEFAULT_ZOOM);
+  const [fade, setFade] = useState(DEFAULT_FADE);
+  const [slide, setSlide] = useState(DEFAULT_SLIDE);
   const [isBlinking, setIsBlinking] = useState(false);
-  const [onionOpacity, setOnionOpacity] = useState(0.5);
-  const [swipePos, setSwipePos] = useState(50);
-  const [highlightBoxes, setHighlightBoxes] = useState(true);
+  const [regionState, setRegionState] = useState<{
+    id: string;
+    index: number | null;
+  }>({ id: '', index: null });
 
-  // Sync state when URL hash changes (back/forward or deep link)
-  useEffect(() => {
-    const { mode, id } = parseRoute(location);
-    setViewMode(mode);
-    if (id) {
-      setActiveStoryId(id);
-    }
-  }, [location, parseRoute]);
+  const groups = useMemo(
+    () => buildReviewList(results, { query, filter }),
+    [results, query, filter],
+  );
+  const ordered = useMemo(() => flattenGroups(groups), [groups]);
+  const position = activeStory
+    ? ordered.findIndex((r) => r.id === activeStory.id)
+    : -1;
+  const filters = useMemo(() => availableFilters(results), [results]);
+  const requestSearch = useCallback(
+    () => setSearchTick((tick) => tick + 1),
+    [],
+  );
 
-  const filteredResults = useMemo(() => {
-    if (!manifest?.results) return [];
-    return manifest.results.filter((res) => {
-      const matchStatus =
-        filterStatus === 'all' ? true : res.status === filterStatus;
-      const query = searchQuery.trim().toLowerCase();
-      const matchSearch =
-        !query ||
-        res.name.toLowerCase().includes(query) ||
-        res.component.toLowerCase().includes(query);
-      return matchStatus && matchSearch;
-    });
-  }, [manifest?.results, filterStatus, searchQuery]);
+  const regions = activeStory?.boundingBoxes ?? [];
+  const regionIndex =
+    activeStory && regionState.id === activeStory.id ? regionState.index : null;
 
-  const activeStoryIndex = useMemo(() => {
-    if (!manifest?.results || !activeStoryId) return 0;
-    const idx = manifest.results.findIndex((r) => r.id === activeStoryId);
-    return Math.max(idx, 0);
-  }, [manifest?.results, activeStoryId]);
+  const openOverview = useCallback(() => {
+    navigate(buildRoute({ kind: 'overview' }));
+  }, [navigate]);
 
-  const activeStory = useMemo(() => {
-    if (!manifest?.results || manifest.results.length === 0) return null;
-    if (activeStoryId) {
-      const found = manifest.results.find((r) => r.id === activeStoryId);
-      if (found) return found;
-    }
-    return manifest.results[0] ?? null;
-  }, [manifest?.results, activeStoryId]);
+  const openSnapshot = useCallback(
+    (id: string) => {
+      navigate(buildRoute({ kind: 'snapshot', id, mode }));
+    },
+    [navigate, mode],
+  );
 
-  const openOverview = () => {
-    setViewMode('overview');
-    setLocation('/');
-  };
+  const setMode = useCallback(
+    (next: DiffMode) => {
+      if (!activeStory) return;
+      if (next !== 'fade') setIsBlinking(false);
+      // Changing the mode refines the current view, so it replaces history.
+      navigate(
+        buildRoute({ kind: 'snapshot', id: activeStory.id, mode: next }),
+        {
+          replace: true,
+        },
+      );
+    },
+    [navigate, activeStory],
+  );
 
-  const selectStoryById = (id: string) => {
-    setActiveStoryId(id);
-    setViewMode('detail');
-    setLocation(`/story/${encodeURIComponent(id)}`);
-  };
+  const stepSnapshot = useCallback(
+    (direction: 1 | -1) => {
+      const next = stepIndex(position, ordered.length, direction);
+      const target = next === null ? undefined : ordered[next];
+      if (target) openSnapshot(target.id);
+    },
+    [position, ordered, openSnapshot],
+  );
 
-  const setActiveStoryIndex = (index: number) => {
-    if (!manifest?.results?.[index]) return;
-    selectStoryById(manifest.results[index].id);
-  };
+  const stepRegion = useCallback(
+    (direction: 1 | -1) => {
+      if (!activeStory) return;
+      const next = stepIndex(regionIndex, regions.length, direction);
+      setRegionState({ id: activeStory.id, index: next });
+    },
+    [activeStory, regionIndex, regions.length],
+  );
 
-  const goToNextStory = () => {
-    if (filteredResults.length === 0) return;
-    if (viewMode === 'overview') {
-      const first = filteredResults[0];
-      if (first) selectStoryById(first.id);
+  const stepZoom = useCallback(
+    (direction: 1 | -1) => {
+      const current = ZOOM_LEVELS.indexOf(zoom);
+      const next = Math.min(
+        ZOOM_LEVELS.length - 1,
+        Math.max(0, current + direction),
+      );
+      setZoom(ZOOM_LEVELS[next] ?? DEFAULT_ZOOM);
+    },
+    [zoom],
+  );
+
+  const toggleBlink = useCallback(() => {
+    if (!activeStory) return;
+    if (mode !== 'fade') {
+      setMode('fade');
+      setIsBlinking(true);
       return;
     }
-    const currentFilteredIdx = filteredResults.findIndex(
-      (r) => r.id === activeStory?.id,
-    );
-    const nextIdx =
-      currentFilteredIdx >= 0
-        ? (currentFilteredIdx + 1) % filteredResults.length
-        : 0;
-    const nextStory = filteredResults[nextIdx];
-    if (nextStory) {
-      selectStoryById(nextStory.id);
-    }
-  };
-
-  const goToPrevStory = () => {
-    if (filteredResults.length === 0) return;
-    if (viewMode === 'overview') {
-      const last = filteredResults[filteredResults.length - 1];
-      if (last) selectStoryById(last.id);
-      return;
-    }
-    const currentFilteredIdx = filteredResults.findIndex(
-      (r) => r.id === activeStory?.id,
-    );
-    const prevIdx =
-      currentFilteredIdx >= 0
-        ? (currentFilteredIdx - 1 + filteredResults.length) %
-          filteredResults.length
-        : 0;
-    const prevStory = filteredResults[prevIdx];
-    if (prevStory) {
-      selectStoryById(prevStory.id);
-    }
-  };
-
-  const toggleBlink = () => {
     setIsBlinking((prev) => !prev);
-  };
+  }, [activeStory, mode, setMode]);
 
   const value: ViewerContextValue = {
     manifest,
-    viewMode,
-    activeStoryId,
-    activeStoryIndex,
     activeStory,
-    filteredResults,
-    activeMode,
-    filterStatus,
-    searchQuery,
+    mode,
+    groups,
+    ordered,
+    position,
+    filters,
+    query,
+    filter,
+    searchTick,
     zoom,
+    fade,
+    slide,
     isBlinking,
-    onionOpacity,
-    swipePos,
-    highlightBoxes,
+    regions,
+    regionIndex,
     openOverview,
-    selectStoryById,
-    setActiveStoryIndex,
-    setActiveMode,
-    setFilterStatus,
-    setSearchQuery,
+    openSnapshot,
+    setMode,
+    stepSnapshot,
+    stepRegion,
+    setQuery,
+    setFilter,
+    requestSearch,
     setZoom,
+    stepZoom,
+    setFade,
+    setSlide,
     toggleBlink,
-    setOnionOpacity,
-    setSwipePos,
-    setHighlightBoxes,
-    goToNextStory,
-    goToPrevStory,
   };
 
   return (

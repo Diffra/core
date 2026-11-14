@@ -4,43 +4,76 @@ This document records conventions, design rules, and operational learnings speci
 
 ---
 
+## What the interface is for
+
+The viewer answers one question for a reviewer who arrives from a pull request: are these visual changes intended? Everything is arranged around four steps.
+
+1. **Triage**: see what needs a decision, most urgent first.
+2. **Inspect**: see exactly what changed in one snapshot.
+3. **Share**: link to a precise snapshot and view.
+4. **Move on**: step to the next snapshot without leaving the keyboard.
+
+Approval happens outside the viewer, in CI (merge to accept, or `diffra approve`). The viewer is read-only and static: it needs no server and works when opened from disk.
+
+---
+
+## Structure
+
+* `src/lib`: pure logic with no React or DOM. Routes, the review list and its filters, status words, links, and index stepping live here and are covered by unit tests. Put new decisions here first.
+* `src/context/ViewerContext.tsx`: state. The URL hash is the single source of truth for the selected snapshot and mode (`#/story/<id>/<mode>`).
+* `src/components/home`: the triage page (headline, filters, search, grouped `SnapshotCard`s).
+* `src/components/detail`: one snapshot. `TopBar`, `SnapshotSwitcher` (the title and quick switcher), `Docks` (floating controls), and `SnapshotView` (which picks what to draw, including empty cases).
+* `src/components/stage`: the shared `Viewport` and the four comparison views.
+* `src/components/ui`: small primitives (`Segmented`, `IconButton`, `SearchField`, `StatusLabel`, `Kbd`, `Message`, `Logo`, `RunContext`).
+
+---
+
+## Interface rules
+
+1. **Two screens, no chrome**: Home for triage, Detail for inspection. Do not add a sidebar, a header bar, or a toolbar strip. Controls that belong to the image float over it.
+2. **Triage is visual**: Home shows a thumbnail of the real interface for every snapshot, and hovering reveals the changes. Unchanged snapshots are hidden behind the `Unchanged` filter. Order is failed, changed, removed, new.
+3. **Every state explains itself**: failed shows the reason, new says there is no baseline, removed says there is no candidate, unchanged says nothing changed. Use `Message` for empty states.
+4. **One viewport**: every comparison draws on `Viewport`, which owns the checkerboard, scrolling, centering, and the shared zoom (`fit`, `100%`, `200%`, `400%`). Never create a second scroll surface for a mode.
+5. **Modes**: `diff` (default), `split`, `slide`, `fade`. Blink belongs to `fade`. Do not reintroduce a mode that shows the same information as another.
+6. **Labels in the canvas**: Baseline and Candidate are always labeled inside the canvas with `CanvasLabel`.
+7. **One selection style**: the chosen filter, mode, zoom, and the current item in the switcher are all an ink pill. Do not invent another.
+8. **Links are optional**: branch and commit links render only when the report names a repository. Never fall back to a default repository.
+9. **Keyboard first**: every action has a key, and `lib/shortcuts.ts` documents them. Keep `useKeyboardShortcuts` and `SHORTCUT_GROUPS` in step. `/` focuses the search on Home and opens the switcher in Detail.
+
+---
+
 ## Design and typography rules
 
 1. **Root and minimum font size**:
-   - `html { font-size: 1rem; }`
-   - Never use font sizes below `1rem` (no `text-xs`, `text-sm`, `text-[10px]`, `text-[11px]`).
-   - Use designated `.text-ui-*` utility classes for typography hierarchy and balanced rhythm:
-     - `.text-ui-base`: `1rem`, line-height 1.5, letter-spacing `-0.015em`, weight 400
-     - `.text-ui-medium`: `1rem`, line-height 1.5, letter-spacing `-0.015em`, weight 450
-     - `.text-ui-semibold`: `1rem`, line-height 1.4, letter-spacing `-0.02em`, weight 500
-     - `.text-ui-heading`: `1.125rem`, line-height 1.35, letter-spacing `-0.025em`, weight 500
-     - `.text-ui-title`: `1.25rem`, line-height 1.3, letter-spacing `-0.03em`, weight 550
-     - `.text-ui-label`: `1rem`, line-height 1.35, letter-spacing `-0.015em`, weight 500
-   - Always use `rem` units for paddings, margins, button dimensions, and font sizes. Never use `px` for typography.
+   * `html { font-size: 1rem; }`
+   * Never use font sizes below `1rem` (no `text-xs`, `text-sm`, `text-[10px]`).
+   * Use the `.text-ui-*` classes for hierarchy: `base` (400), `medium` (450), `semibold` (500), `heading` (`1.125rem`, 500), `title` (`1.25rem`, 500), `label` (500), `display` (`2rem`, 300), `hero` (`3.5rem`, 300).
+   * Hierarchy comes from weight, color, and one large light display size (`.text-ui-display`). Use `ink` for primary text, `ink-2` for secondary, and `ink-3` for tertiary. Never use a lighter color for text.
+   * Always use `rem` units for paddings, margins, and font sizes.
+   * Base element styles live in `@layer base` and `.text-ui-*` in `@layer components`, so Tailwind utilities such as `font-medium` can override them.
 
-2. **Headline and label typography**:
-   - Never use uppercase on section headlines, category titles, or buttons.
-   - Use natural case with larger typographic variants (`text-ui-heading`) for section headlines to clearly distinguish them from interactive items.
+2. **Surfaces and color**:
+   * Tokens are defined in `tokens/theme.css`: `paper`, `wash`, `hairline`, `ink`, `ink-2`, `ink-3`, `accent`, and the status colors. Use these token utilities (`text-ink`, `bg-wash`) and never raw palette classes such as `zinc-*`.
+   * The page is `paper`. There is no grey frame and no card around the chrome. `wash` is for pill backgrounds and message panels, and the checkerboard canvas is the only large tinted surface.
+   * `accent` is a signal, not decoration. Use it only for focus rings, the diff highlight, the slide divider and handle, and link hover.
+   * Never use `shadow-*`, `drop-shadow-*`, or `box-shadow`. Use a 1px translucent `outline` where an edge is needed (`.image-edge`, `.canvas-backdrop`).
+   * Controls are flat, borderless, and pill-shaped. Standard control height is `2.5rem`. The selected control is an ink pill.
 
-3. **Flat UI surfaces & zero drop-shadows**:
-   - Never use `shadow-*`, `drop-shadow-*`, or `box-shadow` on core interface layout.
-   - Minimize borders across the UI. Rely on flat, calm tonal surface shifts (`bg-zinc-50`, `bg-zinc-100`, `bg-zinc-200/50`, `bg-white`) rather than borders on every element.
-   - Badges and buttons are flat and borderless.
+3. **Spacing**: be generous. Pages are padded `2.5rem` at the sides, sections are separated by `2.5rem` to `4rem`, and rows and controls are `2.5rem` tall. The home content is centered in a `max-w-7xl` column.
 
-4. **Sidebar Search & Popover Filtering**:
-   - The search input is clean flat white (`bg-white`).
-   - Filter selection uses the native HTML Popover API (`popover="auto"`).
+4. **Icons**:
+   * Import directly from `lucide-react`. Do not create icon wrapper files.
+   * Size with `ICON_CLASS` and stroke with `ICON_STROKE` from `tokens/icon.ts`.
 
-5. **Layout & Header architecture**:
-   - Navigation consists of exactly two breadcrumb buttons without separators (`[ LayoutGrid Overview ]` and `[ Component / StoryName ]`).
-   - Do not render branch comparison context in the top header.
-   - DRY shared stage header bar sits permanently above comparison views, linking branches and commits to GitHub when `repositoryUrl` is present.
-   - Split view renders side-by-side canvas frames without redundant pane headers.
+5. **Noise**: never render diff percentages, pixel dimensions, or pixel counts. Counts of snapshots in plain sentences (for example "2 changed, 1 new") are fine.
 
-6. **Iconography**:
-   - Always import icons directly from `lucide-react` (`LayoutGrid`, `ScanEye`, `Columns2`, `SlidersHorizontal`, `Layers`, `SquareDashed`, `ListFilter`, `Search`, `X`, `Check`, `ChevronLeft`, `ChevronRight`).
-   - Do not create custom icon wrapper files (`Icons.tsx`).
+6. **Uppercase** is never used.
 
-7. **Inspection modes**:
-   - 5 modes: `Movement` (`highlight`), `Split` (`split`), `Swipe` (`swipe`), `Onion` (`onion`), `Mask` (`mask`).
-   - `Movement` (pixel shift detector in neon green with `ScanEye` icon) is the default comparison mode.
+---
+
+## Operational learnings
+
+* The viewer ships as a custom element with Shadow DOM. Do not look elements up with `document.getElementById`. Use refs, or `useId` for popover targets.
+* `getContext('2d').getImageData` throws on `file://` pages. `DiffHighlightView` falls back to the engine's diff image, and the review bundle must keep working from disk.
+* CSS `zoom` is used for scaling so the layout size follows the scale and scroll areas stay correct. `--inv` is the inverse scale, for details that must keep a constant on-screen size.
+* Screenshots in the browser pane can lag one action behind. Wait before concluding a click did nothing.

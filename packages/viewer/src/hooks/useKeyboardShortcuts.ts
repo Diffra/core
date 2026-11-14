@@ -1,95 +1,102 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useViewer } from '../context/ViewerContext.js';
+import { SLIDER_STEP } from '../lib/constants.js';
 
-export function useKeyboardShortcuts(
-  searchInputRef?: React.RefObject<HTMLInputElement | null>,
-) {
-  const {
-    openOverview,
-    setActiveMode,
-    goToNextStory,
-    goToPrevStory,
-    toggleBlink,
-    activeMode,
-    viewMode,
-  } = useViewer();
+const MODE_KEYS = ['diff', 'split', 'slide', 'fade'] as const;
+
+function isTyping(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.tagName === 'SELECT' ||
+    target.isContentEditable
+  );
+}
+
+/**
+ * Keyboard control for the whole review. The handler is bound once and reads
+ * the latest viewer state through a ref.
+ */
+export function useKeyboardShortcuts() {
+  const viewer = useViewer();
+  const latest = useRef(viewer);
+  latest.current = viewer;
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target instanceof HTMLElement ? e.target : null;
-      const isInput =
-        target?.tagName === 'INPUT' ||
-        target?.tagName === 'TEXTAREA' ||
-        target?.isContentEditable;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const v = latest.current;
 
-      if (e.key === '/' && !isInput && searchInputRef?.current) {
-        e.preventDefault();
-        searchInputRef.current.focus();
+      if (isTyping(e.target)) {
+        if (e.key === 'Escape') {
+          (e.target as HTMLElement).blur();
+        }
         return;
       }
 
-      if (e.key === 'Escape') {
-        if (isInput && searchInputRef?.current) {
-          searchInputRef.current.blur();
-          return;
-        }
-        if (viewMode === 'detail') {
-          openOverview();
-          return;
-        }
-      }
-
-      if (isInput) return;
+      const inSnapshot = v.activeStory !== null;
 
       switch (e.key) {
-        case '0':
+        case '/':
+          e.preventDefault();
+          v.requestSearch();
+          break;
+        case 'Escape':
         case 'o':
-          openOverview();
+          if (inSnapshot) v.openOverview();
+          break;
+        case 'j':
+        case 'ArrowDown':
+          e.preventDefault();
+          v.stepSnapshot(1);
+          break;
+        case 'k':
+        case 'ArrowUp':
+          e.preventDefault();
+          v.stepSnapshot(-1);
           break;
         case '1':
-          setActiveMode('highlight');
-          break;
         case '2':
-          setActiveMode('split');
-          break;
         case '3':
-          setActiveMode('swipe');
+        case '4': {
+          const mode = MODE_KEYS[Number(e.key) - 1];
+          if (inSnapshot && mode) v.setMode(mode);
           break;
-        case '4':
-          setActiveMode('onion');
+        }
+        case 'b':
+          v.toggleBlink();
           break;
-        case '5':
-          setActiveMode('mask');
+        case 'n':
+          if (inSnapshot) v.stepRegion(1);
           break;
-        case 'ArrowDown':
-        case 'j':
-          e.preventDefault();
-          goToNextStory();
+        case 'p':
+          if (inSnapshot) v.stepRegion(-1);
           break;
-        case 'ArrowUp':
-        case 'k':
-          e.preventDefault();
-          goToPrevStory();
+        case '[':
+          if (v.mode === 'slide')
+            v.setSlide(Math.max(0, v.slide - SLIDER_STEP));
+          if (v.mode === 'fade') v.setFade(Math.max(0, v.fade - SLIDER_STEP));
           break;
-        case ' ':
-          if (viewMode === 'detail' && activeMode === 'mask') {
-            e.preventDefault();
-            toggleBlink();
-          }
+        case ']':
+          if (v.mode === 'slide')
+            v.setSlide(Math.min(100, v.slide + SLIDER_STEP));
+          if (v.mode === 'fade') v.setFade(Math.min(100, v.fade + SLIDER_STEP));
+          break;
+        case '+':
+        case '=':
+          v.stepZoom(1);
+          break;
+        case '-':
+          v.stepZoom(-1);
+          break;
+        case 'f':
+          v.setZoom('fit');
           break;
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    openOverview,
-    setActiveMode,
-    goToNextStory,
-    goToPrevStory,
-    toggleBlink,
-    activeMode,
-    viewMode,
-    searchInputRef,
-  ]);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 }
