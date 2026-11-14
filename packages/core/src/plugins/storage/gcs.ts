@@ -4,6 +4,7 @@ import type {
   StorageAdapter,
   TestRunReport,
 } from '../../types/index.js';
+import { BASELINE_KEYS_FILE, parseKeys, serializeKeys } from './keys.js';
 import { loadSdk } from './optional-sdk.js';
 
 export interface GCSStorageOptions {
@@ -180,6 +181,27 @@ export class GCSStorageAdapter implements StorageAdapter {
       .bucket(this.bucket)
       .file(`${this.prefix}/baselines/${commitSha}/${this.getFilename(key)}`);
     await file.save(imageBuffer, { contentType: 'image/png' });
+  }
+
+  async downloadBaselineKeys(commit: string): Promise<SnapshotKey[] | null> {
+    if (!this.gcsStorage) return null;
+    const file = this.getClient()
+      .bucket(this.bucket)
+      .file(`${this.prefix}/baselines/${commit}/${BASELINE_KEYS_FILE}`);
+    try {
+      const [contents] = await file.download();
+      return parseKeys(contents);
+    } catch (err: unknown) {
+      if (isGCSNotFound(err)) return null;
+      throw err;
+    }
+  }
+
+  async uploadBaselineKeys(commit: string, keys: SnapshotKey[]): Promise<void> {
+    const file = this.getClient()
+      .bucket(this.bucket)
+      .file(`${this.prefix}/baselines/${commit}/${BASELINE_KEYS_FILE}`);
+    await file.save(serializeKeys(keys), { contentType: 'application/json' });
   }
 
   async saveReport(report: TestRunReport): Promise<string> {

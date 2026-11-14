@@ -33,7 +33,6 @@ diffra test [options]
 | `-c, --config <path>` | `string` | Auto-detected | Path to custom configuration file (`diffra.config.ts`). |
 | `-b, --branch <branch>` | `string` | `origin/main` | Target baseline Git branch for merge-base discovery. |
 | `-t, --diff-threshold <num>` | `number` | `0.063` | Perceptual sensitivity threshold (`0.0` strict to `1.0` permissive). |
-| `--threshold <num>` | `number` | `0.063` | Alias for `--diff-threshold`. |
 | `-o, --output-dir <dir>` | `string` | `.diffra` | Output directory for reports, candidates, and diffs. |
 | `--concurrency <number>` | `number` | `4` | Number of parallel browser workers in the Playwright pool. |
 | `--shard <index/total>` | `string` | `undefined` | Execute a deterministic partition slice of tests (e.g. `1/4`). |

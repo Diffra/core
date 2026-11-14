@@ -76,7 +76,6 @@ export const CLI_OPTIONS = {
   config: { type: 'string', short: 'c' },
   branch: { type: 'string', short: 'b' },
   'diff-threshold': { type: 'string', short: 't' },
-  threshold: { type: 'string' },
   delay: { type: 'string' },
   'output-dir': { type: 'string', short: 'o' },
   concurrency: { type: 'string' },
@@ -136,7 +135,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         const runnerOverrides: Record<string, unknown> = {};
         const storageOverrides: Record<string, unknown> = {};
 
-        const rawThreshold = values['diff-threshold'] || values.threshold;
+        const rawThreshold = values['diff-threshold'];
         if (rawThreshold) {
           snapshotOverrides.diffThreshold = parseFloat(rawThreshold);
         }

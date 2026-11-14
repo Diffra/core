@@ -5,7 +5,11 @@ import { getGitInfo } from '../git/baseline.js';
 import { resolveStorageAdapter } from '../plugins/storage/index.js';
 import { resolveOutputDir } from '../report/bundle.js';
 import { isTestRunReport } from '../report/generator.js';
-import type { DiffraConfig, TestRunReport } from '../types/index.js';
+import type {
+  DiffraConfig,
+  SnapshotKey,
+  TestRunReport,
+} from '../types/index.js';
 
 const LATEST_REPORT_FILE = 'latest-report.json';
 
@@ -56,9 +60,10 @@ export async function approveBaselines(
 
   let approved = 0;
   let failed = 0;
+  const promoted: SnapshotKey[] = [];
   for (const result of report.results) {
-    // A failed capture produced no image, so there is nothing to promote.
-    if (result.status === 'failed') continue;
+    // Neither a failed capture nor a removed target has an image to promote.
+    if (result.status === 'failed' || result.status === 'removed') continue;
 
     const key = {
       targetId: result.id,
@@ -71,6 +76,7 @@ export async function approveBaselines(
         throw new Error(`no candidate image stored for run ${report.runId}`);
       }
       await storage.uploadBaseline(gitInfo.commit, key, candidate);
+      promoted.push(key);
       approved++;
     } catch (err) {
       failed++;
@@ -79,6 +85,13 @@ export async function approveBaselines(
         `[diffra] Could not approve baseline for ${result.id}: ${msg}`,
       );
     }
+  }
+
+  // The list of what this commit's baseline holds lets later runs notice
+  // removed targets. A shard promotes only part of it, so it must not
+  // overwrite the list for the whole commit.
+  if (storage.uploadBaselineKeys && !report.shard && failed === 0) {
+    await storage.uploadBaselineKeys(gitInfo.commit, promoted);
   }
 
   return { count: approved, failed };

@@ -60,6 +60,18 @@ No CI baseline caching or large binary commits in Git are required.
 
 ---
 
+## Removed targets
+
+When a baseline is approved, Diffra also records which snapshots it contains. A later run compares that list with what it captured, and a snapshot with a baseline but no result is reported as **removed**: the target was deleted, or lost a viewport or browser. Removed targets are shown in the review report with their last baseline image and do not fail the run. Approving the run drops them from the baseline.
+
+Removed targets are not reported:
+
+* for sharded runs, because a shard sees only part of the targets and cannot tell what is gone;
+* for storage adapters that do not provide `downloadBaselineKeys` and `uploadBaselineKeys`;
+* when no baseline was found at all.
+
+---
+
 ## Shallow clone warning in CI
 
 For Git merge-base resolution to discover the ancestor commit properly in CI runners, ensure the full commit history is available:

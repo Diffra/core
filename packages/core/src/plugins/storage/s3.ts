@@ -4,6 +4,7 @@ import type {
   StorageAdapter,
   TestRunReport,
 } from '../../types/index.js';
+import { BASELINE_KEYS_FILE, parseKeys, serializeKeys } from './keys.js';
 import { loadSdk } from './optional-sdk.js';
 
 export interface S3StorageOptions {
@@ -215,6 +216,26 @@ export class S3StorageAdapter implements StorageAdapter {
         Key: objectKey,
         Body: imageBuffer,
         ContentType: 'image/png',
+      }),
+    );
+  }
+
+  async downloadBaselineKeys(commit: string): Promise<SnapshotKey[] | null> {
+    if (!this.s3Client) return null;
+    const stored = await this.getObjectBuffer(
+      `${this.prefix}/baselines/${commit}/${BASELINE_KEYS_FILE}`,
+    );
+    return stored ? parseKeys(stored) : null;
+  }
+
+  async uploadBaselineKeys(commit: string, keys: SnapshotKey[]): Promise<void> {
+    const { PutObjectCommand } = await this.getCommands();
+    await this.getClient().send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: `${this.prefix}/baselines/${commit}/${BASELINE_KEYS_FILE}`,
+        Body: serializeKeys(keys),
+        ContentType: 'application/json',
       }),
     );
   }

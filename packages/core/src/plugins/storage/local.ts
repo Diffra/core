@@ -6,6 +6,7 @@ import type {
   StorageAdapter,
   TestRunReport,
 } from '../../types/index.js';
+import { BASELINE_KEYS_FILE, parseKeys, serializeKeys } from './keys.js';
 
 export interface LocalStorageOptions {
   outputDir?: string;
@@ -257,6 +258,42 @@ export class LocalFilesystemAdapter implements StorageAdapter {
 
     await fs.mkdir(commitDir, { recursive: true });
     await fs.writeFile(commitPath, imageBuffer);
+  }
+
+  async uploadBaselineKeys(commit: string, keys: SnapshotKey[]): Promise<void> {
+    const commitDir = path.join(this.baselineDir, commit);
+    const commitFile = path.join(commitDir, BASELINE_KEYS_FILE);
+    const latestFile = path.join(this.baselineDir, BASELINE_KEYS_FILE);
+    this.assertWithinBoundary(
+      commitFile,
+      this.baselineDir,
+      'uploadBaselineKeys',
+    );
+    await fs.mkdir(commitDir, { recursive: true });
+    const content = serializeKeys(keys);
+    await fs.writeFile(commitFile, content, 'utf-8');
+    await fs.writeFile(latestFile, content, 'utf-8');
+  }
+
+  /** Like baselines, falls back to the latest list when the commit has none. */
+  async downloadBaselineKeys(commit: string): Promise<SnapshotKey[] | null> {
+    const commitFile = path.join(this.baselineDir, commit, BASELINE_KEYS_FILE);
+    this.assertWithinBoundary(
+      commitFile,
+      this.baselineDir,
+      'downloadBaselineKeys',
+    );
+    for (const file of [
+      commitFile,
+      path.join(this.baselineDir, BASELINE_KEYS_FILE),
+    ]) {
+      try {
+        return parseKeys(await fs.readFile(file, 'utf-8'));
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+      }
+    }
+    return null;
   }
 
   async saveReport(report: TestRunReport): Promise<string> {

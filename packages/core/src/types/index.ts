@@ -299,6 +299,12 @@ export interface StorageAdapter {
     key: SnapshotKey,
     buffer: Buffer,
   ): Promise<void>;
+  /**
+   * Lists the snapshots promoted as the baseline of a commit. Optional: when
+   * an adapter provides it, snapshots that disappear are reported as removed.
+   */
+  downloadBaselineKeys?(commit: string): Promise<SnapshotKey[] | null>;
+  uploadBaselineKeys?(commit: string, keys: SnapshotKey[]): Promise<void>;
   uploadBlob?(hash: string, buffer: Buffer): Promise<string>;
   downloadBlob?(hash: string): Promise<Buffer | null>;
   hasBlob?(hash: string): Promise<boolean>;
@@ -358,6 +364,8 @@ export interface ReportLinks {
 export interface TestRunReport {
   runId: string;
   timestamp: string;
+  /** Set when the run covered only one shard of the targets, for example "1/4" */
+  shard?: string;
   git: GitContext;
   summary: TestRunSummary;
   links?: ReportLinks;

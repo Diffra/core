@@ -289,6 +289,89 @@ describe('visual regression loop', { timeout: SCENARIO_TIMEOUT_MS }, () => {
     expect(report.results.map((r) => r.id)).toEqual(['route--a', 'route--b']);
   });
 
+  describe('removed targets', () => {
+    it('reports a target that no longer exists, with its baseline image', async () => {
+      const first = await runVisualRegression({
+        cwd: repoDir,
+        config: config(),
+      });
+      await approveBaselines({ cwd: repoDir, report: first });
+
+      const second = await runVisualRegression({
+        cwd: repoDir,
+        config: config({}, ['/a']),
+      });
+
+      expect(statusById(second)).toEqual({
+        'route--a': 'unchanged',
+        'route--b': 'removed',
+      });
+      expect(second.summary).toMatchObject({ removed: 1, unchanged: 1 });
+      const removed = second.results.find((r) => r.id === 'route--b');
+      expect(removed?.baseline?.url).toMatch(/^images\/[0-9a-f]{64}\.png$/);
+    });
+
+    it('stops reporting it once the new run is approved', async () => {
+      const first = await runVisualRegression({
+        cwd: repoDir,
+        config: config(),
+      });
+      await approveBaselines({ cwd: repoDir, report: first });
+      const second = await runVisualRegression({
+        cwd: repoDir,
+        config: config({}, ['/a']),
+      });
+
+      // Approving a run that contains a removed target must not fail on it.
+      const approved = await approveBaselines({ cwd: repoDir, report: second });
+      expect(approved).toEqual({ count: 1, failed: 0 });
+
+      const third = await runVisualRegression({
+        cwd: repoDir,
+        config: config({}, ['/a']),
+      });
+      expect(statusById(third)).toEqual({ 'route--a': 'unchanged' });
+    });
+
+    it('does not guess from a shard, which sees only part of the targets', async () => {
+      const first = await runVisualRegression({
+        cwd: repoDir,
+        config: config(),
+      });
+      await approveBaselines({ cwd: repoDir, report: first });
+
+      const shard = await runVisualRegression({
+        cwd: repoDir,
+        shard: '1/2',
+        config: config(),
+      });
+
+      expect(shard.shard).toBe('1/2');
+      expect(shard.summary.removed).toBe(0);
+      expect(shard.results.map((r) => r.id)).toEqual(['route--a']);
+    });
+
+    it('is not reported for storage that cannot list a baseline', async () => {
+      // MemoryStorage has no list of promoted snapshots.
+      const storage = new MemoryStorage();
+      const first = await runVisualRegression({
+        cwd: repoDir,
+        config: config({ storage }),
+      });
+      await approveBaselines({
+        cwd: repoDir,
+        config: config({ storage }),
+        report: first,
+      });
+
+      const second = await runVisualRegression({
+        cwd: repoDir,
+        config: config({ storage }, ['/a']),
+      });
+      expect(second.summary.removed).toBe(0);
+    });
+  });
+
   it('keeps a custom storage adapter instance when loading config', async () => {
     const storage = new MemoryStorage();
     const loaded = await loadConfig(repoDir, { storage });

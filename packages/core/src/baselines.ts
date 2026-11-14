@@ -2,6 +2,13 @@ import type { SnapshotKey, StorageAdapter } from './types/index.js';
 
 export interface BaselineResolver {
   find(key: SnapshotKey): Promise<Buffer | null>;
+  /** The commit whose baseline was used, once any snapshot has been found */
+  resolvedCommit(): string | undefined;
+}
+
+/** Identifies a snapshot across runs: target, browser and viewport size. */
+export function snapshotId(key: SnapshotKey): string {
+  return `${key.targetId}|${key.browser ?? ''}|${key.viewport.width}x${key.viewport.height}`;
 }
 
 /**
@@ -16,6 +23,7 @@ export function createBaselineResolver(
   let resolvedCommit: string | undefined;
 
   return {
+    resolvedCommit: () => resolvedCommit,
     async find(key) {
       const ordered = resolvedCommit
         ? [resolvedCommit, ...commits.filter((c) => c !== resolvedCommit)]

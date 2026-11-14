@@ -20,6 +20,7 @@ import {
   discoverTargets,
   resolveProjects,
 } from './pipeline/plan.js';
+import { findRemoved } from './pipeline/removed.js';
 import { assembleReport, notifyAll, publishReport } from './pipeline/report.js';
 import { resolveDiffEngine } from './plugins/diff/index.js';
 import { resolveNotifiers } from './plugins/notifiers/index.js';
@@ -105,7 +106,8 @@ export async function runVisualRegression(
   const timestamp = new Date().toISOString();
 
   const discovered = await discoverTargets(drivers, driverContext, plugins);
-  const tasks = buildTasks(discovered, config, options.shard);
+  const shard = options.shard || config.runner?.shard;
+  const tasks = buildTasks(discovered, config, shard);
 
   const needsBrowser = tasks.some(
     (t) => !t.driver?.capture && !t.driver?.captureAll,
@@ -166,6 +168,18 @@ export async function runVisualRegression(
     for (const failure of outcome.failures) {
       record(failedResult(failure));
     }
+
+    // A shard sees only part of the targets, so it cannot tell what is gone.
+    if (!shard) {
+      for (const gone of await findRemoved({
+        storage,
+        baselines: compareContext.baselines,
+        bundle,
+        results,
+      })) {
+        record(gone);
+      }
+    }
   } finally {
     for (const driver of drivers) {
       try {
@@ -186,6 +200,7 @@ export async function runVisualRegression(
     results,
     config,
     bundle,
+    shard,
   });
   await publishReport(report, storage, bundle);
   await notifyAll(notifiers, report);

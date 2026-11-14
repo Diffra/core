@@ -47,12 +47,14 @@ export function assembleReport(input: {
   results: VisualTestResult[];
   config: DiffraConfig;
   bundle: ReviewBundle;
+  shard?: string;
 }): TestRunReport {
-  const { runId, timestamp, git, config, bundle } = input;
+  const { runId, timestamp, git, config, bundle, shard } = input;
   const results = sortResults(input.results);
   return {
     runId,
     timestamp,
+    shard: shard || undefined,
     git: {
       branch: git.branch,
       commit: git.commit,

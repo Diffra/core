@@ -4,6 +4,7 @@ import type {
   StorageAdapter,
   TestRunReport,
 } from '../../types/index.js';
+import { BASELINE_KEYS_FILE, parseKeys, serializeKeys } from './keys.js';
 import { loadSdk } from './optional-sdk.js';
 
 export interface AzureStorageOptions {
@@ -180,6 +181,30 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
     await blockBlobClient.upload(imageBuffer, imageBuffer.length, {
       blobHTTPHeaders: { blobContentType: 'image/png' },
     });
+  }
+
+  async downloadBaselineKeys(commit: string): Promise<SnapshotKey[] | null> {
+    if (!this.containerClient) return null;
+    const blobName = `${this.prefix}/baselines/${commit}/${BASELINE_KEYS_FILE}`;
+    try {
+      const stored = await this.getClient()
+        .getBlockBlobClient(blobName)
+        .downloadToBuffer();
+      return parseKeys(stored);
+    } catch (err: unknown) {
+      if (isAzureNotFound(err)) return null;
+      throw err;
+    }
+  }
+
+  async uploadBaselineKeys(commit: string, keys: SnapshotKey[]): Promise<void> {
+    const blobName = `${this.prefix}/baselines/${commit}/${BASELINE_KEYS_FILE}`;
+    const content = Buffer.from(serializeKeys(keys), 'utf-8');
+    await this.getClient()
+      .getBlockBlobClient(blobName)
+      .upload(content, content.length, {
+        blobHTTPHeaders: { blobContentType: 'application/json' },
+      });
   }
 
   async saveReport(report: TestRunReport): Promise<string> {
