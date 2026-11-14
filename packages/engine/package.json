@@ -2,7 +2,7 @@
   "name": "@diffra/engine",
   "version": "0.1.0",
   "type": "module",
-  "description": "Hardware-accelerated Rust SIMD pixel comparison engine with Node-API bindings and pure TypeScript fallback",
+  "description": "Pixel comparison engine for visual regression: a TypeScript implementation, and an optional native Rust build that gives the same results several times faster",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "author": "Diffra",
@@ -18,7 +18,6 @@
   },
   "keywords": [
     "pixel-diff",
-    "simd",
     "rust",
     "napi",
     "image-comparison",
@@ -56,7 +55,8 @@
     "build": "tsc -b",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.test.json",
-    "clean": "tsc -b --clean && rm -rf dist"
+    "clean": "tsc -b --clean && rm -rf dist",
+    "build:native": "pnpm run build && node scripts/build-native.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

@@ -1,6 +1,6 @@
 # Core comparison engine
 
-Diffra's pixel comparison engine (`@diffra/engine`) is engineered for ultra-fast perceptual image diffing using native Rust SIMD acceleration with a pure TypeScript fallback.
+Diffra's pixel comparison engine (`@diffra/engine`) compares images perceptually. It has a TypeScript implementation that is always available and an optional native Rust build that gives the same results faster.
 
 ---
 
@@ -22,13 +22,13 @@ A pixel difference is registered only when $\Delta E$ exceeds the configured per
 
 ---
 
-## Hardware SIMD acceleration
+## Native and TypeScript implementations
 
-The Rust engine (`packages/engine/src/lib.rs`) utilizes vector registers (256-bit AVX2 on x86-64 and 128-bit NEON on ARM64) to compare 4 to 8 pixels simultaneously per instruction:
+Both implementations follow the same algorithm and a parity test suite checks that they report the same changed pixels, regions and dimensions across identical images, solid and sub-threshold changes, shifts, transparency, thresholds, anti-aliasing and size differences.
 
-* Native Node-API (`@napi-rs`) binary bindings.
-* Zero memory allocations in the inner comparison loop.
-* Automated memory recycling across Playwright workers.
+* The TypeScript implementation is always available.
+* The Rust implementation (`packages/engine/src/lib.rs`) is built with `pnpm --filter @diffra/engine build:native` and is used automatically when present. It is a single-threaded loop that does not use SIMD instructions. On 1280 by 800 screenshots, measured on an Apple silicon laptop, it was about 3 to 16 times faster than the TypeScript implementation, with the largest gains when many pixels differ.
+* `engineKind()` reports which implementation is running.
 
 ---
 

@@ -30,7 +30,7 @@ if (app) {
         <div class="card">
           <h3>Test Execution Speed</h3>
           <div class="metric-value">12.4 ms</div>
-          <p>Rust SIMD hardware-accelerated pixel comparison across AVX2 and ARM NEON.</p>
+          <p>Perceptual pixel comparison with an optional native Rust engine.</p>
         </div>
         <div class="card">
           <h3>Content Addressing</h3>

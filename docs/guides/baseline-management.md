@@ -35,7 +35,7 @@ In CI/CD environments, baseline images and manifests are persisted in your priva
 
 1. **Content-addressed hashing**: Every captured screenshot is hashed using SHA-256 (`SHA-256(candidate)`).
 2. **$O(1)$ fast path (Zero download)**: Diffra queries the baseline commit manifest in cloud storage. If the candidate hash matches the baseline hash, **the baseline image is never downloaded**. The test passes instantly with zero network bandwidth.
-3. **On-demand fetch for diffing**: When candidate and baseline hashes differ, Diffra downloads the baseline PNG directly from cloud storage into runner memory to execute SIMD pixel comparison, compute bounding boxes, and generate the diff highlight image.
+3. **On-demand fetch for diffing**: When candidate and baseline hashes differ, Diffra downloads the baseline PNG directly from cloud storage into runner memory to run the pixel comparison, compute bounding boxes, and generate the diff highlight image.
 
 ---
 

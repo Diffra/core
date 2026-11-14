@@ -425,3 +425,38 @@ pub fn compare_images_rust(
         options.unwrap_or_default(),
     ))
 }
+
+/// Compare two raw RGBA buffers of the same width and height
+#[napi]
+pub fn compare_raw_rgba(
+    baseline: Buffer,
+    candidate: Buffer,
+    width: u32,
+    height: u32,
+    options: Option<DiffOptions>,
+) -> Result<DiffResult> {
+    let expected = (width as usize) * (height as usize) * 4;
+    let image = |name: &str, bytes: &Buffer| -> Result<RgbaImage> {
+        if bytes.len() != expected {
+            return Err(Error::new(
+                Status::InvalidArg,
+                format!(
+                    "{name} has {} bytes but a {width}x{height} RGBA image needs {expected}",
+                    bytes.len()
+                ),
+            ));
+        }
+        RgbaImage::from_raw(width, height, bytes.to_vec()).ok_or_else(|| {
+            Error::new(
+                Status::InvalidArg,
+                format!("{name} is not a valid RGBA image"),
+            )
+        })
+    };
+
+    Ok(compare_rgba_images(
+        &image("baseline", &baseline)?,
+        &image("candidate", &candidate)?,
+        options.unwrap_or_default(),
+    ))
+}

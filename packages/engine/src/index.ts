@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { clusterBoundingBoxes } from './clustering.js';
 import { decodePng, encodePng } from './png.js';
 import type { DiffOptions, DiffResult } from './types.js';
@@ -10,6 +11,26 @@ export * from './png.js';
 export * from './types.js';
 
 const DEFAULT_THRESHOLD = 0.063;
+
+/** Environment variable naming a native binding file, for custom builds. */
+export const NATIVE_BINDING_ENV = 'DIFFRA_NATIVE_BINDING';
+
+/** Folder inside the package that holds the built native binding. */
+export const NATIVE_DIR = 'native';
+
+/** File name of the native binding built for a platform. */
+export function nativeBindingFileName(
+  platform: string = process.platform,
+  arch: string = process.arch,
+): string {
+  return `diffra-diff.${platform}-${arch}.node`;
+}
+
+// The package root is one level above this file, in both src and dist.
+const PACKAGE_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+);
 const require = createRequire(import.meta.url);
 
 interface NativeBinding {
@@ -33,20 +54,9 @@ function loadNativeBinding(): NativeBinding | null {
   if (nativeBinding) return nativeBinding;
 
   const possiblePaths = [
-    path.join(process.cwd(), 'diffra-diff.node'),
-    path.join(
-      process.cwd(),
-      `diffra-diff.${process.platform}-${process.arch}.node`,
-    ),
-    path.join(process.cwd(), 'dist', 'diffra-diff.node'),
-    path.join(process.cwd(), 'packages', 'engine', 'diffra-diff.node'),
-    path.join(
-      process.cwd(),
-      'packages',
-      'engine',
-      `diffra-diff.${process.platform}-${process.arch}.node`,
-    ),
-  ];
+    process.env[NATIVE_BINDING_ENV],
+    path.join(PACKAGE_ROOT, NATIVE_DIR, nativeBindingFileName()),
+  ].filter((p): p is string => Boolean(p));
 
   for (const bindingPath of possiblePaths) {
     if (fs.existsSync(bindingPath)) {
@@ -74,8 +84,13 @@ function loadNativeBinding(): NativeBinding | null {
   return null;
 }
 
+/** Which implementation compareImages and compareRawRGBA are using. */
+export function engineKind(): 'native' | 'typescript' {
+  return loadNativeBinding() ? 'native' : 'typescript';
+}
+
 /**
- * High-performance visual regression comparison using native Rust SIMD engine if available,
+ * Visual regression comparison using the native Rust engine if available,
  * or pure TypeScript YIQ perceptual color difference engine with anti-aliasing detection.
  */
 export async function compareImages(
@@ -100,7 +115,7 @@ export async function compareImages(
 }
 
 /**
- * Compare raw RGBA buffers directly via SIMD/Native engine or pure TypeScript engine.
+ * Compare raw RGBA buffers directly via the native engine or the TypeScript engine.
  */
 export function compareRawRGBA(
   baselineData: Uint8Array | Buffer,
@@ -634,3 +649,9 @@ async function fallbackCompareImages(
     hasDiff: diffCount > 0,
   };
 }
+
+/** The TypeScript implementation, whether or not a native binding is present. */
+export const typescriptEngine = {
+  compareImages: fallbackCompareImages,
+  compareRawRgba: fallbackCompareRaw,
+};

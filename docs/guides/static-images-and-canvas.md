@@ -66,4 +66,4 @@ Approve new baselines:
 pnpm diffra approve
 ```
 
-Baseline images are persisted into `.diffra/baselines/` and compared against candidate images using the native SIMD Rust engine.
+Baseline images are persisted into `.diffra/baselines/` and compared against candidate images using the pixel comparison engine.

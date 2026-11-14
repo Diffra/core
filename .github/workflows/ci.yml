@@ -58,3 +58,44 @@ jobs:
         run: |
           pnpm bundle
           git diff --exit-code -- dist || { echo "dist/ is stale: run pnpm bundle and commit the result"; exit 1; }
+
+  native:
+    name: Native engine (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The crate declares the Rust version it needs; runners may carry an older one.
+      - name: Update Rust
+        run: rustup update stable
+
+      - name: Check formatting and lints
+        working-directory: packages/engine
+        run: |
+          cargo fmt --check
+          cargo clippy --release
+
+      # With a binding built, the engine tests also compare it with the
+      # TypeScript implementation on every kind of change.
+      - name: Build the native binding and run the engine tests
+        run: |
+          pnpm --filter @diffra/engine build:native
+          pnpm --filter @diffra/engine test

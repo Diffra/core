@@ -15,7 +15,7 @@ flowchart TD
     E -->|SHA-256 Digest| F[Content-Addressed Storage CAS]
     G[Target Baseline Branch e.g. origin/main] -->|Git Merge-Base Resolver| H[Baseline Commit SHA]
     H -->|Download Baseline PNGs| I[Baseline Screenshots]
-    E & I -->|O1 Hash Match / Rust SIMD Delta-E| J[Pixel Comparison Engine]
+    E & I -->|O1 Hash Match / Delta-E| J[Pixel Comparison Engine]
     J -->|Clustering & Bounding Boxes| K[Visual Test Results]
     K -->|Compile Manifest| L[report.json Manifest]
     L -->|Notifiers & Plugins| M[GitHub PR Sticky Comment & Slack Alerts]
@@ -29,6 +29,6 @@ flowchart TD
 2. **Task matrix & sharding**: Multiplies discovered targets by configured viewports and Playwright projects (`chromium`, `firefox`, `webkit`). Slices tasks if `--shard` is specified.
 3. **Headless browser capture**: Launches parallel workers in the `BrowserPool`. Injects deterministic CSS rules to pause animations, hides carets, applies locator masks, and captures PNG screenshots.
 4. **Git merge-base & CAS matching**: Computes `git merge-base HEAD <baselineBranch>` using auto-discovered baseline branch (or explicit override). Checks if the candidate SHA-256 hash matches the baseline SHA-256 hash ($O(1)$ fast-path).
-5. **Pixel diffing & clustering**: Runs hardware-accelerated SIMD YIQ comparison for differing images and computes bounding boxes.
+5. **Pixel diffing & clustering**: Runs the YIQ perceptual comparison for images whose hashes differ and computes bounding boxes, using the native engine when it is built.
 6. **Manifest compilation**: Compiles a structured `report.json` with branch URLs and links to images.
 7. **Notifications & review**: Emits GitHub commit checks, posts/updates sticky PR comments, and sends Slack webhook alerts.

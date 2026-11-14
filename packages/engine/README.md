@@ -1,69 +1,64 @@
 # @diffra/engine
 
-Hardware-accelerated Rust SIMD pixel comparison engine with Node-API (`@napi-rs`) bindings and pure TypeScript fallback.
+Pixel comparison for visual regression. There are two implementations that give the same results: one in TypeScript, and an optional native build in Rust that is several times faster.
 
 ---
 
 ## Overview
 
-`@diffra/engine` delivers ultra-fast pixel diffing with SIMD vectorization (AVX2, SSE4.1, ARM NEON). When native binaries are unavailable, it falls back to a pure TypeScript perceptual color delta comparison.
+`compareImages` decodes two PNG images, compares them pixel by pixel using a perceptual colour difference in the YIQ colour space, ignores anti-aliasing noise, and returns the number of changed pixels, the changed regions as bounding boxes, and an optional diff image.
 
-### Key capabilities
+The TypeScript implementation is always available. If a native binding has been built for the platform, the engine uses it automatically.
 
-* **Rust SIMD acceleration**: Computes perceptual pixel delta and outputs diff mask buffers at multi-gigapixel/second speeds.
-* **Perceptual Delta E thresholding**: Accurately differentiates antialiasing noise and subpixel font shifts from real UI regressions.
-* **Bounding box clustering**: Groups adjacent changed pixels into distinct bounding boxes with union merging and spatial padding.
-* **PNG decode and encode utilities**: Zero-dependency raw PNG RGBA buffer parsing and serialization.
+| Implementation | Availability | Speed |
+| :--- | :--- | :--- |
+| TypeScript | Always | Baseline |
+| Native (Rust, single-threaded) | After `pnpm --filter @diffra/engine build:native` | About 3 to 16 times faster on 1280 by 800 screenshots, measured on an Apple silicon laptop |
 
----
-
-## Installation
-
-```bash
-pnpm add @diffra/engine
-```
+The native code is a plain loop. It does not use SIMD instructions or multiple threads. A test suite compares both implementations on identical images, solid and sub-threshold changes, one-pixel shifts, transparency, stricter thresholds, anti-aliasing and differing dimensions, so they agree on every changed pixel and region.
 
 ---
 
 ## Usage
 
 ```typescript
-import { compareImages, clusterDiffPixels } from '@diffra/engine';
+import { compareImages, engineKind } from '@diffra/engine';
 
-// Compare two raw RGBA pixel buffers
-const result = compareImages(baselineRgbaBuffer, candidateRgbaBuffer, {
-  threshold: 0.05,
-  alpha: 0.1,
-  diffColor: [255, 0, 0], // Red diff highlight
+const result = await compareImages(baselinePng, candidatePng, {
+  threshold: 0.063,
+  generateDiffImage: true,
 });
 
-console.log(`Diff pixel count: ${result.diffCount}`);
-console.log(`Percentage changed: ${result.percentage}%`);
+console.log(engineKind()); // 'native' or 'typescript'
+console.log(result.hasDiff, result.diffCount, result.diffPercentage);
 
-// Cluster changed pixels into bounding boxes
-const clusters = clusterDiffPixels(
-  result.diffMask,
-  width,
-  height,
-  {
-    minClusterSize: 4,
-    padding: 8,
-  }
-);
-
-for (const box of clusters) {
-  console.log(`Changed region: x=${box.x}, y=${box.y}, w=${box.width}, h=${box.height}`);
+for (const box of result.boundingBoxes) {
+  console.log(`Changed region: x ${box.minX}-${box.maxX}, y ${box.minY}-${box.maxY}`);
 }
 ```
+
+Raw RGBA buffers of the same size can be compared directly with `compareRawRGBA(baseline, candidate, width, height, options)`.
+
+---
+
+## Building the native binding
+
+Requires a Rust toolchain.
+
+```bash
+pnpm --filter @diffra/engine build:native
+```
+
+This writes `native/diffra-diff.<platform>-<arch>.node` inside the package. Set `DIFFRA_NATIVE_BINDING` to the path of a binding file to use one from elsewhere.
 
 ---
 
 ## Package exports
 
-* `@diffra/engine`: Main comparison engine functions (`compareImages`, `clusterDiffPixels`, `diffImagesWithClusters`).
-* `@diffra/engine/clustering`: Spatial clustering algorithms and bounding box helpers.
-* `@diffra/engine/png`: Raw PNG decode and encode utilities.
-* `@diffra/engine/types`: Engine options and result types.
+* `@diffra/engine`: `compareImages`, `compareRawRGBA`, `engineKind`, `typescriptEngine`, and everything below.
+* `@diffra/engine/clustering`: `clusterBoundingBoxes`, which groups changed pixels into regions.
+* `@diffra/engine/png`: `decodePng` and `encodePng`, dependency-free PNG handling.
+* `@diffra/engine/types`: option and result types.
 
 ---
 
