@@ -66,16 +66,30 @@ jobs:
 | Input | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `token` | No | `${{ github.token }}` | GitHub token for status checks and PR comments (`${{ secrets.GITHUB_TOKEN }}`) |
-| `projectToken` | No | N/A | Unique project token or storage authentication token |
-| `storybookBuildDir` | No | `'storybook-static'` | Path to pre-built static Storybook directory |
+| `storybookBuildDir` | No | `undefined` | Path to a pre-built static Storybook or site directory, served locally during the run |
 | `storybookUrl` | No | `undefined` | URL of running Storybook server |
-| `storybookPort` | No | `'6006'` | Port to run local preview server on |
+| `storybookPort` | No | `'0'` | Port for the local preview server (`0` picks a free port) |
 | `driver` | No | `'storybook'` | Visual target driver: `'storybook'`, `'url'`, or `'image'` |
 | `autoAcceptChanges` | No | `'default-branch'` | Branch pattern on which candidate snapshots are automatically approved |
 | `exitZeroOnChanges` | No | `'true'` | Exit with status code 0 when visual changes are found |
 | `diffThreshold` | No | `'0.063'` | Perceptual sensitivity threshold |
 | `concurrency` | No | `'4'` | Number of parallel browser workers |
 | `workingDir` | No | `'.'` | Working directory for monorepo packages |
+
+Baselines must outlive the job, so CI runs need cloud storage. Select it with environment variables:
+
+| Variable | Description |
+| :--- | :--- |
+| `DIFFRA_STORAGE_BUCKET` | Bucket name. Selects S3 unless `DIFFRA_STORAGE_PROVIDER` says otherwise |
+| `DIFFRA_STORAGE_PROVIDER` | `s3`, `gcs`, `azure`, or `local` |
+| `DIFFRA_STORAGE_REGION` | S3 region |
+| `DIFFRA_STORAGE_ENDPOINT` | S3-compatible endpoint, for Cloudflare R2 or MinIO |
+| `DIFFRA_STORAGE_PREFIX` | Key prefix inside the bucket or container |
+| `DIFFRA_STORAGE_CONTAINER` | Azure container. Selects Azure |
+
+Credentials use each provider's standard variables (`AWS_ACCESS_KEY_ID`, `AZURE_STORAGE_CONNECTION_STRING`, `GOOGLE_APPLICATION_CREDENTIALS`). A `storage` block in `diffra.config.ts` takes precedence.
+
+The action downloads Chromium itself when it is missing.
 
 ---
 
@@ -88,6 +102,7 @@ jobs:
 | `storybookUrl` | URL of the Storybook preview server used during capture |
 | `code` | Process exit status code |
 | `changeCount` | Number of visual differences detected |
+| `failedCount` | Number of targets that could not be captured |
 | `storyCount` | Total number of stories and viewport combinations tested |
 | `status` | Final execution status (`passed`, `changes_found`, or `failed`) |
 

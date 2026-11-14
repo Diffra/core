@@ -19,6 +19,8 @@ vi.mock('@actions/core', () => ({
   setFailed: vi.fn(),
   info: vi.fn(),
   warning: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
   summary: {
     addRaw: vi.fn().mockReturnValue({
       write: vi.fn().mockResolvedValue({}),
@@ -64,23 +66,19 @@ describe('Milestone 3 Adversarial Challenge: Action Secret Masking & Review Link
     mockSecrets.length = 0;
   });
 
-  it('masks both projectToken and token independently via core.setSecret()', async () => {
-    mockInputs.projectToken = 'super-secret-project-token';
+  it('masks the token input via core.setSecret()', async () => {
     mockInputs.token = 'github-pat-token-456';
 
     await run();
 
-    expect(mockSecrets).toContain('super-secret-project-token');
     expect(mockSecrets).toContain('github-pat-token-456');
   });
 
   it('masks process.env.GITHUB_TOKEN when token input is not explicitly passed', async () => {
-    mockInputs.projectToken = 'project-only-token';
     process.env.GITHUB_TOKEN = 'env-github-token-999';
 
     await run();
 
-    expect(mockSecrets).toContain('project-only-token');
     expect(mockSecrets).toContain('env-github-token-999');
 
     delete process.env.GITHUB_TOKEN;
@@ -120,9 +118,6 @@ describe('Milestone 3 Adversarial Challenge: Action Secret Masking & Review Link
       'https://visual-regression.acme.corp/?run=stress-run-777',
     );
     expect(mockOutputs.buildUrl).toBe(
-      'https://visual-regression.acme.corp/?run=stress-run-777',
-    );
-    expect(mockOutputs.reportUrl).toBe(
       'https://visual-regression.acme.corp/?run=stress-run-777',
     );
     expect(mockOutputs.url).not.toContain('file://');

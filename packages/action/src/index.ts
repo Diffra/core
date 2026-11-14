@@ -3,8 +3,10 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import {
   approveBaselines,
+  createGitHubNotifier,
   formatMarkdownSummary,
   runVisualRegression,
+  type TestRunReport,
 } from '@diffra/core';
 import { matchesBranchOrBool } from './branch.js';
 import {
@@ -23,54 +25,152 @@ export {
 };
 
 const MAX_CONCURRENCY = 16;
+const DEFAULT_EXIT_ZERO_ON_CHANGES = 'true';
+const DEFAULT_AUTO_ACCEPT = 'default-branch';
+const PULL_REQUEST_REF = /^refs\/pull\/(\d+)\/(merge|head)$/;
+
+/** Splits a comma separated list or JSON array input into trimmed entries. */
+export function parseList(input: string): string[] {
+  const fromCsv = (value: string) =>
+    value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  if (!input.startsWith('[')) return fromCsv(input);
+  try {
+    const parsed: unknown = JSON.parse(input);
+    return Array.isArray(parsed) ? parsed.map(String) : fromCsv(input);
+  } catch {
+    return fromCsv(input);
+  }
+}
+
+interface DriverInputs {
+  driver: string;
+  urls: string;
+  storybookBuildDir: string;
+  storybookUrl: string;
+}
+
+/**
+ * Chooses the driver configuration implied by the action inputs. Returns
+ * undefined when no input asks for a driver, so that the repository's own
+ * configuration (diffra.config.ts) stays in charge.
+ */
+export function driverFromInputs(inputs: DriverInputs): unknown {
+  const { driver, urls, storybookBuildDir, storybookUrl } = inputs;
+
+  if (driver === 'url' || (!driver && urls)) {
+    return {
+      driver: 'url',
+      baseUrl: storybookUrl || undefined,
+      urls: urls ? parseList(urls) : ['/'],
+    };
+  }
+  if (
+    driver === 'storybook' ||
+    (!driver && (storybookBuildDir || storybookUrl))
+  ) {
+    return {
+      driver: 'storybook',
+      url: storybookUrl || undefined,
+      buildDir: storybookBuildDir || undefined,
+    };
+  }
+  return driver || undefined;
+}
+
+/** Builds the review link for a finished run. */
+export function buildReportUrl(options: {
+  viewerUrl?: string;
+  runId: string;
+  workingDir: string;
+}): string {
+  const { viewerUrl, runId, workingDir } = options;
+  if (viewerUrl) {
+    return `${viewerUrl.replace(/\/$/, '')}/?run=${runId}`;
+  }
+  return `file://${path.resolve(workingDir, '.diffra/runs', runId, 'report.json')}`;
+}
+
+function maskSecrets(token: string | undefined): void {
+  if (token) core.setSecret(token);
+
+  const sensitiveEnvKeys = [
+    'AWS_SECRET_ACCESS_KEY',
+    'AWS_SESSION_TOKEN',
+    'AZURE_STORAGE_CONNECTION_STRING',
+    'AZURE_STORAGE_KEY',
+    'SLACK_WEBHOOK_URL',
+    'FIGMA_ACCESS_TOKEN',
+  ];
+  for (const key of sensitiveEnvKeys) {
+    const value = process.env[key];
+    if (value) core.setSecret(value);
+  }
+}
+
+function pullRequestNumber(): number | undefined {
+  const fromPayload = github.context.payload.pull_request?.number;
+  if (fromPayload) return fromPayload;
+  const match = process.env.GITHUB_REF?.match(PULL_REQUEST_REF);
+  return match?.[1] ? Number(match[1]) : undefined;
+}
+
+function logSummary(report: TestRunReport, reportUrl: string): void {
+  const { summary } = report;
+  core.info('\nTest Run Summary:');
+  core.info(`  Total:     ${summary.total}`);
+  core.info(`  Passed:    ${summary.unchanged}`);
+  core.info(`  Added:     ${summary.added}`);
+  core.info(`  Changed:   ${summary.changed}`);
+  core.info(`  Failed:    ${summary.failed}`);
+  core.info(`  Report:    ${reportUrl}\n`);
+}
+
+function annotateChanges(report: TestRunReport): void {
+  for (const result of report.results) {
+    if (result.status === 'changed') {
+      const pct = result.diff?.diffPercentage.toFixed(2) ?? '0.00';
+      const count = result.diff?.diffCount.toLocaleString() ?? '0';
+      const groupName = result.group || 'Component';
+      core.warning(
+        `Visual diff detected in "${groupName} / ${result.name}" [${result.viewport.width}x${result.viewport.height}]: ${pct}% change (${count} pixels).`,
+        { title: `Visual Change: ${groupName} - ${result.name}` },
+      );
+    } else if (result.status === 'failed') {
+      const groupName = result.group || 'Component';
+      core.error(
+        `Could not capture "${groupName} / ${result.name}": ${result.error ?? 'unknown error'}`,
+        { title: `Capture failed: ${groupName} - ${result.name}` },
+      );
+    }
+  }
+}
 
 export async function run(): Promise<void> {
   let staticServer: import('node:http').Server | null = null;
   const currentRef = github.context.ref || process.env.GITHUB_REF || '';
 
   try {
-    // 1. Independent secret extraction and masking
-    const projectToken = core.getInput('projectToken');
-    if (projectToken) {
-      core.setSecret(projectToken);
-    }
-
     const token = core.getInput('token') || process.env.GITHUB_TOKEN;
-    if (token) {
-      core.setSecret(token);
-    }
+    maskSecrets(token);
 
-    const sensitiveEnvKeys = [
-      'AWS_SECRET_ACCESS_KEY',
-      'AWS_SESSION_TOKEN',
-      'AZURE_STORAGE_CONNECTION_STRING',
-      'AZURE_STORAGE_KEY',
-      'SLACK_WEBHOOK_URL',
-      'FIGMA_ACCESS_TOKEN',
-    ];
-    for (const key of sensitiveEnvKeys) {
-      const val = process.env[key];
-      if (val) {
-        core.setSecret(val);
-      }
-    }
+    const debug = core.getInput('debug') === 'true';
+    const verbose = (message: string) => {
+      if (debug) core.info(`[debug] ${message}`);
+    };
 
-    const rawWorkingDir = core.getInput('workingDir') || '.';
-    const workingDir = path.resolve(process.cwd(), rawWorkingDir);
+    const workingDir = path.resolve(
+      process.cwd(),
+      core.getInput('workingDir') || '.',
+    );
 
-    const driverInput = core.getInput('driver');
-    const urlsInput = core.getInput('urls');
-    const storybookBuildDir = core.getInput('storybookBuildDir');
-    let storybookUrl = core.getInput('storybookUrl');
-    const portInput = core.getInput('storybookPort');
-    const thresholdInput =
-      core.getInput('diffThreshold') || core.getInput('threshold');
-    const concurrencyInput = core.getInput('concurrency');
-    const exitZeroInput = core.getInput('exitZeroOnChanges') || 'true';
+    const exitZeroInput =
+      core.getInput('exitZeroOnChanges') || DEFAULT_EXIT_ZERO_ON_CHANGES;
     const autoAcceptInput =
-      core.getInput('autoAcceptChanges') || 'default-branch';
-    const exitOnceUploadedInput = core.getInput('exitOnceUploaded');
-
+      core.getInput('autoAcceptChanges') || DEFAULT_AUTO_ACCEPT;
     const defaultBranch = github.context.payload.repository?.default_branch;
 
     const shouldExitZeroOnChanges = matchesBranchOrBool(
@@ -78,122 +178,74 @@ export async function run(): Promise<void> {
       currentRef,
       defaultBranch,
     );
-    const shouldAutoAccept = autoAcceptInput
-      ? matchesBranchOrBool(autoAcceptInput, currentRef, defaultBranch)
-      : false;
+    const shouldAutoAccept = matchesBranchOrBool(
+      autoAcceptInput,
+      currentRef,
+      defaultBranch,
+    );
     const shouldExitOnceUploaded = matchesBranchOrBool(
-      exitOnceUploadedInput,
+      core.getInput('exitOnceUploaded'),
       currentRef,
       defaultBranch,
     );
 
-    // 2. Static Preview Server on dynamic port 0 with boundary verification
+    // Serve a pre-built static site on a dynamic port when no URL was given.
+    const storybookBuildDir = core.getInput('storybookBuildDir');
+    let storybookUrl = core.getInput('storybookUrl');
     if (storybookBuildDir && !storybookUrl) {
-      const targetPort = portInput ? parseInt(portInput, 10) : 0;
-      const staticRoot = path.resolve(workingDir, storybookBuildDir);
-
+      const portInput = core.getInput('storybookPort');
       const preview = await startPreviewServer({
-        root: staticRoot,
-        port: targetPort,
+        root: path.resolve(workingDir, storybookBuildDir),
+        port: portInput ? Number.parseInt(portInput, 10) : 0,
       });
       staticServer = preview.server;
       storybookUrl = preview.url;
       core.info(`Started static preview server on ${storybookUrl}`);
     }
 
-    core.info('Starting Diffra visual regression test run...');
-
-    // 3. Configuration Setup
-    const snapshotOverrides: Record<string, unknown> = {};
-    const runnerOverrides: Record<string, unknown> = {};
-
+    // Configuration overrides derived from the action inputs
+    const snapshot: Record<string, unknown> = {};
+    const thresholdInput = core.getInput('diffThreshold');
     if (thresholdInput) {
-      const parsedThreshold = parseFloat(thresholdInput);
-      if (
-        !Number.isNaN(parsedThreshold) &&
-        parsedThreshold >= 0 &&
-        parsedThreshold <= 1
-      ) {
-        snapshotOverrides.diffThreshold = parsedThreshold;
+      const threshold = Number.parseFloat(thresholdInput);
+      if (!Number.isNaN(threshold) && threshold >= 0 && threshold <= 1) {
+        snapshot.diffThreshold = threshold;
       }
     }
 
+    const runner: Record<string, unknown> = { installBrowsers: true };
+    const concurrencyInput = core.getInput('concurrency');
     if (concurrencyInput) {
-      const parsedConcurrency = parseInt(concurrencyInput, 10);
-      if (!Number.isNaN(parsedConcurrency) && parsedConcurrency > 0) {
-        runnerOverrides.concurrency = Math.min(
-          parsedConcurrency,
-          MAX_CONCURRENCY,
-        );
+      const concurrency = Number.parseInt(concurrencyInput, 10);
+      if (!Number.isNaN(concurrency) && concurrency > 0) {
+        runner.concurrency = Math.min(concurrency, MAX_CONCURRENCY);
       }
     }
 
-    const configOverrides: Record<string, unknown> = {};
-    if (driverInput === 'storybook' || (!driverInput && !urlsInput)) {
-      configOverrides.drivers = {
-        driver: 'storybook',
-        url: storybookUrl || undefined,
-        buildDir: storybookBuildDir || undefined,
-      };
-    } else if (driverInput === 'url' || urlsInput) {
-      let urls: string[] = ['/'];
-      if (urlsInput) {
-        try {
-          urls = urlsInput.startsWith('[')
-            ? JSON.parse(urlsInput)
-            : urlsInput
-                .split(',')
-                .map((s: string) => s.trim())
-                .filter(Boolean);
-        } catch {
-          urls = urlsInput
-            .split(',')
-            .map((s: string) => s.trim())
-            .filter(Boolean);
-        }
-      }
-      configOverrides.drivers = {
-        driver: 'url',
-        baseUrl: storybookUrl || undefined,
-        urls,
-      };
-    } else {
-      configOverrides.drivers = driverInput;
-    }
+    const configOverrides: Record<string, unknown> = { runner };
+    if (Object.keys(snapshot).length > 0) configOverrides.snapshot = snapshot;
 
-    if (Object.keys(snapshotOverrides).length > 0)
-      configOverrides.snapshot = snapshotOverrides;
-    if (Object.keys(runnerOverrides).length > 0)
-      configOverrides.runner = runnerOverrides;
+    const drivers = driverFromInputs({
+      driver: core.getInput('driver'),
+      urls: core.getInput('urls'),
+      storybookBuildDir,
+      storybookUrl,
+    });
+    if (drivers !== undefined) configOverrides.drivers = drivers;
 
-    // 4. GitHub PR Comment & Commit Status Configuration
-    const repoOwner = github.context.repo.repo
-      ? github.context.repo.owner
-      : undefined;
-    const repoName = github.context.repo.repo;
-    const repoString =
-      repoOwner && repoName
-        ? `${repoOwner}/${repoName}`
-        : process.env.GITHUB_REPOSITORY;
-    const prNumber =
-      github.context.payload.pull_request?.number ||
-      (process.env.GITHUB_REF?.match(/^refs\/pull\/(\d+)\/(merge|head)$/)
-        ? Number(process.env.GITHUB_REF.split('/')[2])
-        : undefined);
-
-    const viewerUrlInput = core.getInput('viewerUrl');
-    const autoPagesUrl =
-      repoOwner && repoName
-        ? `https://${repoOwner}.github.io/${repoName}`
-        : undefined;
+    const { owner, repo } = github.context.repo;
+    const repoSlug =
+      owner && repo ? `${owner}/${repo}` : process.env.GITHUB_REPOSITORY;
     const viewerUrl =
-      viewerUrlInput || process.env.DIFFRA_VIEWER_URL || autoPagesUrl;
+      core.getInput('viewerUrl') ||
+      process.env.DIFFRA_VIEWER_URL ||
+      (owner && repo ? `https://${owner}.github.io/${repo}` : undefined);
+    if (viewerUrl) configOverrides.viewerUrl = viewerUrl;
 
-    if (viewerUrl) {
-      configOverrides.viewerUrl = viewerUrl;
-    }
+    verbose(`working directory: ${workingDir}`);
+    verbose(`config overrides: ${JSON.stringify(configOverrides)}`);
 
-    // 5. Test Execution
+    core.info('Starting Diffra visual regression test run...');
     const report = await runVisualRegression({
       cwd: workingDir,
       config: configOverrides,
@@ -202,69 +254,42 @@ export async function run(): Promise<void> {
       },
     });
 
-    const reportJsonPath = path.resolve(
+    const reportUrl = buildReportUrl({
+      viewerUrl,
+      runId: report.runId,
       workingDir,
-      '.diffra/runs',
-      report.runId,
-      'report.json',
-    );
-    const reportUrl = viewerUrl
-      ? `${viewerUrl.replace(/\/$/, '')}/?run=${report.runId}`
-      : `file://${reportJsonPath}`;
+    });
 
-    if (token && repoString) {
-      configOverrides.notifier = {
-        github: {
-          token,
-          repo: repoString,
-          prNumber,
-          viewerUrl,
-          reportUrl,
-        },
-      };
+    // The pull request comment and commit status need the finished report and
+    // its review link, so they are posted here rather than during the run.
+    if (token && repoSlug) {
+      await createGitHubNotifier({
+        token,
+        repo: repoSlug,
+        prNumber: pullRequestNumber(),
+        viewerUrl,
+        reportUrl,
+      }).notify(report);
     }
 
-    // 6. Standard Action Outputs
     core.setOutput('url', reportUrl);
     core.setOutput('buildUrl', reportUrl);
-    core.setOutput('reportUrl', reportUrl);
     core.setOutput('storybookUrl', storybookUrl || '');
     core.setOutput('changeCount', String(report.summary.changed));
+    core.setOutput('failedCount', String(report.summary.failed));
     core.setOutput('storyCount', String(report.summary.total));
-    core.setOutput('targetCount', String(report.summary.total));
 
-    core.info('\nTest Run Summary:');
-    core.info(`  Total:     ${report.summary.total}`);
-    core.info(`  Passed:    ${report.summary.unchanged}`);
-    core.info(`  Added:     ${report.summary.added}`);
-    core.info(`  Changed:   ${report.summary.changed}`);
-    core.info(`  Failed:    ${report.summary.failed}`);
-    core.info(`  Report:    ${reportUrl}\n`);
+    logSummary(report, reportUrl);
 
-    // 7. GitHub Actions Job Step Summary
     try {
-      const summaryMarkdown = formatMarkdownSummary(
-        report,
-        reportUrl,
-        viewerUrl,
-      );
-      await core.summary.addRaw(summaryMarkdown).write();
-    } catch {}
-
-    // 8. Emit GitHub Annotations / Warnings for Changed Targets
-    for (const result of report.results) {
-      if (result.status === 'changed') {
-        const pct = result.diff?.diffPercentage.toFixed(2) ?? '0.00';
-        const count = result.diff?.diffCount.toLocaleString() ?? '0';
-        const groupName = result.group || 'Component';
-        core.warning(
-          `Visual diff detected in "${groupName} / ${result.name}" [${result.viewport.width}x${result.viewport.height}]: ${pct}% change (${count} pixels).`,
-          {
-            title: `Visual Change: ${groupName} - ${result.name}`,
-          },
-        );
-      }
+      await core.summary
+        .addRaw(formatMarkdownSummary(report, reportUrl, viewerUrl))
+        .write();
+    } catch (error) {
+      verbose(`could not write the job summary: ${String(error)}`);
     }
+
+    annotateChanges(report);
 
     if (report.summary.failed > 0) {
       core.setOutput('code', '1');
@@ -282,18 +307,25 @@ export async function run(): Promise<void> {
       return;
     }
 
-    // 9. Auto-Accept on Merge or Target Branch
     if (shouldAutoAccept) {
       core.info(
         `Promoting candidate snapshots as the new baseline for ${currentRef}...`,
       );
-      const approveResult = await approveBaselines({
+      const approved = await approveBaselines({
         cwd: workingDir,
         report,
       });
       core.info(
-        `Successfully promoted ${approveResult.count} snapshots as baseline.`,
+        `Successfully promoted ${approved.count} snapshots as baseline.`,
       );
+      if (approved.failed > 0) {
+        core.setOutput('code', '1');
+        core.setOutput('status', 'failed');
+        core.setFailed(
+          `Diffra could not promote ${approved.failed} snapshot(s) as baseline.`,
+        );
+        return;
+      }
       core.setOutput('code', '0');
       core.setOutput('status', 'passed');
       return;

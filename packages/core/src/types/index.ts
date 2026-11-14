@@ -220,6 +220,9 @@ export interface RunnerConfig {
   /** Capture attempts per target before it is reported as failed (default: 2) */
   captureAttempts?: number;
 
+  /** Download missing Playwright browsers before capturing (default: false) */
+  installBrowsers?: boolean;
+
   /** Target Git branch for merge-base baseline discovery (default: 'origin/main') */
   baselineBranch?: string;
 

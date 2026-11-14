@@ -20,7 +20,8 @@
     "build": "tsc -b",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.test.json",
-    "clean": "tsc -b --clean && rm -rf dist"
+    "clean": "tsc -b --clean && rm -rf dist",
+    "bundle": "vite build"
   },
   "dependencies": {
     "@actions/core": "^3.0.1",

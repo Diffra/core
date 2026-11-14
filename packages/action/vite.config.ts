@@ -1,31 +1,87 @@
+import fs from 'node:fs';
+import { builtinModules, createRequire } from 'node:module';
 import path from 'node:path';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
+
+const require = createRequire(import.meta.url);
+
+/** The bundle is the action's entry point, so it lives at the repository root. */
+const OUT_DIR = path.resolve(import.meta.dirname, '../../dist');
+export const ACTION_ENTRY = 'action.mjs';
+
+/**
+ * Playwright locates its package files relative to its own directory. Inside a
+ * single-file bundle that directory is this folder, so the two files it reads
+ * to select browser builds are shipped here.
+ */
+const PLAYWRIGHT_SHIM_DIR = 'playwright-core';
+
+function playwrightCoreDir(): string {
+  const coreEntry = require.resolve('@diffra/core');
+  const playwrightPackage = createRequire(coreEntry).resolve(
+    'playwright/package.json',
+  );
+  return path.dirname(
+    createRequire(playwrightPackage).resolve('playwright-core/package.json'),
+  );
+}
+
+function shipPlaywrightFiles(): Plugin {
+  let outDir = OUT_DIR;
+  return {
+    name: 'diffra-ship-playwright-files',
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir);
+    },
+    closeBundle() {
+      const source = playwrightCoreDir();
+      const target = path.join(outDir, PLAYWRIGHT_SHIM_DIR);
+      fs.mkdirSync(target, { recursive: true });
+      for (const file of ['package.json', 'browsers.json']) {
+        fs.copyFileSync(path.join(source, file), path.join(target, file));
+      }
+    },
+  };
+}
+
+// An ES module has no CommonJS globals, which bundled dependencies expect.
+// __dirname points into the shipped Playwright folder (see above).
+const COMMONJS_SHIM = [
+  "import { createRequire as __createRequire } from 'node:module';",
+  "import { fileURLToPath as __fileURLToPath } from 'node:url';",
+  "import { dirname as __dirname_of, join as __join } from 'node:path';",
+  'const require = __createRequire(import.meta.url);',
+  'const __filename = __fileURLToPath(import.meta.url);',
+  `const __dirname = __join(__dirname_of(__filename), '${PLAYWRIGHT_SHIM_DIR}', 'lib');`,
+].join(' ');
 
 export default defineConfig({
+  plugins: [shipPlaywrightFiles()],
   build: {
-    lib: {
-      entry: path.resolve(__dirname, 'src/index.ts'),
-      name: 'DiffraAction',
-      fileName: () => 'action.js',
-      formats: ['cjs'],
-    },
-    outDir: path.resolve(__dirname, '../../dist'),
-    emptyOutDir: false,
+    ssr: path.resolve(import.meta.dirname, 'src/index.ts'),
+    outDir: OUT_DIR,
+    emptyOutDir: true,
+    target: 'node24',
+    minify: true,
     rollupOptions: {
-      external: [
-        'node:fs',
-        'node:fs/promises',
-        'node:path',
-        'node:http',
-        'node:url',
-        'node:child_process',
-        'node:os',
-        'playwright',
-        '@diffra/engine',
-        '@google-cloud/storage',
-        '@aws-sdk/client-s3',
-        '@azure/storage-blob',
-      ],
+      output: {
+        format: 'es',
+        entryFileNames: ACTION_ENTRY,
+        codeSplitting: false,
+        banner: COMMONJS_SHIM,
+      },
+      onwarn(warning, warn) {
+        // Bundled third-party code uses direct eval; it is not ours to change.
+        if (warning.code === 'EVAL') return;
+        warn(warning);
+      },
     },
+  },
+  ssr: {
+    noExternal: true,
+    external: [
+      ...builtinModules,
+      ...builtinModules.map((name) => `node:${name}`),
+    ],
   },
 });

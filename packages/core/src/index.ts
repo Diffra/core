@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createBaselineResolver } from './baselines.js';
+import { ensureBrowsers } from './capture/browser-install.js';
 import {
   type CaptureFailure,
   type CaptureResult,
@@ -33,6 +34,7 @@ import { normalizeViewport } from './utils/viewport.js';
 
 const URL_SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
 
+export { type BrowserName, ensureBrowsers } from './capture/browser-install.js';
 export * from './config/index.js';
 export * from './drivers/index.js';
 export * from './git/baseline.js';
@@ -213,6 +215,12 @@ export async function runVisualRegression(
   }
 
   // 3. Capture Candidate Screenshots
+  const needsBrowser = tasks.some(
+    (t) => !t.driver?.capture && !t.driver?.captureAll,
+  );
+  if (config.runner?.installBrowsers && needsBrowser) {
+    await ensureBrowsers(projects.map((p) => p.browser ?? 'chromium'));
+  }
   let rawCaptures: CaptureResult[] = [];
   let captureFailures: CaptureFailure[] = [];
   try {

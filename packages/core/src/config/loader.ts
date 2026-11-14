@@ -3,6 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { cosmiconfig } from 'cosmiconfig';
 import type { DiffraConfig } from '../types/index.js';
+import { storageConfigFromEnv } from './env.js';
 import { DiffraConfigSchema } from './schema.js';
 
 const MODULE_NAME = 'diffra';
@@ -14,6 +15,7 @@ export async function loadConfig(
   cwd = process.cwd(),
   overrides: Partial<DiffraConfig> = {},
   configFile?: string,
+  env: NodeJS.ProcessEnv = process.env,
 ): Promise<DiffraConfig> {
   let rawConfig: Record<string, unknown> = {};
 
@@ -83,10 +85,19 @@ export async function loadConfig(
     }
   }
 
-  const merged = {
+  const merged: Record<string, unknown> = {
     ...rawConfig,
     ...overrides,
   };
+
+  // Explicit configuration wins; environment variables only fill the gap so
+  // CI can select cloud storage without a config file.
+  if (merged.storage === undefined) {
+    const fromEnv = storageConfigFromEnv(env);
+    if (fromEnv) {
+      merged.storage = fromEnv;
+    }
+  }
 
   const parsed = DiffraConfigSchema.safeParse(merged);
   if (!parsed.success) {

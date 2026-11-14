@@ -4,9 +4,6 @@ description: 'Automated visual regression testing and review reports for Storybo
 author: 'Diffra'
 
 inputs:
-  projectToken:
-    description: 'The unique token for your project or storage authentication'
-    required: false
   token:
     description: 'GitHub token for pull request sticky comments and commit status checks'
     required: false
@@ -39,17 +36,10 @@ inputs:
     description: 'Exit with code 0 as soon as the candidate snapshots and diffs are persisted'
     required: false
     default: 'false'
-  onlyChanged:
-    description: 'Only capture and test stories whose underlying component files have changed'
-    required: false
-    default: 'false'
   diffThreshold:
     description: 'Perceptual pixel delta threshold (from 0.00 strict to 1.00 permissive)'
     required: false
     default: '0.063'
-  threshold:
-    description: 'Alias for diffThreshold'
-    required: false
   concurrency:
     description: 'Number of parallel browser workers'
     required: false
@@ -62,7 +52,7 @@ inputs:
     description: 'Hosted viewer URL (e.g. GitHub Pages https://<org>.github.io/<repo>/)'
     required: false
   debug:
-    description: 'Enable verbose debug output in CI logs'
+    description: 'Log the resolved configuration and extra diagnostics'
     required: false
     default: 'false'
 
@@ -77,6 +67,8 @@ outputs:
     description: 'Process exit status code'
   changeCount:
     description: 'Number of visual differences detected'
+  failedCount:
+    description: 'Number of targets that could not be captured'
   storyCount:
     description: 'Total number of stories and viewport combinations tested'
   status:
@@ -84,7 +76,7 @@ outputs:
 
 runs:
   using: 'node24'
-  main: 'dist/action.js'
+  main: 'dist/action.mjs'
 
 branding:
   icon: 'eye'

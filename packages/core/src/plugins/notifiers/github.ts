@@ -7,9 +7,14 @@ export interface GitHubNotifierOptions {
   repo?: string;
   prNumber?: number;
   commitSha?: string;
-  reportUrl?: string;
+  /** Review link, or a function building it once the run id is known */
+  reportUrl?: string | ((report: TestRunReport) => string);
   viewerUrl?: string;
+  /** REST API base, for GitHub Enterprise Server (default: GITHUB_API_URL) */
+  apiUrl?: string;
 }
+
+export const DEFAULT_GITHUB_API_URL = 'https://api.github.com';
 
 /**
  * Resolves the pull request number from options or GitHub Actions environment.
@@ -57,8 +62,9 @@ export class GitHubNotifier implements NotifierAdapter {
   private readonly repo?: string;
   private readonly prNumber?: number;
   private readonly commitSha?: string;
-  private readonly reportUrl?: string;
+  private readonly reportUrl?: string | ((report: TestRunReport) => string);
   private readonly viewerUrl?: string;
+  private readonly apiUrl: string;
 
   constructor(options: GitHubNotifierOptions = {}) {
     this.token =
@@ -68,6 +74,11 @@ export class GitHubNotifier implements NotifierAdapter {
     this.commitSha = options.commitSha;
     this.reportUrl = options.reportUrl;
     this.viewerUrl = options.viewerUrl || process.env.DIFFRA_VIEWER_URL;
+    this.apiUrl = (
+      options.apiUrl ||
+      process.env.GITHUB_API_URL ||
+      DEFAULT_GITHUB_API_URL
+    ).replace(/\/+$/, '');
   }
 
   async notify(report: TestRunReport): Promise<void> {
@@ -82,6 +93,11 @@ export class GitHubNotifier implements NotifierAdapter {
       'User-Agent': 'Diffra-Visual-Regression-Action',
     };
 
+    const reportUrl =
+      typeof this.reportUrl === 'function'
+        ? this.reportUrl(report)
+        : this.reportUrl;
+
     // 1. Commit Status Check
     const sha = this.commitSha || report.git?.commit;
     if (sha && sha !== 'uncommitted') {
@@ -95,7 +111,7 @@ export class GitHubNotifier implements NotifierAdapter {
               ? `Found ${changed} visual diffs.`
               : 'All visual regressions passed.';
 
-        const checkUrl = `https://api.github.com/repos/${this.repo}/statuses/${sha}`;
+        const checkUrl = `${this.apiUrl}/repos/${this.repo}/statuses/${sha}`;
         await fetch(checkUrl, {
           method: 'POST',
           headers,
@@ -103,7 +119,7 @@ export class GitHubNotifier implements NotifierAdapter {
             state,
             context: 'diffra/visual-tests',
             description,
-            target_url: this.reportUrl,
+            target_url: reportUrl,
           }),
         });
       } catch (err) {
@@ -118,12 +134,8 @@ export class GitHubNotifier implements NotifierAdapter {
     const prNumber = await resolvePullRequestNumber(this.prNumber);
     if (prNumber) {
       try {
-        const body = formatMarkdownSummary(
-          report,
-          this.reportUrl,
-          this.viewerUrl,
-        );
-        const commentsUrl = `https://api.github.com/repos/${this.repo}/issues/${prNumber}/comments`;
+        const body = formatMarkdownSummary(report, reportUrl, this.viewerUrl);
+        const commentsUrl = `${this.apiUrl}/repos/${this.repo}/issues/${prNumber}/comments`;
 
         const listRes = await fetch(commentsUrl, { headers });
 
@@ -143,7 +155,7 @@ export class GitHubNotifier implements NotifierAdapter {
 
           if (existing) {
             await fetch(
-              `https://api.github.com/repos/${this.repo}/issues/comments/${existing.id}`,
+              `${this.apiUrl}/repos/${this.repo}/issues/comments/${existing.id}`,
               {
                 method: 'PATCH',
                 headers,

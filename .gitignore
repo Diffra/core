@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# The GitHub Action runs from this committed bundle (pnpm --filter @diffra/action bundle)
+!/dist/
 target/
 .diffra/
 .pnpm-store

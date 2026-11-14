@@ -107,6 +107,7 @@ export const ProjectSchema: z.ZodType<Project> = z.object({
 export const RunnerConfigSchema = z.object({
   concurrency: z.number().int().positive().default(DEFAULT_CONCURRENCY),
   captureAttempts: z.number().int().positive().optional(),
+  installBrowsers: z.boolean().optional(),
   baselineBranch: z.string().optional(),
   baselineHistoryDepth: z.number().int().positive().optional(),
   shard: z.string().optional(),

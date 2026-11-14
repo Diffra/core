@@ -3,3 +3,4 @@
 pnpm-lock.yaml -diff linguist-generated
 Cargo.lock -diff linguist-generated
 *.node binary
+dist/action.mjs -diff linguist-generated

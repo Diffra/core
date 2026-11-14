@@ -7,6 +7,7 @@ export {
   type Viewport,
   type ViewportInput,
 } from '../types/index.js';
+export { STORAGE_ENV, storageConfigFromEnv } from './env.js';
 export { loadConfig } from './loader.js';
 export {
   type DiffraConfigInput,

@@ -34,6 +34,7 @@
     "viewer:dev": "pnpm --filter @diffra/viewer dev",
     "storybook": "pnpm --filter @diffra/demo-storybook storybook",
     "build": "pnpm -r run build",
+    "bundle": "pnpm --filter @diffra/action bundle",
     "test": "pnpm -r run test",
     "test:visual": "pnpm --filter @diffra/demo-storybook test:visual",
     "test:visual:approve": "pnpm --filter @diffra/demo-storybook test:visual:approve",

@@ -19,6 +19,8 @@ vi.mock('@actions/core', () => ({
   setFailed: vi.fn(),
   info: vi.fn(),
   warning: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
   summary: {
     addRaw: vi.fn().mockReturnValue({
       write: vi.fn().mockResolvedValue({}),
@@ -234,14 +236,12 @@ describe('@diffra/action execution, secret masking, and review link', () => {
     mockSecrets.length = 0;
   });
 
-  it('masks projectToken and githubToken with core.setSecret()', async () => {
-    mockInputs.projectToken = 'sec-proj-token-xyz';
+  it('masks the token input and sensitive environment variables with core.setSecret()', async () => {
     mockInputs.token = 'ghp_secretGithubToken123';
     process.env.AWS_SECRET_ACCESS_KEY = 'aws-secret-key-456';
 
     await run();
 
-    expect(mockSecrets).toContain('sec-proj-token-xyz');
     expect(mockSecrets).toContain('ghp_secretGithubToken123');
     expect(mockSecrets).toContain('aws-secret-key-456');
 
@@ -256,9 +256,6 @@ describe('@diffra/action execution, secret masking, and review link', () => {
       'https://diffra-viewer.company.com/?run=mock-run-123',
     );
     expect(mockOutputs.buildUrl).toBe(
-      'https://diffra-viewer.company.com/?run=mock-run-123',
-    );
-    expect(mockOutputs.reportUrl).toBe(
       'https://diffra-viewer.company.com/?run=mock-run-123',
     );
     expect(mockOutputs.url).not.toContain('file://');

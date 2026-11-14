@@ -4,6 +4,21 @@ Diffra decouples baseline storage from the test runner via pluggable storage ada
 
 ---
 
+## Selecting storage with environment variables
+
+CI jobs can select a backend without a config file. A `storage` block in `diffra.config.ts` always takes precedence.
+
+| Variable | Description |
+| :--- | :--- |
+| `DIFFRA_STORAGE_BUCKET` | Bucket name. Selects S3 unless `DIFFRA_STORAGE_PROVIDER` says otherwise. |
+| `DIFFRA_STORAGE_PROVIDER` | `s3`, `gcs`, `azure`, or `local`. |
+| `DIFFRA_STORAGE_REGION` | S3 region. |
+| `DIFFRA_STORAGE_ENDPOINT` | S3-compatible endpoint for Cloudflare R2 or MinIO. |
+| `DIFFRA_STORAGE_PREFIX` | Key prefix inside the bucket or container. |
+| `DIFFRA_STORAGE_CONTAINER` | Azure container. Selects Azure. |
+
+An unknown provider, or a provider without its required variable, stops the run with an error.
+
 ## 1. Local filesystem adapter (Default)
 
 Stores baselines under `.diffra/baselines/` and test runs under `.diffra/runs/`:
