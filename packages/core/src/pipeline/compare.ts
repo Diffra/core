@@ -7,6 +7,7 @@ import { DEFAULT_DIFF_THRESHOLD } from '../config/schema.js';
 import type { ReviewBundle } from '../report/bundle.js';
 import type {
   DiffEngineAdapter,
+  DiffResult,
   DiffraConfig,
   Project,
   SnapshotKey,
@@ -121,23 +122,39 @@ export async function compareCapture(
     target.snapshot?.diffThreshold ??
     config.snapshot?.diffThreshold ??
     DEFAULT_DIFF_THRESHOLD;
-  const diff = await diffEngine.compare(baselineBuffer, buffer, {
-    threshold: diffThreshold,
-    diffThreshold,
-    generateDiffImage: true,
-  });
-
-  if (!diff.hasDiff) {
-    return unchanged(diff);
+  let diff: DiffResult;
+  try {
+    diff = await diffEngine.compare(baselineBuffer, buffer, {
+      threshold: diffThreshold,
+      diffThreshold,
+      generateDiffImage: true,
+    });
+  } catch (err) {
+    // An image that cannot be decoded fails this snapshot, not the whole run.
+    return {
+      ...base,
+      status: 'failed',
+      candidate: { path: candidatePath, hash: candidateHash },
+      error: `Comparison failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
 
-  const diffPath = diff.diffImage
-    ? await storage.uploadDiff(runId, key, diff.diffImage)
+  // The diff image is stored as a file of its own. Leaving its bytes on the
+  // result would write them into every copy of the report, as a JSON array of
+  // numbers, and keep them in memory until the run ends.
+  const { diffImage: diffPng, ...summary } = diff;
+
+  if (!summary.hasDiff) {
+    return unchanged(summary);
+  }
+
+  const diffPath = diffPng
+    ? await storage.uploadDiff(runId, key, diffPng)
     : undefined;
   return {
     ...base,
     status: 'changed',
-    diff,
+    diff: summary,
     baseline: {
       hash: baselineHash,
       url: await bundle.addImage(baselineBuffer),
@@ -147,8 +164,8 @@ export async function compareCapture(
       hash: candidateHash,
       url: await bundle.addImage(buffer),
     },
-    diffImage: diff.diffImage
-      ? { path: diffPath, url: await bundle.addImage(diff.diffImage) }
+    diffImage: diffPng
+      ? { path: diffPath, url: await bundle.addImage(diffPng) }
       : undefined,
   };
 }

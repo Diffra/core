@@ -237,11 +237,21 @@ export async function runCaptures(
 
       const targetParams: SnapshotConfig = target.snapshot || {};
 
+      // Headers, credentials and cookies are applied to the page itself, so a
+      // page that carries them is not reused for another target.
+      const metadata = target.metadata || {};
+      const cookieList = metadata.cookies as unknown[] | undefined;
+      const isolated = Boolean(
+        metadata.headers || metadata.auth || cookieList?.length,
+      );
+
       let captured: CaptureResult | undefined;
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         const workerPage = await pool.acquirePage(viewport, project, {
           pauseAnimationAtEnd: targetParams.pauseAnimationAtEnd,
+          isolated,
         });
+        let healthy = false;
 
         try {
           let url = target.url;
@@ -255,7 +265,6 @@ export async function runCaptures(
             }
           }
 
-          const metadata = target.metadata || {};
           const headers = metadata.headers as
             | Record<string, string>
             | undefined;
@@ -372,6 +381,7 @@ export async function runCaptures(
               await workerPage.page.screenshot(screenshotOptions);
           }
 
+          healthy = true;
           captured = {
             target,
             viewport,
@@ -388,7 +398,7 @@ export async function runCaptures(
             failures.push({ target, viewport, project, error: message });
           }
         } finally {
-          await pool.releasePage(workerPage);
+          await pool.releasePage(workerPage, { discard: !healthy });
         }
       }
       // Handed over after the page is released, so comparing one capture

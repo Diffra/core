@@ -88,6 +88,44 @@ describe('runs with custom drivers', () => {
     expect(second.results[0]?.diff?.diffCount).toBe(0);
   });
 
+  it('fails only the snapshot whose image cannot be decoded', async () => {
+    let broken = false;
+    const driver = driverFor(
+      'icons',
+      [
+        { id: 'icon--search', name: 'Search' },
+        { id: 'icon--close', name: 'Close' },
+      ],
+      () => solid(120),
+    );
+    const flaky: VisualDriver = {
+      ...driver,
+      capture: async (task) =>
+        broken && task.target.id === 'icon--close'
+          ? Buffer.from('not a png')
+          : solid(120),
+    };
+    const first = await runVisualRegression({
+      cwd: dir,
+      config: config([flaky]),
+    });
+    await approveBaselines({
+      cwd: dir,
+      config: config([flaky]),
+      report: first,
+    });
+
+    broken = true;
+    const second = await runVisualRegression({
+      cwd: dir,
+      config: config([flaky]),
+    });
+    expect(second.summary).toMatchObject({ unchanged: 1, failed: 1 });
+    const failed = second.results.find((r) => r.id === 'icon--close');
+    expect(failed?.status).toBe('failed');
+    expect(failed?.error).toMatch(/candidate/);
+  });
+
   it('reports a change when the driver produces a different image', async () => {
     let value = 120;
     const driver = driverFor(
