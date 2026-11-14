@@ -32,7 +32,7 @@ This document records architectural principles, conventions, and operational lea
 
 ### 4. Monorepo structure and package boundaries
 * `packages/core`: Core test runner, Playwright coordinator, Git merge-base resolver, report inliner, pluggable drivers.
-* `packages/engine`: Pixel comparison engine in TypeScript, with an optional native Rust build exposed through Node-API.
+* `packages/engine`: Pixel comparison engine in Rust, built with napi-rs and loaded through Node-API. There is no TypeScript implementation and no fallback: every platform runs the Rust engine.
 * `packages/cli`: Zero-dependency command-line binary (`diffra`).
 * `packages/viewer`: Static Web Components review UI bundled via Vite as a standalone IIFE bundle (`dist/viewer.bundle.js`).
 * `packages/action`: GitHub Action runner with path traversal protection and secret masking.

@@ -5,7 +5,62 @@ import {
   DEFAULT_THRESHOLD,
   decodePng,
   encodePng,
-} from '../src/index.js';
+} from '../index.js';
+
+describe('images of different sizes', () => {
+  /**
+   * A baseline twice as tall as the candidate, with a pattern that sends the
+   * anti-aliasing check across the bottom edge of the shared region. Reading
+   * past the shorter image used to abort the process.
+   */
+  it('compares a taller baseline without reading past the candidate', async () => {
+    const width = 24;
+    const sharedHeight = 48;
+    const baselineHeight = sharedHeight * 2;
+    const shade = (x: number, y: number) =>
+      100 + 20 * (x % 3) + (y >= sharedHeight ? 2 : 0);
+
+    const baseline = Buffer.alloc(width * baselineHeight * 4, 255);
+    const candidate = Buffer.alloc(width * sharedHeight * 4, 255);
+    for (let y = 0; y < baselineHeight; y++) {
+      for (let x = 0; x < width; x++) {
+        baseline.fill(
+          shade(x, y),
+          (y * width + x) * 4,
+          (y * width + x) * 4 + 3,
+        );
+        if (y < sharedHeight) {
+          // The last shared row is brighter, so it differs from the baseline.
+          const value = y === sharedHeight - 1 ? shade(x, y) + 60 : shade(x, y);
+          candidate.fill(value, (y * width + x) * 4, (y * width + x) * 4 + 3);
+        }
+      }
+    }
+
+    const result = await compareImages(
+      encodePng(baseline, width, baselineHeight),
+      encodePng(candidate, width, sharedHeight),
+      { diffThreshold: 0.063 },
+    );
+
+    expect(result.isSameDimensions).toBe(false);
+    expect(result.height).toBe(baselineHeight);
+    expect(result.hasDiff).toBe(true);
+  });
+
+  it('compares a wider candidate than baseline', async () => {
+    const solid = (width: number, height: number, value: number) =>
+      encodePng(Buffer.alloc(width * height * 4, value), width, height);
+    const result = await compareImages(
+      solid(16, 16, 80),
+      solid(32, 16, 80),
+      {},
+    );
+    expect(result.isSameDimensions).toBe(false);
+    expect(result.width).toBe(32);
+    expect(result.diffCount).toBe(16 * 16);
+  });
+});
 
 describe('image comparison', () => {
   it('honors 0.0 threshold as exact match without falling back to 0.063', () => {
@@ -313,13 +368,22 @@ describe('image comparison', () => {
     }
   });
 
-  it('gracefully handles corrupted PNG buffers in compareImages without uncaught exceptions', async () => {
+  it('rejects with a message naming the input that cannot be decoded', async () => {
     const validPng = encodePng(Buffer.alloc(10 * 10 * 4, 128), 10, 10);
     const corruptBuffer = Buffer.from('NOT_A_VALID_PNG_FILE_HEADER_DATA');
 
-    // compareImages must catch decoding errors and return fallback diff result with hasDiff: true
-    const result = await compareImages(validPng, corruptBuffer);
-    expect(result.hasDiff).toBe(true);
-    expect(result.isSameDimensions).toBe(false);
+    await expect(compareImages(validPng, corruptBuffer)).rejects.toThrow(
+      /candidate/,
+    );
+    await expect(compareImages(corruptBuffer, validPng)).rejects.toThrow(
+      /baseline/,
+    );
+  });
+
+  it('rejects raw buffers whose size does not match the dimensions', () => {
+    const tooShort = Buffer.alloc(3);
+    const valid = Buffer.alloc(4);
+    expect(() => compareRawRGBA(tooShort, valid, 1, 1)).toThrow(/baseline/);
+    expect(() => compareRawRGBA(valid, tooShort, 1, 1)).toThrow(/candidate/);
   });
 });

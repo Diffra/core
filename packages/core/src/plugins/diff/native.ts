@@ -2,17 +2,16 @@ import {
   compareImages,
   type DiffOptions,
   type DiffResult,
-  engineKind,
 } from '@diffra/engine';
 import type { DiffEngineAdapter } from '../../types/index.js';
 
-export class NativeDiffEngine implements DiffEngineAdapter {
-  /** Names the implementation actually running, native or TypeScript. */
-  get name(): string {
-    return `diffra-${engineKind()}`;
-  }
+/** Name reported for the built-in diff engine. */
+export const NATIVE_DIFF_ENGINE_NAME = 'diffra-native';
 
-  async compare(
+export class NativeDiffEngine implements DiffEngineAdapter {
+  readonly name = NATIVE_DIFF_ENGINE_NAME;
+
+  compare(
     baseline: Buffer,
     candidate: Buffer,
     options?: DiffOptions,

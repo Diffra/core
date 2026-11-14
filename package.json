@@ -19,7 +19,6 @@
     "storybook",
     "design-system",
     "playwright",
-    "simd",
     "diff",
     "testing",
     "ui-testing"

@@ -1,12 +1,17 @@
+//! Diffra's pixel comparison engine, exposed to Node.js through Node-API.
+
 use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba, RgbaImage, load_from_memory};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-use serde::{Deserialize, Serialize};
 use std::io::Cursor;
+
+/// Perceptual threshold used when none is given
+#[napi]
+pub const DEFAULT_THRESHOLD: f64 = 0.063;
 
 /// Options for configuring pixel comparison
 #[napi(object)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct DiffOptions {
     /// Perceptual color threshold from 0.0 (exact match) to 1.0 (most permissive). Default: 0.063
     pub threshold: Option<f64>,
@@ -20,15 +25,16 @@ pub struct DiffOptions {
     pub diff_color: Option<Vec<u32>>,
     /// If true, renders a solid black background behind diff pixels. Default: false
     pub diff_mask: Option<bool>,
-    /// Whether to encode and return a PNG diff image. Default: true
+    /// Whether to encode and return a PNG diff image when the images differ.
+    /// Identical images return none, since there is nothing to show. Default: true
     pub generate_diff_image: Option<bool>,
 }
 
 impl Default for DiffOptions {
     fn default() -> Self {
         Self {
-            threshold: Some(0.063),
-            diff_threshold: Some(0.063),
+            threshold: Some(DEFAULT_THRESHOLD),
+            diff_threshold: Some(DEFAULT_THRESHOLD),
             include_anti_aliasing: Some(false),
             alpha: Some(0.15),
             diff_color: Some(vec![255, 0, 85, 255]),
@@ -40,7 +46,7 @@ impl Default for DiffOptions {
 
 /// Bounding box of a visual diff region
 #[napi(object)]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoundingBox {
     pub min_x: u32,
     pub min_y: u32,
@@ -273,7 +279,7 @@ fn cluster_bounding_boxes(
     boxes
 }
 
-/// Core internal comparison function operating on RgbaImages with Rayon parallel processing
+/// Compares two decoded images pixel by pixel on the current thread
 pub fn compare_rgba_images(
     baseline: &RgbaImage,
     candidate: &RgbaImage,
@@ -289,7 +295,7 @@ pub fn compare_rgba_images(
     let threshold = options
         .diff_threshold
         .or(options.threshold)
-        .unwrap_or(0.063)
+        .unwrap_or(DEFAULT_THRESHOLD)
         .clamp(0.0, 1.0);
     let max_delta = 35215.0 * threshold * threshold;
 
@@ -305,6 +311,12 @@ pub fn compare_rgba_images(
         diff_color.get(2).copied().unwrap_or(85) as u8,
         diff_color.get(3).copied().unwrap_or(255) as u8,
     ]);
+
+    // Anti-aliasing looks at a pixel's neighbours in both images, so it must
+    // stay inside the region the two images share. Scanning with either
+    // image's own size reads past the edge of the smaller one.
+    let shared_width = bw.min(cw);
+    let shared_height = bh.min(ch);
 
     let mut diff_img: RgbaImage = ImageBuffer::new(width, height);
     let mut diff_count: u32 = 0;
@@ -323,8 +335,15 @@ pub fn compare_rgba_images(
 
                 if delta > max_delta {
                     let is_aa = !include_aa
-                        && (is_antialiased(baseline, x, y, bw, bh, candidate)
-                            || is_antialiased(candidate, x, y, cw, ch, baseline));
+                        && (is_antialiased(baseline, x, y, shared_width, shared_height, candidate)
+                            || is_antialiased(
+                                candidate,
+                                x,
+                                y,
+                                shared_width,
+                                shared_height,
+                                baseline,
+                            ));
 
                     if !is_aa {
                         diff_count += 1;
@@ -371,7 +390,7 @@ pub fn compare_rgba_images(
 
     let bounding_boxes = cluster_bounding_boxes(&changed_pixels, width, height);
 
-    let diff_image = if generate_image {
+    let diff_image = if generate_image && diff_count > 0 {
         let mut bytes: Vec<u8> = Vec::new();
         let mut cursor = Cursor::new(&mut bytes);
         DynamicImage::ImageRgba8(diff_img)
@@ -394,40 +413,81 @@ pub fn compare_rgba_images(
     }
 }
 
-/// Compare two PNG encoded image buffers via native Rust
-#[napi]
-pub fn compare_images_rust(
-    baseline_bytes: Buffer,
-    candidate_bytes: Buffer,
+/// Decodes an encoded image into RGBA pixels, naming which input failed
+fn decode(name: &str, bytes: &[u8]) -> Result<RgbaImage> {
+    load_from_memory(bytes)
+        .map(|image| image.to_rgba8())
+        .map_err(|e| {
+            Error::new(
+                Status::InvalidArg,
+                format!("Failed to decode {name} image: {e}"),
+            )
+        })
+}
+
+/// Wraps raw RGBA bytes of a known size, naming which input was the wrong size
+fn rgba_image(name: &str, bytes: &[u8], width: u32, height: u32) -> Result<RgbaImage> {
+    let expected = (width as usize) * (height as usize) * 4;
+    if bytes.len() != expected {
+        return Err(Error::new(
+            Status::InvalidArg,
+            format!(
+                "{name} has {} bytes but a {width}x{height} RGBA image needs {expected}",
+                bytes.len()
+            ),
+        ));
+    }
+    RgbaImage::from_raw(width, height, bytes.to_vec()).ok_or_else(|| {
+        Error::new(
+            Status::InvalidArg,
+            format!("{name} is not a valid RGBA image"),
+        )
+    })
+}
+
+/// Decodes and compares two encoded images on the libuv thread pool
+pub struct CompareImagesTask {
+    baseline: Buffer,
+    candidate: Buffer,
+    options: DiffOptions,
+}
+
+impl Task for CompareImagesTask {
+    type Output = DiffResult;
+    type JsValue = DiffResult;
+
+    fn compute(&mut self) -> Result<DiffResult> {
+        let baseline = decode("baseline", &self.baseline)?;
+        let candidate = decode("candidate", &self.candidate)?;
+        Ok(compare_rgba_images(
+            &baseline,
+            &candidate,
+            self.options.clone(),
+        ))
+    }
+
+    fn resolve(&mut self, _env: Env, output: DiffResult) -> Result<DiffResult> {
+        Ok(output)
+    }
+}
+
+/// Compare two encoded images (PNG). Decoding and comparison run off the main
+/// thread, so several comparisons can proceed at once.
+#[napi(ts_return_type = "Promise<DiffResult>")]
+pub fn compare_images(
+    baseline: Buffer,
+    candidate: Buffer,
     options: Option<DiffOptions>,
-) -> Result<DiffResult> {
-    let baseline_img = load_from_memory(&baseline_bytes)
-        .map_err(|e| {
-            Error::new(
-                Status::InvalidArg,
-                format!("Failed to decode baseline PNG: {}", e),
-            )
-        })?
-        .to_rgba8();
-
-    let candidate_img = load_from_memory(&candidate_bytes)
-        .map_err(|e| {
-            Error::new(
-                Status::InvalidArg,
-                format!("Failed to decode candidate PNG: {}", e),
-            )
-        })?
-        .to_rgba8();
-
-    Ok(compare_rgba_images(
-        &baseline_img,
-        &candidate_img,
-        options.unwrap_or_default(),
-    ))
+) -> AsyncTask<CompareImagesTask> {
+    AsyncTask::new(CompareImagesTask {
+        baseline,
+        candidate,
+        options: options.unwrap_or_default(),
+    })
 }
 
 /// Compare two raw RGBA buffers of the same width and height
-#[napi]
+#[napi(js_name = "compareRawRGBA")]
 pub fn compare_raw_rgba(
     baseline: Buffer,
     candidate: Buffer,
@@ -435,28 +495,40 @@ pub fn compare_raw_rgba(
     height: u32,
     options: Option<DiffOptions>,
 ) -> Result<DiffResult> {
-    let expected = (width as usize) * (height as usize) * 4;
-    let image = |name: &str, bytes: &Buffer| -> Result<RgbaImage> {
-        if bytes.len() != expected {
-            return Err(Error::new(
-                Status::InvalidArg,
-                format!(
-                    "{name} has {} bytes but a {width}x{height} RGBA image needs {expected}",
-                    bytes.len()
-                ),
-            ));
-        }
-        RgbaImage::from_raw(width, height, bytes.to_vec()).ok_or_else(|| {
-            Error::new(
-                Status::InvalidArg,
-                format!("{name} is not a valid RGBA image"),
-            )
-        })
-    };
-
     Ok(compare_rgba_images(
-        &image("baseline", &baseline)?,
-        &image("candidate", &candidate)?,
+        &rgba_image("baseline", &baseline, width, height)?,
+        &rgba_image("candidate", &candidate, width, height)?,
         options.unwrap_or_default(),
     ))
+}
+
+/// A decoded image as RGBA, 8 bits per channel
+#[napi(object)]
+pub struct DecodedPng {
+    pub width: u32,
+    pub height: u32,
+    pub data: Buffer,
+}
+
+/// Decode a PNG into RGBA pixels
+#[napi]
+pub fn decode_png(png: Buffer) -> Result<DecodedPng> {
+    let image = decode("PNG", &png)?;
+    let (width, height) = image.dimensions();
+    Ok(DecodedPng {
+        width,
+        height,
+        data: Buffer::from(image.into_raw()),
+    })
+}
+
+/// Encode RGBA pixels as a PNG
+#[napi]
+pub fn encode_png(rgba: Buffer, width: u32, height: u32) -> Result<Buffer> {
+    let image = rgba_image("RGBA data", &rgba, width, height)?;
+    let mut bytes: Vec<u8> = Vec::new();
+    DynamicImage::ImageRgba8(image)
+        .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
+        .map_err(|e| Error::new(Status::GenericFailure, format!("Failed to encode PNG: {e}")))?;
+    Ok(Buffer::from(bytes))
 }

@@ -37,7 +37,31 @@ function viewerFiles(): { script: string; styles: string } {
   };
 }
 
-function shipPlaywrightFiles(): Plugin {
+/**
+ * The engine is a Node-API binary. Its loader requires the binary for the
+ * running platform from the directory of the importing module, which in the
+ * bundle is this folder, so every binary that has been built is shipped here.
+ * Locally that is the developer's platform; the release workflow builds the
+ * rest before bundling.
+ */
+function engineBinaries(): string[] {
+  const coreRequire = createRequire(require.resolve('@diffra/core'));
+  const engineDir = path.dirname(
+    coreRequire.resolve('@diffra/engine/package.json'),
+  );
+  const binaries = fs
+    .readdirSync(engineDir)
+    .filter((file) => file.endsWith('.node'))
+    .map((file) => path.join(engineDir, file));
+  if (binaries.length === 0) {
+    throw new Error(
+      `No engine binary in ${engineDir}. Run pnpm --filter @diffra/engine build first.`,
+    );
+  }
+  return binaries;
+}
+
+function shipRuntimeFiles(): Plugin {
   let outDir = OUT_DIR;
   return {
     name: 'diffra-ship-runtime-files',
@@ -61,6 +85,10 @@ function shipPlaywrightFiles(): Plugin {
         path.join(viewerTarget, 'viewer.bundle.js'),
       );
       fs.copyFileSync(viewer.styles, path.join(viewerTarget, 'viewer.css'));
+
+      for (const binary of engineBinaries()) {
+        fs.copyFileSync(binary, path.join(outDir, path.basename(binary)));
+      }
     },
   };
 }
@@ -100,7 +128,7 @@ const COMMONJS_SHIM = [
 ].join(' ');
 
 export default defineConfig({
-  plugins: [nodeBuiltinsInsteadOfPolyfills(), shipPlaywrightFiles()],
+  plugins: [nodeBuiltinsInsteadOfPolyfills(), shipRuntimeFiles()],
   build: {
     ssr: path.resolve(import.meta.dirname, 'src/index.ts'),
     outDir: OUT_DIR,

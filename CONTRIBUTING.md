@@ -10,7 +10,7 @@ Thank you for your interest in contributing to Diffra. We welcome contributions,
 
 * **Node.js**: `^20.18.0` or `^22.0.0`
 * **pnpm**: `^10.0.0` or `^11.0.0`
-* **Rust toolchain** (optional, for compiling `@diffra/engine` native bindings): `cargo` and `rustc` `^1.80.0`
+* **Rust toolchain**: `cargo` and `rustc` `^1.97.0`. The pixel comparison engine is written in Rust and `pnpm build` compiles it.
 
 ### Repository setup
 

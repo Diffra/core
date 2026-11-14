@@ -1,6 +1,6 @@
 # Core comparison engine
 
-Diffra's pixel comparison engine (`@diffra/engine`) compares images perceptually. It has a TypeScript implementation that is always available and an optional native Rust build that gives the same results faster.
+Diffra's pixel comparison engine (`@diffra/engine`) compares images perceptually. It is written in Rust (`packages/engine/src/lib.rs`) and loaded into Node.js through Node-API.
 
 ---
 
@@ -22,13 +22,12 @@ A pixel difference is registered only when $\Delta E$ exceeds the configured per
 
 ---
 
-## Native and TypeScript implementations
+## Implementation
 
-Both implementations follow the same algorithm and a parity test suite checks that they report the same changed pixels, regions and dimensions across identical images, solid and sub-threshold changes, shifts, transparency, thresholds, anti-aliasing and size differences.
-
-* The TypeScript implementation is always available.
-* The Rust implementation (`packages/engine/src/lib.rs`) is built with `pnpm --filter @diffra/engine build:native` and is used automatically when present. It is a single-threaded loop that does not use SIMD instructions. On 1280 by 800 screenshots, measured on an Apple silicon laptop, it was about 3 to 16 times faster than the TypeScript implementation, with the largest gains when many pixels differ.
-* `engineKind()` reports which implementation is running.
+* `compareImages` decodes both images and compares them on the libuv thread pool, so it does not block the event loop and several comparisons run at once. Each comparison is a single-threaded loop; it does not use SIMD instructions.
+* `pnpm build` compiles the engine for the current platform with napi-rs. The release workflow builds it for Linux (x64 and arm64), macOS (x64 and arm64) and Windows (x64) and ships every binary with the GitHub Action.
+* There is no fallback implementation. On a platform without a binary, importing the engine throws "Cannot find native binding", with the paths it tried as the cause.
+* An image that cannot be decoded rejects with an error naming the baseline or candidate; the run records that snapshot as failed and continues.
 
 ---
 

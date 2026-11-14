@@ -2,9 +2,9 @@
   "name": "@diffra/engine",
   "version": "0.1.0",
   "type": "module",
-  "description": "Pixel comparison engine for visual regression: a TypeScript implementation, and an optional native Rust build that gives the same results several times faster",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "description": "Pixel comparison engine for visual regression, written in Rust and loaded through Node-API",
+  "main": "./index.js",
+  "types": "./index.d.ts",
   "author": "Diffra",
   "license": "MIT",
   "homepage": "https://github.com/Diffra/core/tree/main/packages/engine#readme",
@@ -26,39 +26,38 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "default": "./index.js"
     },
-    "./types": {
-      "types": "./dist/types.d.ts",
-      "import": "./dist/types.js",
-      "default": "./dist/types.js"
-    },
-    "./clustering": {
-      "types": "./dist/clustering.d.ts",
-      "import": "./dist/clustering.js",
-      "default": "./dist/clustering.js"
-    },
-    "./png": {
-      "types": "./dist/png.d.ts",
-      "import": "./dist/png.js",
-      "default": "./dist/png.js"
-    }
+    "./package.json": "./package.json"
   },
   "files": [
-    "dist",
-    "src",
-    "native"
+    "index.js",
+    "index.d.ts",
+    "*.node"
   ],
+  "napi": {
+    "binaryName": "diffra-diff",
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-pc-windows-msvc"
+    ]
+  },
+  "engines": {
+    "node": ">=26.0.0"
+  },
   "scripts": {
-    "build": "tsc -b",
+    "build": "napi build --platform --release --esm",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.test.json",
-    "clean": "tsc -b --clean && rm -rf dist",
-    "build:native": "pnpm run build && node scripts/build-native.mjs"
+    "typecheck": "tsc -p tsconfig.json",
+    "clean": "cargo clean && rm -f index.js index.d.ts *.node"
   },
   "devDependencies": {
+    "@napi-rs/cli": "3.10.12",
     "@types/node": "^26.6.6",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"

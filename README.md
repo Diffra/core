@@ -89,7 +89,7 @@ Diffra gives you full control and ownership of your visual regression testing pi
 * **Zero vendor subscription costs**: Run unlimited visual regression tests without screenshot quotas, per-seat licensing, or tier limits.
 * **Complete data privacy**: Screenshots and baselines stay entirely within your infrastructure (local disk or your private cloud storage bucket).
 * **Universal testing scope**: Test live web applications, local development servers, staging routes, custom image sets, or Storybook components with first-class pluggable drivers.
-* **Native comparison engine**: A perceptual pixel comparison in TypeScript, with an optional native Rust build that gives the same results several times faster.
+* **Native comparison engine**: Perceptual pixel comparison written in Rust, running off the main thread so several comparisons proceed at once.
 * **Interactive review UI**: Flat, Scandinavian minimalism with four instant comparison modes (movement highlight, side-by-side, split slider, onion skin).
 
 ---
@@ -148,7 +148,7 @@ Explore the complete [Diffra documentation hub](docs/index.md):
 | :--- | :--- | :--- |
 | `@diffra/cli` | `packages/cli` | Zero-dependency command-line binary (`diffra`) |
 | `@diffra/core` | `packages/core` | Core test runner, Playwright matcher, pluggable drivers, and report generator |
-| `@diffra/engine` | `packages/engine` | Perceptual pixel comparison in TypeScript, with an optional faster native build |
+| `@diffra/engine` | `packages/engine` | Perceptual pixel comparison in Rust, loaded through Node-API |
 | `@diffra/viewer` | `packages/viewer` | Standalone interactive review UI bundle |
 | `@diffra/action` | `packages/action` | GitHub Action runner for CI/CD pipelines |
 | `@diffra/demo-storybook` | `packages/demo-storybook` | Real working demo of Storybook 10 with Diffra visual regression |

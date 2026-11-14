@@ -1,9 +1,9 @@
 {
-  "extends": "../../tsconfig.lib.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
+    "noEmit": true,
+    "types": ["node"],
     "noUncheckedIndexedAccess": false
   },
-  "include": ["src"]
+  "include": ["index.d.ts", "test"]
 }

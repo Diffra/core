@@ -48,6 +48,6 @@ Find the guides and references tailored to your development stack and workflow:
 * [TypeScript API types](reference/types-reference.md): Core interfaces and type definitions.
 
 ### 7. Architecture and engine internals
-* [Core comparison engine](architecture/core-engine.md): Pixel diffing in TypeScript and optional native Rust, YIQ color space, and clustering algorithms.
+* [Core comparison engine](architecture/core-engine.md): Pixel diffing in Rust, YIQ color space, and clustering algorithms.
 * [Execution pipeline](architecture/execution-pipeline.md): Step-by-step test execution lifecycle from discovery to report generation.
 * [Review bundle](architecture/review-bundle.md): The static review site every run produces, and how review links are chosen.

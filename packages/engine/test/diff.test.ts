@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clusterBoundingBoxes,
   compareImages,
   compareRawRGBA,
   decodePng,
   encodePng,
-} from '../src/index.js';
+} from '../index.js';
 
 describe('@diffra/engine', () => {
   it('detects 0 diffs for identical raw RGBA buffers', () => {
@@ -52,13 +51,24 @@ describe('@diffra/engine', () => {
   });
 
   it('clusters spatial bounding boxes into separate bounding regions', () => {
-    const changed = [
-      { x: 5, y: 5 },
-      { x: 10, y: 10 },
-      { x: 80, y: 80 },
-    ];
-    const boxes = clusterBoundingBoxes(changed, 100, 100, 32);
-    expect(boxes.length).toBe(2);
+    const width = 100;
+    const height = 100;
+    const base = Buffer.alloc(width * height * 4, 255);
+    const cand = Buffer.from(base);
+    for (const [x, y] of [
+      [5, 5],
+      [10, 10],
+      [80, 80],
+    ]) {
+      cand.fill(0, (y * width + x) * 4, (y * width + x) * 4 + 3);
+    }
+
+    const result = compareRawRGBA(base, cand, width, height);
+    expect(result.diffCount).toBe(3);
+    expect(result.boundingBoxes).toEqual([
+      { minX: 0, minY: 0, maxX: 31, maxY: 31 },
+      { minX: 64, minY: 64, maxX: 95, maxY: 95 },
+    ]);
   });
 
   it('encodes and decodes PNG buffers losslessly', () => {

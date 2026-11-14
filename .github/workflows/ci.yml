@@ -35,8 +35,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The engine is Rust. The crate declares the version it needs, and
+      # runners may carry an older one.
+      - name: Update Rust
+        run: rustup update stable
+
       - name: Lint
         run: pnpm lint
+
+      - name: Check Rust formatting and lints
+        working-directory: packages/engine
+        run: |
+          cargo fmt --check
+          cargo clippy --release
 
       # Workspace packages resolve each other through built output, so the
       # root typecheck script builds all packages first.
@@ -52,50 +63,10 @@ jobs:
       - name: Run test suite
         run: pnpm test
 
-      # The action runs from the committed dist/ bundle, so it must match the source.
+      # The action runs from the committed dist/ bundle, so it must match the
+      # source. Engine binaries are git-ignored there and added at release.
       - name: Verify the action bundle is up to date
         if: matrix.os == 'ubuntu-latest'
         run: |
           pnpm bundle
           git diff --exit-code -- dist || { echo "dist/ is stale: run pnpm bundle and commit the result"; exit 1; }
-
-  native:
-    name: Native engine (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 26.x
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # The crate declares the Rust version it needs; runners may carry an older one.
-      - name: Update Rust
-        run: rustup update stable
-
-      - name: Check formatting and lints
-        working-directory: packages/engine
-        run: |
-          cargo fmt --check
-          cargo clippy --release
-
-      # With a binding built, the engine tests also compare it with the
-      # TypeScript implementation on every kind of change.
-      - name: Build the native binding and run the engine tests
-        run: |
-          pnpm --filter @diffra/engine build:native
-          pnpm --filter @diffra/engine test
