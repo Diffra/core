@@ -1,10 +1,13 @@
 [package]
 name = "diffra-diff"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.97"
 authors = ["Diffra"]
-description = "Ultra-fast Rust SIMD pixel diff engine for Diffra visual regression testing"
+description = "Pixel diff engine for Diffra visual regression testing"
 license = "MIT"
+repository = "https://github.com/Diffra/core"
+publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -13,14 +16,17 @@ crate-type = ["cdylib", "rlib"]
 napi = { version = "3.16.2", default-features = false, features = ["napi4", "serde-json"] }
 napi-derive = "3.7.1"
 image = { version = "0.25.10", default-features = false, features = ["png"] }
-rayon = "1.12.0"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 
 [build-dependencies]
 napi-build = "2.6.0"
 
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+
 [profile.release]
-lto = true
+lto = "fat"
 opt-level = 3
 codegen-units = 1
+strip = "symbols"

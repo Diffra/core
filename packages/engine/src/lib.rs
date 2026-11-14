@@ -1,9 +1,6 @@
-#![deny(clippy::all)]
-
-use image::{load_from_memory, DynamicImage, ImageBuffer, ImageFormat, Rgba, RgbaImage};
+use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba, RgbaImage, load_from_memory};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 
@@ -64,9 +61,15 @@ pub struct DiffResult {
     pub has_diff: bool,
 }
 
+/// Widens an RGBA pixel into floating point channels for color math
+#[inline(always)]
+fn rgba_f64(p: &Rgba<u8>) -> [f64; 4] {
+    [p[0] as f64, p[1] as f64, p[2] as f64, p[3] as f64]
+}
+
 /// Calculate perceptual color difference between two RGBA pixels using YIQ color space
 #[inline(always)]
-fn color_delta_sq(r1: f64, g1: f64, b1: f64, a1: f64, r2: f64, g2: f64, b2: f64, a2: f64) -> f64 {
+fn color_delta_sq([r1, g1, b1, a1]: [f64; 4], [r2, g2, b2, a2]: [f64; 4]) -> f64 {
     if (r1 - r2).abs() < f64::EPSILON
         && (g1 - g2).abs() < f64::EPSILON
         && (b1 - b2).abs() < f64::EPSILON
@@ -148,10 +151,7 @@ fn is_antialiased(
                 continue;
             }
             let np = img.get_pixel(nx, ny);
-            let delta = color_delta_sq(
-                tr, tg, tb, ta,
-                np[0] as f64, np[1] as f64, np[2] as f64, np[3] as f64,
-            );
+            let delta = color_delta_sq([tr, tg, tb, ta], rgba_f64(np));
 
             if delta < 1e-4 {
                 zeroes += 1;
@@ -159,8 +159,7 @@ fn is_antialiased(
                     return false;
                 }
             } else {
-                let brightness_diff = (np[0] as f64 + np[1] as f64 + np[2] as f64)
-                    - (tr + tg + tb);
+                let brightness_diff = (np[0] as f64 + np[1] as f64 + np[2] as f64) - (tr + tg + tb);
                 if brightness_diff > 0.0 {
                     positives += 1;
                 } else {
@@ -189,27 +188,25 @@ fn is_antialiased(
     let other_max = other.get_pixel(max_x, max_y);
     let other_target = other.get_pixel(x, y);
 
-    let d1 = color_delta_sq(
-        other_target[0] as f64, other_target[1] as f64, other_target[2] as f64, other_target[3] as f64,
-        other_min[0] as f64, other_min[1] as f64, other_min[2] as f64, other_min[3] as f64,
-    );
-    let d2 = color_delta_sq(
-        other_target[0] as f64, other_target[1] as f64, other_target[2] as f64, other_target[3] as f64,
-        other_max[0] as f64, other_max[1] as f64, other_max[2] as f64, other_max[3] as f64,
-    );
+    let d1 = color_delta_sq(rgba_f64(other_target), rgba_f64(other_min));
+    let d2 = color_delta_sq(rgba_f64(other_target), rgba_f64(other_max));
 
     d1 < 1.0 || d2 < 1.0
 }
 
 /// Cluster changed pixel coordinates into bounding boxes
-fn cluster_bounding_boxes(changed_coords: &[(u32, u32)], width: u32, height: u32) -> Vec<BoundingBox> {
+fn cluster_bounding_boxes(
+    changed_coords: &[(u32, u32)],
+    width: u32,
+    height: u32,
+) -> Vec<BoundingBox> {
     if changed_coords.is_empty() {
         return Vec::new();
     }
 
     const TILE_SIZE: u32 = 32;
-    let grid_w = (width + TILE_SIZE - 1) / TILE_SIZE;
-    let grid_h = (height + TILE_SIZE - 1) / TILE_SIZE;
+    let grid_w = width.div_ceil(TILE_SIZE);
+    let grid_h = height.div_ceil(TILE_SIZE);
     let mut grid = vec![false; (grid_w * grid_h) as usize];
 
     for &(x, y) in changed_coords {
@@ -322,10 +319,7 @@ pub fn compare_rgba_images(
                 let p1 = baseline.get_pixel(x, y);
                 let p2 = candidate.get_pixel(x, y);
 
-                let delta = color_delta_sq(
-                    p1[0] as f64, p1[1] as f64, p1[2] as f64, p1[3] as f64,
-                    p2[0] as f64, p2[1] as f64, p2[2] as f64, p2[3] as f64,
-                );
+                let delta = color_delta_sq(rgba_f64(p1), rgba_f64(p2));
 
                 if delta > max_delta {
                     let is_aa = !include_aa
@@ -408,11 +402,21 @@ pub fn compare_images_rust(
     options: Option<DiffOptions>,
 ) -> Result<DiffResult> {
     let baseline_img = load_from_memory(&baseline_bytes)
-        .map_err(|e| Error::new(Status::InvalidArg, format!("Failed to decode baseline PNG: {}", e)))?
+        .map_err(|e| {
+            Error::new(
+                Status::InvalidArg,
+                format!("Failed to decode baseline PNG: {}", e),
+            )
+        })?
         .to_rgba8();
 
     let candidate_img = load_from_memory(&candidate_bytes)
-        .map_err(|e| Error::new(Status::InvalidArg, format!("Failed to decode candidate PNG: {}", e)))?
+        .map_err(|e| {
+            Error::new(
+                Status::InvalidArg,
+                format!("Failed to decode candidate PNG: {}", e),
+            )
+        })?
         .to_rgba8();
 
     Ok(compare_rgba_images(

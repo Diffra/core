@@ -228,21 +228,12 @@ importers:
 
   packages/core:
     dependencies:
-      '@aws-sdk/client-s3':
-        specifier: ^3.0.0
-        version: 3.1168.0
-      '@azure/storage-blob':
-        specifier: ^12.0.0
-        version: 12.34.0
       '@diffra/engine':
         specifier: workspace:*
         version: link:../engine
       '@diffra/viewer':
         specifier: workspace:*
         version: link:../viewer
-      '@google-cloud/storage':
-        specifier: ^9.0.0
-        version: 9.0.0
       cosmiconfig:
         specifier: ^10.0.1
         version: 10.0.1
@@ -253,6 +244,15 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1169.0
+        version: 3.1169.0
+      '@azure/storage-blob':
+        specifier: ^12.34.0
+        version: 12.34.0
+      '@google-cloud/storage':
+        specifier: ^9.0.0
+        version: 9.0.0
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6
@@ -416,8 +416,8 @@ packages:
     resolution: {integrity: sha512-OHlfkNzDFjYnwNPABhwAkDTUi0HPjfsKUHJDR0bSMORpCXNzRpInPCNCIT08xKDhjaPlcLJ+2Av+Sk7hHnuC8A==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-s3@3.1168.0':
-    resolution: {integrity: sha512-7NcVxqy7Vc6I8A3KOZFORGh+zfMCd4S5aje55tBNBfshddz+F1NZwxLXblt44TC6nw0Hgx5os3AM2d/P0McELQ==}
+  '@aws-sdk/client-s3@3.1169.0':
+    resolution: {integrity: sha512-5IjQ2R1TM5lMuUvCvCfGNG9q6g3nxdputC9FY7YQJf1ygVUwsOruEYxQqpjik1nZdl8mNvV57Mhivtp2JbgBtg==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/core@3.981.0':
@@ -2801,7 +2801,7 @@ snapshots:
       '@smithy/types': 4.20.0
       tslib: 2.9.1
 
-  '@aws-sdk/client-s3@3.1168.0':
+  '@aws-sdk/client-s3@3.1169.0':
     dependencies:
       '@aws-sdk/checksums': 3.1002.5
       '@aws-sdk/core': 3.981.0
