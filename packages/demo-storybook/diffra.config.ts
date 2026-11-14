@@ -5,10 +5,8 @@ export default defineConfig({
   snapshot: {
     diffThreshold: 0.08,
     delay: 150,
-    viewports: [
-      { name: 'mobile', width: 375, height: 667 },
-      { name: 'desktop', width: 1280, height: 800 },
-    ],
+    // The showcase screens are laid out for a desktop browser window.
+    viewports: [{ name: 'desktop', width: 1280, height: 800 }],
   },
   runner: {
     concurrency: 4,

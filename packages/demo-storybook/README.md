@@ -17,23 +17,38 @@ The first group exercises individual snapshot parameters:
 * **Modal**: Animation settling and delay parameters (`pauseAnimationAtEnd: true`).
 * **Badge**: Snapshot exclusion and parameter override demonstrations.
 
-The second group models the regressions that visual testing catches in real products. Each story is named for the state it shows, and its comment says what a regression would look like.
+The second group is a set of full-page screens under `src/screens`, each modelling a failure that visual testing is used to catch. They are laid out for a 1280 by 800 browser window.
 
-| Component | Stories cover |
+| Screen | What can go wrong |
 | --- | --- |
-| **TextField** | Empty, filled, keyboard focus ring, validation error, disabled |
-| **Alert** | Success, warning, error with action, long text wrapping |
-| **InvoiceTable** | Numeric column alignment, truncated names, empty and loading states |
-| **NavBar** | Responsive breakpoint, open mobile menu, notification badge overflow |
-| **PricingCard** | Call-to-action alignment across cards, long plan names, discounts |
-| **ProductCard** | Failed image fallback, sale price, sold-out overlay, long titles |
-| **Avatar** | Initials fallback, failed photo, presence dot, overflow counter |
-| **ProfileCard** | Skeleton loading layout, long name and role truncation |
-| **DropdownMenu** | Open overlay, keyboard focus, disabled and destructive items |
-| **CheckoutSummary** | Currency formatting, German text length, Arabic right-to-left layout |
-| **UsageChart** | Axis scaling with an outlier, small values, empty data |
+| **Checkout** | A renamed design token leaves the pay button invisible |
+| **Landing page** | A moved asset leaves the hero image missing |
+| **Pricing** | A renamed data field shows every price as `$NaN` |
+| **Dashboard** | A layout refactor slides content under the sidebar |
+| **Sign in** | A hard-coded colour makes dark mode text unreadable |
+| **Team invite** | A modal loses its positioning and drops below the page |
+| **Mobile shop** | A no-wrap rule pushes buttons off the edge of the screen |
+| **Product catalog** | A grid collapses to a single column |
+| **Hotel search** | A clipped container hides the open date picker |
+| **Bank transfer** | A loading overlay never goes away |
+| **Analytics** | A data error replaces the report with a crash screen |
+| **Blog** | A unit typo makes lines of text overlap |
 
-Interactive states (focus, open menus) are produced with `play` functions from `storybook/test`. Design tokens shared by the new components live in [`src/theme.ts`](./src/theme.ts).
+Shared tokens, icons and artwork live in [`src/ui`](./src/ui). The artwork is inline, so the screens need no network access.
+
+### Showcase run
+
+Each screen breaks through a single-line change, defined in [`scripts/regressions.mjs`](./scripts/regressions.mjs). To see how Diffra reports them, approve a baseline, break the screens on a scratch branch, and run again:
+
+```bash
+pnpm test:visual && pnpm test:visual:approve
+git switch -c showcase
+pnpm showcase:break
+pnpm build-storybook && pnpm test:visual
+pnpm test:visual:serve
+```
+
+Run `pnpm showcase:restore` to undo the changes.
 
 ---
 

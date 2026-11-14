@@ -10,7 +10,9 @@
     "test:visual": "diffra test",
     "test:visual:approve": "diffra approve",
     "test:visual:serve": "diffra serve",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "showcase:break": "node scripts/regressions.mjs apply",
+    "showcase:restore": "node scripts/regressions.mjs revert"
   },
   "dependencies": {
     "@diffra/core": "workspace:*",
