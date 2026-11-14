@@ -40,7 +40,7 @@ export function clusterBoundingBoxes(
         let minGy = gy;
         let maxGy = gy;
 
-        const queue: Array<[number, number]> = [[gx, gy]];
+        const queue: [number, number][] = [[gx, gy]];
         visited[idx] = 1;
 
         while (queue.length > 0) {

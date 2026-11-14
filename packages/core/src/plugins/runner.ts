@@ -7,7 +7,7 @@ import type {
 } from '../types/index.js';
 
 export class PluginRunner {
-  private plugins: DiffraPlugin[];
+  private readonly plugins: DiffraPlugin[];
 
   constructor(plugins: DiffraPlugin[] = []) {
     this.plugins = plugins;

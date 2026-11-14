@@ -53,7 +53,6 @@ pub struct BoundingBox {
 
 /// Result of comparing two images
 #[napi(object)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiffResult {
     pub diff_count: u32,
     pub diff_percentage: f64,

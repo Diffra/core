@@ -21,7 +21,7 @@ export interface UrlDriverOptions {
 
 export class UrlDriver implements VisualDriver {
   name = 'url';
-  private options?: UrlDriverOptions;
+  private readonly options?: UrlDriverOptions;
 
   constructor(options?: UrlDriverOptions) {
     this.options = options;
@@ -61,6 +61,7 @@ export class UrlDriver implements VisualDriver {
 
     for (let i = 0; i < rawUrls.length; i++) {
       const item = rawUrls[i];
+      if (item === undefined) continue;
       let urlStr: string;
       let configObj: UrlTargetConfig | undefined;
 
@@ -130,10 +131,11 @@ export class UrlDriver implements VisualDriver {
       }
 
       const segments = cleanedPath.split('/').filter(Boolean);
+      const [firstSegment] = segments;
       const derivedGroup =
         configObj?.group ||
-        (segments.length > 1
-          ? segments[0].charAt(0).toUpperCase() + segments[0].slice(1)
+        (segments.length > 1 && firstSegment
+          ? firstSegment.charAt(0).toUpperCase() + firstSegment.slice(1)
           : 'Pages');
 
       const headers = configObj?.headers || defaultHeaders;

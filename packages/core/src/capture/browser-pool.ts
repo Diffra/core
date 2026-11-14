@@ -18,8 +18,8 @@ export interface WorkerPage {
 const RECYCLE_THRESHOLD = 100;
 
 export class BrowserPool {
-  private browsers = new Map<string, Browser>();
-  private operationCounts = new Map<string, number>();
+  private readonly browsers = new Map<string, Browser>();
+  private readonly operationCounts = new Map<string, number>();
   public readonly concurrency: number;
   public readonly pauseAnimationAtEnd: boolean;
 

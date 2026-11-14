@@ -8,13 +8,12 @@ on:
 
 jobs:
   test:
-    name: Test & Build (Node ${{ matrix.node-version }} / ${{ matrix.os }})
+    name: Test & Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        node-version: [22.x, 24.x]
 
     steps:
       - name: Checkout repository
@@ -25,20 +24,30 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      # The Node runtime is pinned by devEngines.runtime in package.json and
+      # provisioned by pnpm, so the version under test is the one developers use.
+      - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 26.x
           cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
+      - name: Lint
+        run: pnpm lint
+
+      # Workspace packages resolve each other through built output, so the
+      # root typecheck script builds all packages first.
+      - name: Build and typecheck
         run: pnpm typecheck
 
-      - name: Build all packages
-        run: pnpm build
+      - name: Install Playwright browsers
+        run: pnpm --filter @diffra/core exec playwright install --with-deps chromium
+
+      - name: Build demo Storybook
+        run: pnpm --filter @diffra/demo-storybook build-storybook
 
       - name: Run test suite
         run: pnpm test

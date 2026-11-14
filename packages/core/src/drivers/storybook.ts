@@ -33,7 +33,7 @@ export interface StorybookIndexData {
 export class StorybookDriver implements VisualDriver {
   name = 'storybook';
   private url?: string;
-  private buildDir?: string;
+  private readonly buildDir?: string;
   private server?: http.Server;
   private serverUrl?: string;
 
@@ -55,7 +55,7 @@ export class StorybookDriver implements VisualDriver {
 
     const server = http.createServer(async (req, res) => {
       const rawUrl = req.url || '/';
-      let rawPath = rawUrl.split('?')[0];
+      let [rawPath = '/'] = rawUrl.split('?');
       try {
         rawPath = decodeURIComponent(rawPath);
       } catch {}

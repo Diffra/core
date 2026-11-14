@@ -53,12 +53,12 @@ export async function resolvePullRequestNumber(
 
 export class GitHubNotifier implements NotifierAdapter {
   name = 'github';
-  private token?: string;
-  private repo?: string;
-  private prNumber?: number;
-  private commitSha?: string;
-  private reportUrl?: string;
-  private viewerUrl?: string;
+  private readonly token?: string;
+  private readonly repo?: string;
+  private readonly prNumber?: number;
+  private readonly commitSha?: string;
+  private readonly reportUrl?: string;
+  private readonly viewerUrl?: string;
 
   constructor(options: GitHubNotifierOptions = {}) {
     this.token =

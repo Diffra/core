@@ -456,10 +456,14 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
 if (process.argv[1]) {
   const fileUrl = pathToFileURL(process.argv[1]).href;
   if (import.meta.url === fileUrl) {
-    main().then((code) => {
-      if (code !== 0) {
-        process.exit(code);
-      }
-    });
+    main().then(
+      (code) => {
+        process.exitCode = code;
+      },
+      (error) => {
+        console.error(error);
+        process.exitCode = 1;
+      },
+    );
   }
 }

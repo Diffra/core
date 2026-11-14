@@ -30,8 +30,8 @@ function isGCSNotFound(err: unknown): boolean {
 
 export class GCSStorageAdapter implements StorageAdapter {
   name = 'gcs';
-  private bucket: string;
-  private prefix: string;
+  private readonly bucket: string;
+  private readonly prefix: string;
   private gcsStorage: Storage | null = null;
 
   constructor(options: GCSStorageOptions) {

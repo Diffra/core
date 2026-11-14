@@ -1,10 +1,4 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "noEmit": true
-  },
-  "include": ["src/**/*", ".storybook/**/*", "diffra.config.ts"]
+  "extends": "../../tsconfig.web.json",
+  "include": ["src", ".storybook", "diffra.config.ts"]
 }

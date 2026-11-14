@@ -277,7 +277,7 @@ export function useReportLoader(
       setStatus('empty');
     }
 
-    loadReport();
+    void loadReport();
 
     return () => {
       isMounted = false;

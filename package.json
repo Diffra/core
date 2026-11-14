@@ -25,10 +25,10 @@
     "ui-testing"
   ],
   "engines": {
-    "node": ">=20.18.0",
-    "pnpm": ">=10.0.0"
+    "node": ">=26.0.0",
+    "pnpm": ">=12.0.0"
   },
-  "packageManager": "pnpm@11.11.0",
+  "packageManager": "pnpm@12.18.0",
   "workspaces": [
     "packages/*"
   ],
@@ -41,15 +41,22 @@
     "test:visual": "pnpm --filter @diffra/demo-storybook test:visual",
     "test:visual:approve": "pnpm --filter @diffra/demo-storybook test:visual:approve",
     "test:visual:serve": "pnpm --filter @diffra/demo-storybook test:visual:serve",
-    "typecheck": "pnpm -r run typecheck",
+    "typecheck": "pnpm build && pnpm -r run typecheck",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "clean": "pnpm -r run clean"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.15",
+    "@biomejs/biome": "^2.6.7",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.1.0"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "26.13.1",
+      "onFail": "download"
+    }
   }
 }

@@ -15,9 +15,9 @@ export interface LocalStorageOptions {
 
 export class LocalFilesystemAdapter implements StorageAdapter {
   name = 'local';
-  private baselineDir: string;
-  private outputDir: string;
-  private blobsDir: string;
+  private readonly baselineDir: string;
+  private readonly outputDir: string;
+  private readonly blobsDir: string;
 
   constructor(options: LocalStorageOptions = {}) {
     const cwd = options.cwd || process.cwd();

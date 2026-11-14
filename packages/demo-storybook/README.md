@@ -1,12 +1,12 @@
 # @diffra/demo-storybook
 
-Demonstration design system and working Storybook 8 workspace with Diffra visual regression testing configured.
+Demonstration design system and working Storybook 10 workspace with Diffra visual regression testing configured.
 
 ---
 
 ## Overview
 
-This package serves as a real-world reference implementation of Storybook 8 with `@diffra/cli` and `@diffra/core`.
+This package serves as a real-world reference implementation of Storybook 10 with `@diffra/cli` and `@diffra/core`.
 
 ### Included components
 

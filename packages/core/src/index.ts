@@ -196,8 +196,8 @@ export async function runVisualRegression(
   if (shardConfig) {
     const match = shardConfig.match(/^(\d+)\/(\d+)$/);
     if (match) {
-      const shardIndex = parseInt(match[1], 10);
-      const shardTotal = parseInt(match[2], 10);
+      const shardIndex = Number(match[1]);
+      const shardTotal = Number(match[2]);
       if (shardIndex >= 1 && shardTotal >= 1 && shardIndex <= shardTotal) {
         tasks = tasks.filter((_, i) => i % shardTotal === shardIndex - 1);
       }
@@ -238,8 +238,8 @@ export async function runVisualRegression(
   // 4. Compare with Baseline Screenshots (CAS & Fast-Path Matching)
   const testResults: VisualTestResult[] = [];
 
-  for (let i = 0; i < captures.length; i++) {
-    const { target, viewport, project, buffer } = captures[i];
+  for (const [i, capture] of captures.entries()) {
+    const { target, viewport, project, buffer } = capture;
     const groupName = target.group || 'General';
     const browserName = project?.browser || project?.name || 'chromium';
     const candidateHash = crypto

@@ -57,7 +57,7 @@ export interface ImageDriverOptions {
 
 export class ImageDriver implements VisualDriver {
   name = 'image';
-  private options?: ImageDriverOptions;
+  private readonly options?: ImageDriverOptions;
 
   constructor(options?: ImageDriverOptions) {
     this.options = options;

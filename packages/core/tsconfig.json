@@ -1,8 +1,14 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../tsconfig.lib.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "lib": ["ES2025", "DOM"]
   },
-  "include": ["src/**/*"]
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../engine"
+    }
+  ]
 }

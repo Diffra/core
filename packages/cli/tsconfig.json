@@ -1,8 +1,16 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../tsconfig.lib.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "include": ["src/**/*"]
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../engine"
+    },
+    {
+      "path": "../core"
+    }
+  ]
 }

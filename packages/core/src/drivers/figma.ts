@@ -8,8 +8,12 @@ import type {
 } from '../types/index.js';
 
 export class BoundedLruCache<K, V> {
-  private map = new Map<K, V>();
-  constructor(private readonly maxSize: number = 100) {}
+  private readonly map = new Map<K, V>();
+  private readonly maxSize: number;
+
+  constructor(maxSize = 100) {
+    this.maxSize = maxSize;
+  }
 
   get(key: K): V | undefined {
     const val = this.map.get(key);
@@ -92,8 +96,8 @@ function logFigmaDiagnostic(
 
 export class FigmaDriver implements VisualDriver {
   name = 'figma';
-  private options?: FigmaDriverConfig;
-  private imageCache: BoundedLruCache<string, Buffer>;
+  private readonly options?: FigmaDriverConfig;
+  private readonly imageCache: BoundedLruCache<string, Buffer>;
 
   constructor(options?: FigmaDriverConfig) {
     this.options = options;

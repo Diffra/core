@@ -5,7 +5,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { approveBaselines, runVisualRegression } from '../src/index.js';
 
-describe('Real End-to-End Visual Regression Pipeline on Real Storybook 8', () => {
+describe('Real End-to-End Visual Regression Pipeline on Real Storybook 10', () => {
   let server: http.Server;
   let storybookUrl: string;
   const storybookPackageDir = path.resolve(
@@ -86,7 +86,7 @@ describe('Real End-to-End Visual Regression Pipeline on Real Storybook 8', () =>
     });
   });
 
-  it('captures real Storybook 8 components, generates visual report, and approves baselines', async () => {
+  it('captures real Storybook 10 components, generates visual report, and approves baselines', async () => {
     const report = await runVisualRegression({
       cwd: storybookPackageDir,
       config: {

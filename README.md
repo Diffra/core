@@ -150,7 +150,7 @@ Explore the complete [Diffra documentation hub](docs/index.md):
 | `@diffra/engine` | `packages/engine` | High-performance pixel comparison engine with SIMD acceleration |
 | `@diffra/viewer` | `packages/viewer` | Standalone interactive review UI bundle |
 | `@diffra/action` | `packages/action` | GitHub Action runner for CI/CD pipelines |
-| `@diffra/demo-storybook` | `packages/demo-storybook` | Real working demo of Storybook 8 with Diffra visual regression |
+| `@diffra/demo-storybook` | `packages/demo-storybook` | Real working demo of Storybook 10 with Diffra visual regression |
 | `@diffra/demo-app` | `packages/demo-app` | Real working demo of a Vite TypeScript web app with Diffra configured |
 
 ---

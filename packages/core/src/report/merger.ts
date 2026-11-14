@@ -39,7 +39,10 @@ export async function mergeReports(
     throw new Error('No valid shard reports found to merge.');
   }
 
-  const primary = reports[0];
+  const [primary] = reports;
+  if (!primary) {
+    throw new Error('No valid shard reports found to merge.');
+  }
   const allResults: VisualTestResult[] = [];
   const seenIds = new Set<string>();
 

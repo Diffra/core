@@ -7,8 +7,8 @@ export interface SlackNotifierOptions {
 
 export class SlackNotifier implements NotifierAdapter {
   name = 'slack';
-  private webhookUrl?: string;
-  private channel?: string;
+  private readonly webhookUrl?: string;
+  private readonly channel?: string;
 
   constructor(options: SlackNotifierOptions = {}) {
     this.webhookUrl = options.webhookUrl || process.env.SLACK_WEBHOOK_URL;

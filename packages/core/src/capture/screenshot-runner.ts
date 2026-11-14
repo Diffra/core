@@ -169,9 +169,7 @@ export async function captureTargets(
             username: string;
             password?: string;
           }) => Promise<void>;
-          addCookies?: (
-            cookies: Array<Record<string, unknown>>,
-          ) => Promise<void>;
+          addCookies?: (cookies: Record<string, unknown>[]) => Promise<void>;
         };
 
         if (headers && typeof pageAny.setExtraHTTPHeaders === 'function') {

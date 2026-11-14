@@ -27,7 +27,7 @@ function isVisualDriver(val: unknown): val is VisualDriver {
  */
 export class TargetListDriver implements VisualDriver {
   name = 'targets';
-  private targetProvider:
+  private readonly targetProvider:
     | VisualTarget[]
     | (() => Promise<VisualTarget[]> | VisualTarget[]);
 

@@ -20,14 +20,14 @@ describe('Demo App Diffra Configuration', () => {
 
     const drivers = resolveDrivers(config, appDir);
     expect(drivers).toHaveLength(1);
-    expect(drivers[0].name).toBe('url');
+    expect(drivers[0]?.name).toBe('url');
 
-    expect(drivers[0].discover).toBeDefined();
-    if (!drivers[0].discover) throw new Error('discover function not found');
+    expect(drivers[0]?.discover).toBeDefined();
+    if (!drivers[0]?.discover) throw new Error('discover function not found');
     const targets = await drivers[0].discover({ config, cwd: appDir });
     expect(targets).toHaveLength(2);
-    expect(targets[0].name).toBe('Landing Page');
-    expect(targets[1].name).toBe('Analytics Dashboard');
-    expect(targets[1].snapshot?.mask).toEqual(['.timestamp-badge']);
+    expect(targets[0]?.name).toBe('Landing Page');
+    expect(targets[1]?.name).toBe('Analytics Dashboard');
+    expect(targets[1]?.snapshot?.mask).toEqual(['.timestamp-badge']);
   });
 });

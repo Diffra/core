@@ -125,7 +125,7 @@ export const ViewerProvider: React.FC<ViewerProviderProps> = ({
   const activeStoryIndex = useMemo(() => {
     if (!manifest?.results || !activeStoryId) return 0;
     const idx = manifest.results.findIndex((r) => r.id === activeStoryId);
-    return idx >= 0 ? idx : 0;
+    return Math.max(idx, 0);
   }, [manifest?.results, activeStoryId]);
 
   const activeStory = useMemo(() => {

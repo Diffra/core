@@ -17,9 +17,10 @@
     "url": "https://github.com/Diffra/core/issues"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -b",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc -p tsconfig.test.json",
+    "clean": "tsc -b --clean && rm -rf dist"
   },
   "dependencies": {
     "@actions/core": "^3.0.1",
@@ -28,9 +29,9 @@
     "@diffra/engine": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4",
-    "vitest": "^5.0.3"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
   }
 }

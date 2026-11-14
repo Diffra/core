@@ -136,7 +136,7 @@ export async function run(): Promise<void> {
         buildDir: storybookBuildDir || undefined,
       };
     } else if (driverInput === 'url' || urlsInput) {
-      let urls: Array<string> = ['/'];
+      let urls: string[] = ['/'];
       if (urlsInput) {
         try {
           urls = urlsInput.startsWith('[')
@@ -178,7 +178,7 @@ export async function run(): Promise<void> {
     const prNumber =
       github.context.payload.pull_request?.number ||
       (process.env.GITHUB_REF?.match(/^refs\/pull\/(\d+)\/(merge|head)$/)
-        ? parseInt(process.env.GITHUB_REF.split('/')[2], 10)
+        ? Number(process.env.GITHUB_REF.split('/')[2])
         : undefined);
 
     const viewerUrlInput = core.getInput('viewerUrl');
@@ -322,5 +322,7 @@ export async function run(): Promise<void> {
 }
 
 if (process.env.GITHUB_ACTIONS) {
-  run();
+  run().catch((error: unknown) => {
+    core.setFailed(error instanceof Error ? error.message : String(error));
+  });
 }

@@ -38,7 +38,7 @@ pnpm test
 | `pnpm build` | Compiles all TypeScript packages, diff bindings, and viewer bundle |
 | `pnpm test` | Runs all unit and integration test suites via Vitest |
 | `pnpm typecheck` | Validates TypeScript types across all workspace packages |
-| `pnpm storybook` | Starts the showcase Storybook 8 design system dev server |
+| `pnpm storybook` | Starts the showcase Storybook 10 design system dev server |
 | `pnpm test:visual` | Runs visual regression tests against the showcase design system |
 | `pnpm test:visual:approve` | Promotes candidate screenshots to baselines |
 | `pnpm clean` | Cleans build artifacts across all packages |

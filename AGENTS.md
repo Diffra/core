@@ -36,7 +36,7 @@ This document records architectural principles, conventions, and operational lea
 * `packages/cli`: Zero-dependency command-line binary (`diffra`).
 * `packages/viewer`: Static Web Components review UI bundled via Vite as a standalone IIFE bundle (`dist/viewer.bundle.js`).
 * `packages/action`: GitHub Action runner with path traversal protection and secret masking.
-* `packages/demo-storybook`: Real working demo of Storybook 8 with Diffra visual regression.
+* `packages/demo-storybook`: Real working demo of Storybook 10 with Diffra visual regression.
 * `packages/demo-app`: Real working demo of a Vite TypeScript web application with Diffra configured.
 
 ### 5. Storybook version pinning in monorepos

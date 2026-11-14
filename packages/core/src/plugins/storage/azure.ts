@@ -27,9 +27,9 @@ function isAzureNotFound(err: unknown): boolean {
 
 export class AzureBlobStorageAdapter implements StorageAdapter {
   name = 'azure';
-  private containerName: string;
-  private connectionString?: string;
-  private prefix: string;
+  private readonly containerName: string;
+  private readonly connectionString?: string;
+  private readonly prefix: string;
   private containerClient: ContainerClient | null = null;
 
   constructor(options: AzureStorageOptions) {

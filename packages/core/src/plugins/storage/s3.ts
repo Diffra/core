@@ -29,10 +29,10 @@ function isS3NotFound(err: unknown): boolean {
 
 export class S3StorageAdapter implements StorageAdapter {
   name = 's3';
-  private bucket: string;
-  private prefix: string;
-  private region: string;
-  private endpoint?: string;
+  private readonly bucket: string;
+  private readonly prefix: string;
+  private readonly region: string;
+  private readonly endpoint?: string;
   private s3Client: S3Client | null = null;
 
   constructor(options: S3StorageOptions) {
@@ -76,16 +76,16 @@ export class S3StorageAdapter implements StorageAdapter {
     try {
       return await import('@aws-sdk/client-s3');
     } catch {
+      class CommandStub {
+        input: unknown;
+        constructor(input: unknown) {
+          this.input = input;
+        }
+      }
       return {
-        PutObjectCommand: class PutObjectCommand {
-          constructor(public input: unknown) {}
-        },
-        GetObjectCommand: class GetObjectCommand {
-          constructor(public input: unknown) {}
-        },
-        HeadObjectCommand: class HeadObjectCommand {
-          constructor(public input: unknown) {}
-        },
+        PutObjectCommand: class PutObjectCommand extends CommandStub {},
+        GetObjectCommand: class GetObjectCommand extends CommandStub {},
+        HeadObjectCommand: class HeadObjectCommand extends CommandStub {},
       };
     }
   }

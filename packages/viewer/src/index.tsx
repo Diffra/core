@@ -18,8 +18,8 @@ const BaseElement: { new (): HTMLElement } =
  */
 export class DiffraViewer extends BaseElement {
   private _root: Root | null = null;
-  private _shadow: ShadowRoot | null = null;
-  private _mountContainer: HTMLDivElement | null = null;
+  private readonly _shadow: ShadowRoot | null = null;
+  private readonly _mountContainer: HTMLDivElement | null = null;
   private _reportUrlProp?: string;
   private _reportDataProp?: TestRunReport;
 

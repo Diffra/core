@@ -66,7 +66,7 @@ export function createServeHandler(options: {
   ): Promise<void> => {
     try {
       const rawUrl = req.url || '/';
-      const pathPart = rawUrl.split('?')[0].split('#')[0];
+      const [pathPart = '/'] = rawUrl.split(/[?#]/);
       let decodedPath = '/';
       try {
         decodedPath = decodeURIComponent(pathPart);

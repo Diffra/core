@@ -74,10 +74,10 @@ describe('Tier 1: Feature Coverage (Opaque-Box Happy-Path Tests in Isolation)', 
   });
 
   // --------------------------------------------------------------------------
-  // Feature 1: Storybook 8 Version Alignment
+  // Feature 1: Storybook version alignment
   // Authoritative Source: AGENTS.md § 5 & PROJECT.md Feature 1
   // --------------------------------------------------------------------------
-  it('F1: Storybook 8 dependencies in demo-storybook share pinned version', async () => {
+  it('F1: Storybook dependencies in demo-storybook share one pinned version', async () => {
     const pkgJsonPath = path.resolve(
       import.meta.dirname,
       '../../../demo-storybook/package.json',
@@ -90,16 +90,15 @@ describe('Tier 1: Feature Coverage (Opaque-Box Happy-Path Tests in Isolation)', 
       'storybook',
       '@storybook/react',
       '@storybook/react-vite',
-      '@storybook/addon-essentials',
+      '@storybook/builder-vite',
     ];
 
     const versions = storybookPackages.map((p) => devDeps[p]).filter(Boolean);
 
-    // Verify all present storybook dependencies match 8.x
+    // Verify all present storybook dependencies resolve to the same exact version
     expect(versions.length).toBeGreaterThan(0);
-    for (const ver of versions) {
-      expect(ver).toMatch(/8\./);
-    }
+    expect(new Set(versions).size).toBe(1);
+    expect(versions[0]).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   // --------------------------------------------------------------------------
@@ -562,16 +561,16 @@ describe('Tier 1: Feature Coverage (Opaque-Box Happy-Path Tests in Isolation)', 
     ];
     expect(comparisonModes).toHaveLength(6);
 
-    const viewerIndexPath = path.resolve(
-      process.cwd(),
-      'packages/viewer/src/index.tsx',
+    const viewerSrcDir = path.resolve(
+      import.meta.dirname,
+      '../../../viewer/src',
     );
+    const viewerIndexPath = path.join(viewerSrcDir, 'index.tsx');
     const viewerIndex = await fs.readFile(viewerIndexPath, 'utf-8');
     expect(viewerIndex).toMatch(
       /customElements\.define\(\s*['"]diffra-viewer['"]/,
     );
 
-    const viewerSrcDir = path.resolve(process.cwd(), 'packages/viewer/src');
     const files = await fs.readdir(viewerSrcDir, { recursive: true });
     for (const file of files) {
       if (
