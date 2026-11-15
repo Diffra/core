@@ -64,7 +64,7 @@ export async function ensureBrowsers(
   const spec = `playwright@${playwrightPackage.version}`;
   // npx comes with npm, which not every Node setup carries, so another way of
   // running a package is tried before giving up.
-  const runners: Array<[string, string[]]> = [
+  const runners: [string, string[]][] = [
     ['npx', ['--yes', spec, ...install]],
     ['pnpm', ['dlx', spec, ...install]],
   ];
