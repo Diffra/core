@@ -139,6 +139,7 @@ jobs:
 
 ## Next steps
 
+* Let an agent find and fix regressions with the [agent quickstart](agent-quickstart.md).
 * Deep dive into route configuration, selectors, and masks in [Testing web applications and routes](../guides/testing-web-applications.md).
 * Learn how to eliminate font and animation flakiness in [Flakiness and determinism](../guides/flakiness-and-determinism.md).
 * Configure cloud storage providers in [Storage adapters](../storage-and-plugins/storage-adapters.md).

@@ -76,7 +76,17 @@ diffra status [--json]
 
 ---
 
-### 4. diffra mcp
+### 4. diffra agent
+
+Prepares the project for AI agents. `diffra agent init` registers the Diffra server in `.mcp.json`, merged with servers already there, and installs the `diffra-visual-review` skill in `.claude/skills/`. A registration or skill that differs from Diffra's is kept unless `--force` is given. See the [agent quickstart](../getting-started/agent-quickstart.md).
+
+```bash
+diffra agent init [--no-skill] [--force] [--json]
+```
+
+---
+
+### 5. diffra mcp
 
 Serves Diffra to AI agents over the Model Context Protocol on standard input and output. See [Working with AI agents](../agents/overview.md).
 
@@ -86,7 +96,7 @@ diffra mcp [--config <path>] [--report <address-or-folder>]
 
 ---
 
-### 5. diffra intent
+### 6. diffra intent
 
 Declares what a change should alter, so that runs can tell intended changes from collateral ones. See [Intent contracts](../agents/intent-contracts.md).
 
@@ -98,7 +108,7 @@ diffra intent clear [id...]
 
 ---
 
-### 6. diffra prove
+### 7. diffra prove
 
 Tests the cause of a changed snapshot by undoing it in the live page. Exits `0` when the cause is proven. See [Proof](../agents/proof.md).
 
@@ -108,7 +118,7 @@ diffra prove <snapshot-id> [--json]
 
 ---
 
-### 7. diffra fix
+### 8. diffra fix
 
 Prints a patch that undoes a proven change, for `git apply`. Standard output is only the patch. See [Fixes and verification](../agents/fixes-and-verification.md).
 
@@ -118,7 +128,7 @@ diffra fix <snapshot-id> | git apply
 
 ---
 
-### 8. diffra verify
+### 9. diffra verify
 
 Runs again and says which open changes are resolved. Exits `1` when anything is still changed or newly changed.
 
@@ -128,7 +138,7 @@ diffra verify [--affected] [--filter <text>] [--json]
 
 ---
 
-### 9. diffra merge-reports
+### 10. diffra merge-reports
 
 Merges multiple partial shard report directories into a single unified `report.json` manifest.
 
@@ -144,7 +154,7 @@ diffra merge-reports <shardPaths...> [options]
 
 ---
 
-### 10. diffra serve
+### 11. diffra serve
 
 Serves a review bundle (the latest run by default) over HTTP on a local port.
 

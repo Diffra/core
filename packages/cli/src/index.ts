@@ -17,7 +17,7 @@ import {
   suggestFixes,
   verifyRun,
 } from '@diffra/core';
-import { startMcpServer } from '@diffra/mcp';
+import { setupAgent, startMcpServer } from '@diffra/mcp';
 import {
   createServeHandler,
   formatServerUrl,
@@ -45,6 +45,7 @@ ${colors.bold('Commands:')}
   prove          Test the cause of a changed snapshot by undoing it in the live page
   fix            Print a patch that undoes a proven change, for git apply
   verify         Run again and say which open changes are resolved
+  agent          Prepare this project for AI agents: agent init
   mcp            Serve Diffra to AI agents over the Model Context Protocol
   merge-reports  Merge multiple shard report manifests into a consolidated run
   serve          Serve the latest review bundle on a local port
@@ -70,6 +71,8 @@ ${colors.bold('Options:')}
       --json                  Print JSON only on stdout (test, approve, status)
       --rationale <text>      With approve: why the changes are intended, kept in the approval record
       --affected              With verify: capture only the snapshots the changed files are known to reach
+      --force                 With agent init: replace an agent configuration that differs
+      --no-skill              With agent init: register the server only, without the skill
       --gate <mode>           Fail on 'any' change (default) or only 'collateral' ones that no intent covers
       --target <text>         With intent add: a snapshot id, name or group the change may touch
       --source <file>         With intent add: a stylesheet the change is expected to come from
@@ -88,6 +91,7 @@ ${colors.bold('Examples:')}
   diffra approve <snapshot-id>...
   diffra prove <snapshot-id>
   diffra fix <snapshot-id> | git apply
+  diffra agent init
   diffra mcp
   diffra intent add "Roomier buttons" --source src/button.css
   diffra --gate collateral
@@ -119,6 +123,8 @@ export const CLI_OPTIONS = {
   ci: { type: 'boolean' },
   json: { type: 'boolean' },
   gate: { type: 'string' },
+  force: { type: 'boolean' },
+  'no-skill': { type: 'boolean' },
   affected: { type: 'boolean' },
   rationale: { type: 'string' },
   target: { type: 'string', multiple: true },
@@ -613,6 +619,36 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         throw new Error(
           `Unknown intent command "${action}". Use add, list or clear.`,
         );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`${colors.red(colors.bold('Error:'))} ${msg}`);
+        return 1;
+      }
+    }
+
+    case 'agent': {
+      try {
+        const action = positionals[1] ?? 'init';
+        if (action !== 'init') {
+          throw new Error(`Unknown agent command "${action}". Use init.`);
+        }
+        const steps = await setupAgent({
+          cwd: process.cwd(),
+          skill: !values['no-skill'],
+          force: values.force,
+        });
+        if (values.json) {
+          console.log(JSON.stringify(steps, null, 2));
+        } else {
+          for (const step of steps) {
+            out(`${step.status.padEnd(9)} ${step.file}`);
+            if (step.note) out(colors.gray(`          ${step.note}`));
+          }
+          out(
+            '\nRestart your agent, then ask it to check the visual changes in this branch and fix any it did not intend.',
+          );
+        }
+        return 0;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`${colors.red(colors.bold('Error:'))} ${msg}`);

@@ -17,6 +17,7 @@ import { type Actions, createResources, createTools } from './tools.js';
 
 export * from './protocol.js';
 export { McpServer, serveStdio } from './server.js';
+export * from './setup.js';
 export * from './source.js';
 export * from './tools.js';
 

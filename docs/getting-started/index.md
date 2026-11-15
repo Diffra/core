@@ -101,8 +101,9 @@ jobs:
 
 ## Choose your quickstart
 
-Select the quickstart guide that matches your framework:
+Set up Diffra with the quickstart that matches your framework, then add your agent:
 
+* **[Agent quickstart](agent-quickstart.md)**: Let a coding agent find, explain and fix visual regressions. Do this after one of the setups below.
 * **[Storybook quickstart](storybook-quickstart.md)**: Automated CI/CD setup for Storybook 7/8/9 with React, Vue, Svelte, and Vite.
 * **[Web applications quickstart](web-apps-quickstart.md)**: Automated CI/CD setup for Next.js, Remix, Vite, Astro, Nuxt, or any running server.
 * **[Playwright test runner quickstart](playwright-quickstart.md)**: Visual assertions inside Playwright test suites using `toMatchVisualBaseline`.

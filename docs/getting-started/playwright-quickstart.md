@@ -91,5 +91,6 @@ Diffra automatically manages baseline discovery, merge-base Git commits, CAS fas
 
 ## Next steps
 
+* Let an agent find and fix regressions with the [agent quickstart](agent-quickstart.md).
 * Learn about locator masking, clip regions, and diff thresholds in [Playwright matcher integration](../guides/playwright-integration.md).
 * Configure cloud storage backends for CI in [Storage adapters](../storage-and-plugins/storage-adapters.md).

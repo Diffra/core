@@ -52,6 +52,28 @@ Removed targets are not reported for sharded runs, for filtered runs, for storag
 
 None of the paths passed to `diffra merge-reports` held a shard report. See [parallel sharding](ci-cd/parallel-sharding.md).
 
+## Agent problems
+
+### The agent does not see the Diffra tools
+
+Run `diffra agent init` in the project root, then restart the agent. Check that `.mcp.json` has a `diffra` entry. A client that stores MCP servers elsewhere can run `npx diffra mcp` as the server command. See the [agent quickstart](getting-started/agent-quickstart.md).
+
+### `diffra_prove` cannot prove a change
+
+The page has to be reachable again, such as a running Storybook or development server. A proof is `unproven` when undoing the cause did not restore the baseline, and `not-attempted` when the change is a text, an added element or a removed one. See [proof](agents/proof.md).
+
+### `diffra_suggest_fix` returns no patch
+
+A patch needs a proven cause, a rule found in a stylesheet of the project, and values that match exactly as the browser computed them. Without a patch, the suggestion still names the values to restore and where. See [fixes and verification](agents/fixes-and-verification.md).
+
+### `diffra_approve` refuses a snapshot
+
+The refusal says what is missing: no declared intent, an intent that does not cover the change, or a cause that is not proven yet. Declare an intent only if the change is part of the task. A person can always run `diffra approve`. See [approvals](agents/approvals.md).
+
+### The server is read-only
+
+A server started with `--report` cannot run, prove, verify or approve. Start `diffra mcp` in the project instead. See [agent workflows](agents/workflows.md#triage-a-failing-pull-request).
+
 ## Still stuck
 
 Search the [issues](https://github.com/Diffra/core/issues), or open one with the template. Include the command, the output, and the versions of Node and Diffra.

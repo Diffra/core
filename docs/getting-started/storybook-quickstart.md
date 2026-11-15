@@ -138,6 +138,7 @@ diffra test --open
 
 ## Next steps
 
+* Let an agent find and fix regressions with the [agent quickstart](agent-quickstart.md).
 * Learn about story-level configuration and the `play` function in [Testing Storybook components](../guides/testing-storybook-components.md).
 * Read the [Storybook snapshot parameters](../reference/story-parameters.md) reference.
 * Configure alternative storage adapters in [Storage adapters](../storage-and-plugins/storage-adapters.md).

@@ -1,6 +1,6 @@
 # How Diffra works
 
-A Diffra run turns a set of things you ship into screenshots, compares each screenshot with the one your base branch accepted, and hands the differences to a reviewer. Everything else in the documentation is a detail of one of those steps.
+A Diffra run turns a set of things you ship into screenshots, compares each screenshot with the one your base branch accepted, and explains the differences. A reviewer or a coding agent then decides what was intended, undoes what was not, and checks the result. Everything else in the documentation is a detail of one of those steps.
 
 ## The model
 
@@ -23,8 +23,9 @@ flowchart LR
     B --> C[Compare with baseline]
     C --> D[Explain changes]
     D --> E[Report and review]
-    E --> F[Approve]
-    F --> G[Promote baseline]
+    E --> F[Fix and verify]
+    F --> G[Approve]
+    G --> H[Promote baseline]
 ```
 
 1. **Discover.** Drivers list targets without running your component code. See [custom drivers](../storage-and-plugins/custom-plugins-and-drivers.md).
@@ -32,14 +33,15 @@ flowchart LR
 3. **Compare.** The baseline comes from the commit where your branch left the base branch, not from the base branch's newest commit. Identical hashes skip the pixel comparison. Otherwise the [Rust engine](../architecture/core-engine.md) compares the images and groups the changed pixels into regions. See [baseline management](../guides/baseline-management.md).
 4. **Explain.** For browser captures, Diffra records what was on the page and says which change in the page accounts for each changed region. See [explained changes](../agents/explained-changes.md).
 5. **Report and review.** The run writes a [review bundle](../architecture/review-bundle.md). In CI, a status check and a pull request comment link to it. See the [review interface](../review-ui/overview.md).
-6. **Approve.** A person or an agent accepts the changes they intended. Approval names snapshots and is recorded. See [approvals](../agents/approvals.md).
-7. **Promote.** Accepted candidates become the baseline for later runs. In CI this happens when the pull request merges.
+6. **Fix and verify.** What was not intended is undone: an agent proves the cause, applies a patch or edits the code, and re-runs only the snapshots its edit can reach. See [proof](../agents/proof.md) and [fixes and verification](../agents/fixes-and-verification.md).
+7. **Approve.** A person or an agent accepts the changes they intended. Approval names snapshots and is recorded. See [approvals](../agents/approvals.md).
+8. **Promote.** Accepted candidates become the baseline for later runs. In CI this happens when the pull request merges.
 
 ## Where a run happens
 
 * **In CI** is the primary home. The [GitHub Action](../ci-cd/github-actions.md) runs on every pull request and every merge. Other providers run the same [CLI](../reference/cli.md); see [other CI providers](../ci-cd/other-ci-providers.md).
 * **On a developer machine** is for debugging and for approving locally.
-* **From an agent** uses the [MCP server](../agents/mcp-reference.md), which works against the local project or a published review bundle.
+* **From an agent** is where the loop closes. The [MCP server](../agents/mcp-reference.md) works against the local project, where an agent can explain, prove, fix and verify, or against a published review bundle, where it can only read. See [agent workflows](../agents/workflows.md).
 
 ## What Diffra does not do
 

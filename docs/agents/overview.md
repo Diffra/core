@@ -1,6 +1,8 @@
 # Working with AI agents
 
-Diffra gives coding agents the same review loop a person has: see what changed, look closely at one changed area, and accept the changes that are intended. It does this without calling a model itself. Diffra supplies evidence and applies decisions; the agent supplies the reasoning.
+Diffra lets a coding agent find a visual regression, understand its cause, undo it and check the result. An agent that only sees screenshots has to guess. With Diffra it gets the element, the style and the rule behind each change, a test of whether that cause is the whole story, a patch that undoes it, and a check that the fix worked. Diffra never calls a model: it supplies evidence and applies decisions, and the agent supplies the reasoning.
+
+To set it up in one command, follow the [agent quickstart](../getting-started/agent-quickstart.md). For concrete situations, see [workflows](workflows.md).
 
 ## In CI
 
@@ -20,7 +22,7 @@ Started without `--report`, the server works against the project in the current 
 diffra mcp
 ```
 
-Register it with your agent in its MCP configuration:
+`diffra agent init` registers it in `.mcp.json` and installs the skill. To register it by hand, add it to your agent's MCP configuration:
 
 ```json
 {

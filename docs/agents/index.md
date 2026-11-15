@@ -2,11 +2,12 @@
 
 Diffra gives coding agents the review loop a person has, plus evidence a person would have to dig for. It never calls a model.
 
-Start with the [overview](overview.md).
+Start with the [agent quickstart](../getting-started/agent-quickstart.md) to set it up in one command, then the [overview](overview.md).
 
 | Page | Covers |
 | :--- | :--- |
 | [Overview](overview.md) | The loop, in CI and on a developer machine, and the safety rules. |
+| [Workflows](workflows.md) | Fixing a regression, landing a redesign, triaging a failing pull request, checking blast radius. |
 | [Explained changes](explained-changes.md) | The render ledger, causes, and how sure an explanation is. |
 | [Intent contracts](intent-contracts.md) | Declaring what a change should alter, and gating on what nobody intended. |
 | [Proof](proof.md) | Testing a cause by undoing it in the live page. |

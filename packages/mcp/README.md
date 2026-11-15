@@ -1,9 +1,10 @@
 # @diffra/mcp
 
-A zero-dependency Model Context Protocol server that lets AI agents review, look closely at, and approve Diffra visual changes.
+A zero-dependency Model Context Protocol server that lets AI agents find, explain, fix and verify Diffra visual changes, and approve the ones that are intended.
 
 ```bash
-npx diffra mcp                      # this project: run tests, review, approve
+npx diffra agent init               # register the server and install the skill
+npx diffra mcp                      # this project: run, explain, fix, verify, approve
 npx diffra mcp --report <address>   # a published review bundle, read-only
 ```
 
