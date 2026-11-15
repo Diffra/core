@@ -33,24 +33,37 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The engine is Rust. The crate declares the version it needs, and
+      # runners may carry an older one.
+      - name: Update Rust
+        run: rustup update stable
+
+      - name: Build the workspace
+        run: pnpm build
+
+      - name: Build Storybook
+        run: pnpm --filter @diffra/demo-storybook build-storybook
+
+      # The action under test is this checkout, bundled with this runner's engine.
+      - name: Bundle the action
+        run: pnpm bundle
+
       - name: Restore visual regression baselines cache
         uses: actions/cache/restore@v6
         with:
-          path: .diffra/baselines
+          path: packages/demo-storybook/.diffra/baselines
           key: diffra-baselines-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
             diffra-baselines-${{ runner.os }}-master-
             diffra-baselines-${{ runner.os }}-main-
             diffra-baselines-${{ runner.os }}-
 
-      - name: Build Storybook
-        run: pnpm --filter @diffra/storybook build-storybook || pnpm build-storybook
-
       - name: Run Diffra Visual Regression
         id: diffra
-        uses: Diffra/core@v1
+        uses: ./
         with:
-          storybookBuildDir: 'packages/storybook/storybook-static'
+          workingDir: packages/demo-storybook
+          storybookBuildDir: storybook-static
           token: ${{ secrets.GITHUB_TOKEN }}
           autoAcceptChanges: 'master'
           exitZeroOnChanges: 'true'
@@ -59,7 +72,7 @@ jobs:
         if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && always()
         uses: actions/cache/save@v6
         with:
-          path: .diffra/baselines
+          path: packages/demo-storybook/.diffra/baselines
           key: diffra-baselines-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
 
       - name: Upload Visual Regression Report Artifact
@@ -68,8 +81,8 @@ jobs:
         with:
           name: visual-regression-report
           path: |
-            .diffra/runs/**/index.html
-            .diffra/runs/**/report.json
-            .diffra/runs/**/diffs/
-            .diffra/runs/**/candidates/
+            packages/demo-storybook/.diffra/runs/**/index.html
+            packages/demo-storybook/.diffra/runs/**/report.json
+            packages/demo-storybook/.diffra/runs/**/diffs/
+            packages/demo-storybook/.diffra/runs/**/candidates/
           retention-days: 14

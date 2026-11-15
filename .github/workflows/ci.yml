@@ -69,4 +69,16 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           pnpm bundle
-          git diff --exit-code -- dist || { echo "dist/ is stale: run pnpm bundle and commit the result"; exit 1; }
+          if ! git diff --quiet -- dist; then
+            # Name where each file first differs, so the cause shows up in the annotations.
+            for file in $(git diff --name-only -- dist); do
+              git show "HEAD:${file}" > "${RUNNER_TEMP}/committed"
+              offset=$(cmp "${file}" "${RUNNER_TEMP}/committed" | sed -E 's/.*byte ([0-9]+).*/\1/')
+              start=$(( offset > 160 ? offset - 160 : 1 ))
+              built=$(tail -c +"${start}" "${file}" | head -c 320 | tr '\n%' '  ')
+              committed=$(tail -c +"${start}" "${RUNNER_TEMP}/committed" | head -c 320 | tr '\n%' '  ')
+              echo "::error title=${file} differs at byte ${offset}::built: ${built} || committed: ${committed}"
+            done
+            echo "dist/ is stale: run pnpm bundle and commit the result"
+            exit 1
+          fi
