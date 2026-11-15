@@ -41,6 +41,11 @@ jobs:
       - name: Build the workspace
         run: pnpm build
 
+      # The same command the CI workflow uses. With the browser in place, the
+      # action does not have to install one itself.
+      - name: Install Playwright browsers
+        run: pnpm --filter @diffra/core exec playwright install --with-deps chromium
+
       - name: Build Storybook
         run: pnpm --filter @diffra/demo-storybook build-storybook
 
