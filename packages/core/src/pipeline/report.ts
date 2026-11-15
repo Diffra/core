@@ -1,8 +1,10 @@
 import type { GitInfo } from '../git/baseline.js';
+import { countClassifications, type Intent } from '../intent/index.js';
 import type { ReviewBundle } from '../report/bundle.js';
 import { reviewUrl } from '../report/bundle.js';
 import {
   buildReportManifest,
+  REPORT_SCHEMA_VERSION,
   saveReportManifest,
 } from '../report/generator.js';
 import type {
@@ -28,6 +30,7 @@ export function summarize(results: VisualTestResult[]): TestRunSummary {
     removed: count('removed'),
     failed: count('failed'),
     unchanged: count('unchanged'),
+    ...countClassifications(results),
   };
 }
 
@@ -48,13 +51,20 @@ export function assembleReport(input: {
   config: DiffraConfig;
   bundle: ReviewBundle;
   shard?: string;
+  filter?: string;
+  intents?: Intent[];
 }): TestRunReport {
-  const { runId, timestamp, git, config, bundle, shard } = input;
+  const { runId, timestamp, git, config, bundle, shard, filter, intents } =
+    input;
   const results = sortResults(input.results);
   return {
+    schemaVersion: REPORT_SCHEMA_VERSION,
     runId,
     timestamp,
     shard: shard || undefined,
+    filter: filter || undefined,
+    gate: config.agent?.gate,
+    ...(intents && intents.length > 0 ? { intents } : {}),
     git: {
       branch: git.branch,
       commit: git.commit,

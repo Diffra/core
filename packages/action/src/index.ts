@@ -4,7 +4,9 @@ import * as github from '@actions/github';
 import {
   approveBaselines,
   createGitHubNotifier,
+  decisionsNeeded,
   formatMarkdownSummary,
+  parseIntentBlock,
   runVisualRegression,
   type TestRunReport,
 } from '@diffra/core';
@@ -124,10 +126,19 @@ function annotateChanges(report: TestRunReport): void {
       const pct = result.diff?.diffPercentage.toFixed(2) ?? '0.00';
       const count = result.diff?.diffCount.toLocaleString() ?? '0';
       const groupName = result.group || 'Component';
-      core.warning(
-        `Visual diff detected in "${groupName} / ${result.name}" [${result.viewport.width}x${result.viewport.height}]: ${pct}% change (${count} pixels).`,
-        { title: `Visual Change: ${groupName} - ${result.name}` },
-      );
+      const why = result.explanation?.summary
+        ? ` ${result.explanation.summary}`
+        : '';
+      const message = `Visual diff detected in "${groupName} / ${result.name}" [${result.viewport.width}x${result.viewport.height}]: ${pct}% change (${count} pixels).${why}`;
+      if (result.classification?.kind === 'intended') {
+        core.notice(message, {
+          title: `Intended change: ${groupName} - ${result.name}`,
+        });
+      } else {
+        core.warning(message, {
+          title: `Visual Change: ${groupName} - ${result.name}`,
+        });
+      }
     } else if (result.status === 'failed') {
       const groupName = result.group || 'Component';
       core.error(
@@ -214,6 +225,25 @@ export async function run(): Promise<void> {
     const configOverrides: Record<string, unknown> = { runner };
     if (Object.keys(snapshot).length > 0) configOverrides.snapshot = snapshot;
 
+    const gateInput = core.getInput('gate');
+    if (gateInput === 'any' || gateInput === 'collateral') {
+      configOverrides.agent = { gate: gateInput };
+    } else if (gateInput) {
+      core.warning(
+        `Ignoring gate "${gateInput}": it must be "any" or "collateral".`,
+      );
+    }
+
+    // What the author said this pull request should change. It is the author's
+    // own statement, shown with the results, and not a security control.
+    const description = github.context.payload.pull_request?.body;
+    const intents = description ? parseIntentBlock(description) : [];
+    if (intents.length > 0) {
+      core.info(
+        `Found ${intents.length} declared visual intent(s) in the pull request description.`,
+      );
+    }
+
     const drivers = driverFromInputs({
       driver: core.getInput('driver'),
       urls: core.getInput('urls'),
@@ -235,6 +265,7 @@ export async function run(): Promise<void> {
     const report = await runVisualRegression({
       cwd: workingDir,
       config: configOverrides,
+      intents,
       onProgress: (step, current, total) => {
         core.info(`[${current}/${total}] ${step}`);
       },
@@ -271,6 +302,8 @@ export async function run(): Promise<void> {
     core.setOutput('buildUrl', reportUrl);
     core.setOutput('storybookUrl', storybookUrl || '');
     core.setOutput('changeCount', String(report.summary.changed));
+    core.setOutput('intendedCount', String(report.summary.intended ?? 0));
+    core.setOutput('collateralCount', String(report.summary.collateral ?? 0));
     core.setOutput('failedCount', String(report.summary.failed));
     core.setOutput('storyCount', String(report.summary.total));
 
@@ -326,12 +359,13 @@ export async function run(): Promise<void> {
       return;
     }
 
-    if (report.summary.changed > 0) {
+    const needed = decisionsNeeded(report);
+    if (needed > 0) {
       core.setOutput('status', 'changes_found');
 
       if (shouldExitZeroOnChanges) {
         core.info(
-          `Visual changes detected (${report.summary.changed} changed), but exitZeroOnChanges is enabled for ${currentRef}.`,
+          `Visual changes detected (${needed} need a decision), but exitZeroOnChanges is enabled for ${currentRef}.`,
         );
         core.setOutput('code', '0');
         return;
@@ -339,9 +373,17 @@ export async function run(): Promise<void> {
 
       core.setOutput('code', '1');
       core.setFailed(
-        `Diffra found ${report.summary.changed} visual regression differences.`,
+        report.gate === 'collateral'
+          ? `Diffra found ${needed} visual change(s) that no declared intent covers.`
+          : `Diffra found ${needed} visual regression differences.`,
       );
       return;
+    }
+
+    if (report.summary.changed > 0) {
+      core.info(
+        `${report.summary.changed} visual change(s) found, all covered by a declared intent.`,
+      );
     }
 
     core.setOutput('code', '0');

@@ -36,6 +36,10 @@ inputs:
     description: 'Exit with code 0 as soon as the candidate snapshots and diffs are persisted'
     required: false
     default: 'false'
+  gate:
+    description: "What fails the run: 'any' (every changed snapshot, the default) or 'collateral' (only changes that no declared intent covers). Intents are declared in the pull request description with Visual-Intent lines. This is a review aid, not a security control."
+    required: false
+    default: 'any'
   diffThreshold:
     description: 'Perceptual pixel delta threshold (from 0.00 strict to 1.00 permissive)'
     required: false
@@ -71,6 +75,10 @@ outputs:
     description: 'Process exit status code'
   changeCount:
     description: 'Number of visual differences detected'
+  intendedCount:
+    description: 'Number of changes covered by a declared intent'
+  collateralCount:
+    description: 'Number of changes that no declared intent covers'
   reportDir:
     description: 'Directory holding the review bundle (index.html, report.json, images)'
   failedCount:

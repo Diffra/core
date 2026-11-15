@@ -265,3 +265,27 @@ export async function getBaselineHistory(
   const commits = raw.split('\n').filter(Boolean);
   return commits.length > 0 ? commits : [commit];
 }
+
+/**
+ * Files that differ from a commit: committed changes since it, uncommitted
+ * edits, and files git does not track yet. Paths are relative to `cwd`. Empty
+ * when there is no commit to compare with or git is unavailable.
+ */
+export async function changedFilesSince(
+  commit: string | undefined,
+  cwd = process.cwd(),
+): Promise<string[]> {
+  if (!commit) return [];
+  const [tracked, untracked] = await Promise.all([
+    runGit(['diff', '--name-only', '--no-renames', '--relative', commit], cwd),
+    runGit(['ls-files', '--others', '--exclude-standard'], cwd),
+  ]);
+  return [
+    ...new Set(
+      `${tracked}\n${untracked}`
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean),
+    ),
+  ];
+}

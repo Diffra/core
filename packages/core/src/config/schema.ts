@@ -1,5 +1,7 @@
 import { DEFAULT_THRESHOLD } from '@diffra/engine';
 import { z } from 'zod';
+import { DEFAULT_APPROVAL_POLICY } from '../intent/policy.js';
+import { DEFAULT_GATE } from '../report/gate.js';
 import type {
   DiffEngineAdapter,
   DiffraPlugin,
@@ -16,6 +18,9 @@ import type {
 export const DEFAULT_DIFF_THRESHOLD = DEFAULT_THRESHOLD;
 export const DEFAULT_DELAY_MS = 100;
 export const DEFAULT_CONCURRENCY = 4;
+
+/** Whether a render ledger is recorded with every browser snapshot. */
+export const DEFAULT_AGENT_CONTEXT = true;
 export const DEFAULT_OUTPUT_DIR = '.diffra';
 export const DEFAULT_BASELINE_DIR = '.diffra/baselines';
 export const DEFAULT_VIEWPORTS = [
@@ -112,10 +117,20 @@ export const RunnerConfigSchema = z.object({
   baselineBranch: z.string().optional(),
   baselineHistoryDepth: z.number().int().positive().optional(),
   shard: z.string().optional(),
+  filter: z.string().optional(),
   projects: z.array(ProjectSchema).optional(),
   launchOptions: z
     .custom<LaunchOptions>((val) => typeof val === 'object' && val !== null)
     .optional(),
+});
+
+export const AgentConfigSchema = z.object({
+  context: z.boolean().default(DEFAULT_AGENT_CONTEXT),
+  intentFile: z.string().optional(),
+  gate: z.enum(['any', 'collateral']).default(DEFAULT_GATE),
+  autoApprove: z
+    .enum(['never', 'intended', 'proven', 'any'])
+    .default(DEFAULT_APPROVAL_POLICY),
 });
 
 export const LocalStorageConfigSchema = z.object({
@@ -310,6 +325,11 @@ export const DiffraConfigSchema = z.object({
     provider: 'local',
     dir: DEFAULT_BASELINE_DIR,
     outputDir: DEFAULT_OUTPUT_DIR,
+  }),
+  agent: AgentConfigSchema.default({
+    context: DEFAULT_AGENT_CONTEXT,
+    gate: DEFAULT_GATE,
+    autoApprove: DEFAULT_APPROVAL_POLICY,
   }),
   reporters: z.array(ReporterInputSchema).default([]),
   plugins: z.array(DiffraPluginSchema).default([]),

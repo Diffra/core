@@ -3,6 +3,7 @@
   "files": [],
   "references": [
     { "path": "./packages/core" },
+    { "path": "./packages/mcp" },
     { "path": "./packages/cli" },
     { "path": "./packages/action" },
     { "path": "./packages/viewer" }

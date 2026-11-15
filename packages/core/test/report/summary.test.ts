@@ -188,4 +188,96 @@ describe('pull request markdown summary', () => {
     expect(summary).toContain('https://reports.example.test/runs/adv-run-999/');
     expect(summary).toContain('[View Interactive Visual Report]');
   });
+  describe('causes and intent', () => {
+    const base: TestRunReport = {
+      ...sampleReport,
+      gate: 'collateral',
+      summary: {
+        ...sampleReport.summary,
+        changed: 2,
+        added: 0,
+        intended: 1,
+        collateral: 1,
+      },
+      intents: [
+        {
+          id: 'intent-1',
+          description: 'Roomier buttons',
+          author: 'agent',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          sources: ['src/button.css'],
+        },
+      ],
+      results: [
+        {
+          id: 'btn',
+          name: 'Button',
+          group: 'Button',
+          viewport: { width: 320, height: 480 },
+          status: 'changed',
+          candidate: {},
+          explanation: {
+            summary: 'button#go: padding 8px to 16px (src/button.css .btn).',
+            causes: [],
+            regions: [],
+          },
+          classification: {
+            kind: 'intended',
+            intent: 'intent-1',
+            reason: 'ok',
+          },
+        },
+        {
+          id: 'card',
+          name: 'Card',
+          group: 'Card',
+          viewport: { width: 320, height: 480 },
+          status: 'changed',
+          candidate: {},
+          explanation: {
+            summary: 'h2.title: margin-top 0px to 24px (src/card.css .title).',
+            causes: [],
+            regions: [],
+          },
+          classification: { kind: 'collateral', reason: 'Not covered' },
+        },
+      ],
+    };
+
+    it('leads with the declared intent and each cause, unintended changes first', () => {
+      const md = formatMarkdownSummary(base);
+      expect(md).toContain('### Declared intent');
+      expect(md).toContain('- Roomier buttons _(agent)_');
+      expect(md).toContain('### What changed');
+      expect(md.indexOf('Card / Card')).toBeLessThan(
+        md.indexOf('Button / Button'),
+      );
+      expect(md).toContain(
+        '**Card / Card** _(collateral)_: h2.title: margin-top 0px to 24px',
+      );
+      expect(md).toContain('✅ **Button / Button** _(intended)_');
+    });
+
+    it('titles the comment by the unintended changes when gating on them', () => {
+      expect(formatMarkdownSummary(base)).toContain(
+        '1 unintended visual change (1 intended)',
+      );
+    });
+
+    it('says all changes were intended when none is collateral', () => {
+      const md = formatMarkdownSummary({
+        ...base,
+        summary: { ...base.summary, intended: 2, collateral: 0 },
+      });
+      expect(md).toContain(
+        '✅ Diffra Visual Regression: 2 visual changes, all intended',
+      );
+    });
+
+    it('adds nothing about causes for a report without them', () => {
+      const md = formatMarkdownSummary(sampleReport);
+      expect(md).not.toContain('### What changed');
+      expect(md).not.toContain('### Declared intent');
+    });
+  });
 });

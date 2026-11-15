@@ -46,7 +46,8 @@
   },
   "dependencies": {
     "@diffra/core": "workspace:*",
-    "@diffra/engine": "workspace:*"
+    "@diffra/engine": "workspace:*",
+    "@diffra/mcp": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

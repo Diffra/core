@@ -65,6 +65,18 @@ export function applyShard<T>(tasks: T[], shard: string | undefined): T[] {
   return tasks.filter((_, i) => i % total === index - 1);
 }
 
+/** Whether a target's id, name or group contains the filter text. */
+export function matchesFilter(
+  target: VisualTarget,
+  filter: string | undefined,
+): boolean {
+  const needle = filter?.trim().toLowerCase();
+  if (!needle) return true;
+  return [target.id, target.name, target.group].some((field) =>
+    field?.toLowerCase().includes(needle),
+  );
+}
+
 /** Expands targets into one capture task per project and viewport. */
 export function buildTasks(
   discovered: DiscoveredTargets,
@@ -78,6 +90,7 @@ export function buildTasks(
   const tasks: CaptureTask[] = [];
 
   for (const target of discovered.targets) {
+    if (!matchesFilter(target, config.runner?.filter)) continue;
     const driver = discovered.driverFor(target);
     const viewports: Viewport[] = target.snapshot?.viewports
       ? target.snapshot.viewports.map(normalizeViewport)

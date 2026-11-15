@@ -6,6 +6,10 @@ import type {
   PageScreenshotOptions,
   ViewportSize,
 } from 'playwright';
+import type { Classification, Intent } from '../intent/index.js';
+import type { ApprovalPolicy } from '../intent/policy.js';
+import type { Explanation } from '../pipeline/explain.js';
+import type { Gate } from '../report/gate.js';
 
 // Re-export standard dependency types directly
 export type {
@@ -166,13 +170,33 @@ export type DriverInput =
   | VisualDriver
   | string;
 
+/**
+ * What a browser needs to load a target: headers, credentials and cookies.
+ * Kept apart from `metadata` because it is secret: it is applied to the page
+ * and never copied into a result or a report.
+ */
+export interface TargetRequest {
+  headers?: Record<string, string>;
+  auth?: { username: string; password?: string };
+  cookies?: Array<{
+    name: string;
+    value: string;
+    domain?: string;
+    path?: string;
+  }>;
+}
+
 export interface VisualTarget {
   id: string;
   name: string;
   group?: string;
   url?: string;
+  /** Source file that defines the target, such as a story file. */
   filePath?: string;
   snapshot?: SnapshotConfig;
+  /** Never written to reports. */
+  request?: TargetRequest;
+  /** Public, descriptive data that is copied into the report. */
   metadata?: Record<string, unknown>;
 }
 
@@ -231,6 +255,9 @@ export interface RunnerConfig {
 
   /** CI shard coordinate (e.g. "1/4") */
   shard?: string;
+
+  /** Case-insensitive text that a target id, name or group must contain to be captured */
+  filter?: string;
 
   /** Playwright browser projects (Chromium, Firefox, WebKit, Mobile devices) */
   projects?: Project[];
@@ -308,6 +335,13 @@ export interface StorageAdapter {
   uploadBlob?(hash: string, buffer: Buffer): Promise<string>;
   downloadBlob?(hash: string): Promise<Buffer | null>;
   hasBlob?(hash: string): Promise<boolean>;
+  /**
+   * Named JSON documents, such as the render ledger of an image. A name is a
+   * single plain file name. Optional: a store without them keeps no ledgers.
+   */
+  uploadDocument?(name: string, content: Buffer): Promise<void>;
+  downloadDocument?(name: string): Promise<Buffer | null>;
+  hasDocument?(name: string): Promise<boolean>;
   saveReport(report: TestRunReport): Promise<string>;
 }
 
@@ -328,6 +362,12 @@ export interface ImageArtifact {
   hash?: string;
 }
 
+/** Where a snapshot's render ledgers are in the review bundle, relative to it. */
+export interface ResultLedgers {
+  baseline?: string;
+  candidate?: string;
+}
+
 export interface VisualTestResult {
   id: string;
   name: string;
@@ -335,10 +375,18 @@ export interface VisualTestResult {
   viewport: Viewport;
   status: SnapshotStatus;
   browser?: string;
+  /** Source file that defines the snapshot, such as a story file. */
+  filePath?: string;
   diff?: DiffResult;
   baseline?: ImageArtifact;
   candidate: ImageArtifact;
   diffImage?: ImageArtifact;
+  /** What was on the page for the baseline and the candidate, when it was recorded. */
+  ledgers?: ResultLedgers;
+  /** What in the page accounts for the change, when both ledgers were recorded. */
+  explanation?: Explanation;
+  /** Whether the change was declared beforehand. Set only when intents were declared. */
+  classification?: Classification;
   /** Why the snapshot could not be produced, set when status is failed. */
   error?: string;
   metadata?: Record<string, unknown>;
@@ -352,6 +400,10 @@ export interface TestRunSummary {
   removed: number;
   failed: number;
   unchanged: number;
+  /** Changes that a declared intent covers. Present only when intents were declared. */
+  intended?: number;
+  /** Changes that no declared intent covers. Present only when intents were declared. */
+  collateral?: number;
 }
 
 export interface ReportLinks {
@@ -362,10 +414,18 @@ export interface ReportLinks {
 }
 
 export interface TestRunReport {
+  /** Version of this report's shape, see REPORT_SCHEMA_VERSION */
+  schemaVersion?: number;
   runId: string;
   timestamp: string;
   /** Set when the run covered only one shard of the targets, for example "1/4" */
   shard?: string;
+  /** Set when the run covered only the targets that matched this filter */
+  filter?: string;
+  /** What this run fails on, see AgentConfig.gate */
+  gate?: Gate;
+  /** The intents the changes were judged against */
+  intents?: Intent[];
   git: GitContext;
   summary: TestRunSummary;
   links?: ReportLinks;
@@ -436,6 +496,33 @@ export interface DiffraPlugin {
 // Top-Level Diffra Configuration (5-Domain Architecture)
 // ============================================================================
 
+/** Settings for the context that lets agents and reviewers understand a change. */
+export interface AgentConfig {
+  /**
+   * Record what was on the page, such as elements, styles and the stylesheet
+   * rules behind them, with every browser snapshot (default: true).
+   */
+  context?: boolean;
+
+  /** Where declared intents are kept, relative to the project (default: .diffra/intent.json). */
+  intentFile?: string;
+
+  /**
+   * What fails a run: every changed snapshot (`any`, the default), or only
+   * those that no declared intent covers (`collateral`).
+   */
+  gate?: Gate;
+
+  /**
+   * What an agent may approve without a person (default: `intended`).
+   * `never`: nothing, a person must run `diffra approve`.
+   * `intended`: changes that a declared intent covers.
+   * `proven`: intended changes whose cause was proven by undoing it.
+   * `any`: every change.
+   */
+  autoApprove?: ApprovalPolicy;
+}
+
 export interface DiffraConfig {
   /** 1. Target drivers & discovery (Storybook, URLs, Figma, Images) */
   drivers?: DriverInput | DriverInput[];
@@ -448,6 +535,9 @@ export interface DiffraConfig {
 
   /** 4. Baseline & artifact persistence (local, S3, R2, GCS, Azure) */
   storage?: StorageConfig | StorageAdapter;
+
+  /** Context recorded for agents and reviewers */
+  agent?: AgentConfig;
 
   /** 5. Notifications & PR reporting (GitHub, Slack, JSON) */
   reporters?: ReporterInput[];

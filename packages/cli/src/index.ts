@@ -2,11 +2,22 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import {
+  addIntent,
   approveBaselines,
   BUNDLE_INDEX_FILE,
+  clearIntents,
+  DEFAULT_INTENT_FILE,
+  decisionsNeeded,
+  loadConfig,
+  loadRunReport,
   mergeReports,
+  proveSnapshot,
+  readIntents,
   runVisualRegression,
+  suggestFixes,
+  verifyRun,
 } from '@diffra/core';
+import { startMcpServer } from '@diffra/mcp';
 import {
   createServeHandler,
   formatServerUrl,
@@ -29,6 +40,12 @@ ${colors.bold('Usage:')}
 ${colors.bold('Commands:')}
   test           Run visual regression suite (default)
   approve        Approve candidate screenshots as the new baseline
+  status         Show the summary of the latest run
+  intent         Declare what a change should alter: add, list, clear
+  prove          Test the cause of a changed snapshot by undoing it in the live page
+  fix            Print a patch that undoes a proven change, for git apply
+  verify         Run again and say which open changes are resolved
+  mcp            Serve Diffra to AI agents over the Model Context Protocol
   merge-reports  Merge multiple shard report manifests into a consolidated run
   serve          Serve the latest review bundle on a local port
   help           Show this help information
@@ -50,9 +67,15 @@ ${colors.bold('Options:')}
   -f, --filter <pattern>      Filter test targets by name or group
       --open                  Open review report in browser after test run
       --ci                    Run in non-interactive CI mode
-      --json                  Output test run report as JSON
+      --json                  Print JSON only on stdout (test, approve, status)
+      --rationale <text>      With approve: why the changes are intended, kept in the approval record
+      --affected              With verify: capture only the snapshots the changed files are known to reach
+      --gate <mode>           Fail on 'any' change (default) or only 'collateral' ones that no intent covers
+      --target <text>         With intent add: a snapshot id, name or group the change may touch
+      --source <file>         With intent add: a stylesheet the change is expected to come from
+      --selector <selector>   With intent add: a rule selector the change is expected to come from
   -p, --port <number>         Custom port for preview server
-  -r, --report <path>         Report JSON path to serve
+  -r, --report <path>         Report JSON path to serve, or review bundle for mcp
   -v, --version               Display version
   -h, --help                  Show this help information
 
@@ -62,6 +85,12 @@ ${colors.bold('Examples:')}
   diffra -d url -u http://127.0.0.1:3000 --urls /,/about,/pricing
   diffra --shard 1/4
   diffra approve
+  diffra approve <snapshot-id>...
+  diffra prove <snapshot-id>
+  diffra fix <snapshot-id> | git apply
+  diffra mcp
+  diffra intent add "Roomier buttons" --source src/button.css
+  diffra --gate collateral
   diffra merge-reports .diffra/shard-1 .diffra/shard-2 -o .diffra
   diffra serve --port 3000
 `);
@@ -89,6 +118,12 @@ export const CLI_OPTIONS = {
   filter: { type: 'string', short: 'f' },
   ci: { type: 'boolean' },
   json: { type: 'boolean' },
+  gate: { type: 'string' },
+  affected: { type: 'boolean' },
+  rationale: { type: 'string' },
+  target: { type: 'string', multiple: true },
+  source: { type: 'string', multiple: true },
+  selector: { type: 'string', multiple: true },
 } as const;
 
 export async function main(args = process.argv.slice(2)): Promise<number> {
@@ -117,6 +152,8 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
   }
 
   const command = positionals[0] || 'test';
+  // With --json, stdout carries only JSON, so human-readable text goes to stderr.
+  const out = values.json ? console.error : console.log;
 
   if (values.help || command === 'help') {
     printHelp();
@@ -125,7 +162,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
 
   switch (command) {
     case 'test': {
-      console.log(
+      out(
         `\n${colors.bold(colors.cyan('Diffra Visual Regression Engine'))} v${VERSION}\n`,
       );
       const startTime = Date.now();
@@ -188,6 +225,15 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           runnerOverrides.filter = values.filter;
         }
 
+        if (values.gate !== undefined) {
+          if (values.gate !== 'any' && values.gate !== 'collateral') {
+            throw new Error(
+              `--gate must be "any" or "collateral", not "${values.gate}".`,
+            );
+          }
+          overrides.agent = { gate: values.gate };
+        }
+
         if (Object.keys(snapshotOverrides).length > 0)
           overrides.snapshot = snapshotOverrides;
         if (Object.keys(runnerOverrides).length > 0)
@@ -210,57 +256,57 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         });
 
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
-        process.stdout.write(`\r${' '.repeat(80)}\r`);
+        if (!values.json) process.stdout.write(`\r${' '.repeat(80)}\r`);
 
-        console.log(
+        out(
           `${colors.bold('Test Run Summary')} ${colors.gray(`(${elapsed}s)`)}:`,
         );
         const branch = report.git?.branch || 'main';
         const commit = report.git?.commit || '';
         const baselineCommit = report.git?.baselineCommit;
 
-        console.log(`  ${colors.bold('Branch:')}    ${colors.cyan(branch)}`);
-        console.log(
+        out(`  ${colors.bold('Branch:')}    ${colors.cyan(branch)}`);
+        out(
           `  ${colors.bold('Commit:')}    ${colors.gray(commit.slice(0, 8))}`,
         );
-        console.log(
+        out(
           `  ${colors.bold('Baseline:')}  ${colors.gray(baselineCommit ? baselineCommit.slice(0, 8) : 'None')}`,
         );
-        console.log('');
+        out('');
 
-        console.log(
+        out(
           `  ${colors.green('●')} Added:     ${colors.bold(report.summary.added)}`,
         );
-        console.log(
+        out(
           `  ${colors.yellow('●')} Changed:   ${colors.bold(report.summary.changed)}`,
         );
-        console.log(
+        out(
           `  ${colors.red('●')} Removed:   ${colors.bold(report.summary.removed)}`,
         );
-        console.log(
+        out(
           `  ${colors.red('●')} Failed:    ${colors.bold(report.summary.failed)}`,
         );
-        console.log(
+        out(
           `  ${colors.gray('●')} Passed:    ${colors.bold(report.summary.passed ?? report.summary.unchanged)}`,
         );
-        console.log(`  ${colors.bold('Total:')}      ${report.summary.total}`);
-        console.log('');
+        out(`  ${colors.bold('Total:')}      ${report.summary.total}`);
+        out('');
 
         if (report.summary.failed > 0) {
-          console.log(colors.red(colors.bold('Failed Targets:')));
+          out(colors.red(colors.bold('Failed Targets:')));
           for (const item of report.results.filter(
             (r) => r.status === 'failed',
           )) {
             const groupName = item.group || 'Component';
-            console.log(
+            out(
               `  ${colors.red('×')} ${colors.bold(groupName)} / ${item.name} ${colors.gray(item.error ?? '')}`,
             );
           }
-          console.log('');
+          out('');
         }
 
         if (report.summary.changed > 0) {
-          console.log(colors.yellow(colors.bold('Changed Targets:')));
+          out(colors.yellow(colors.bold('Changed Targets:')));
           for (const item of report.results.filter(
             (r) => r.status === 'changed',
           )) {
@@ -271,17 +317,17 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
               ? `(${item.diff.diffCount.toLocaleString()} px)`
               : '';
             const groupName = item.group || 'Component';
-            console.log(
+            out(
               `  ${colors.yellow('×')} ${colors.bold(groupName)} / ${item.name} [${item.viewport.width}x${item.viewport.height}] ${colors.gray(diffPct)} ${colors.gray(diffCount)}`,
             );
           }
-          console.log('');
+          out('');
         }
 
         const reviewPage = pathToFileURL(
           path.join(report.reviewDir, BUNDLE_INDEX_FILE),
         ).href;
-        console.log(`${colors.cyan('Review:')} ${reviewPage}\n`);
+        out(`${colors.cyan('Review:')} ${reviewPage}\n`);
         if (values.open) {
           openInBrowser(reviewPage);
         }
@@ -292,7 +338,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
             configFile: values.config,
             report,
           });
-          console.log(
+          out(
             colors.green(
               colors.bold(
                 `Automatically approved ${report.summary.changed} changed baseline(s).`,
@@ -301,13 +347,14 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           );
         }
 
+        const needed = decisionsNeeded(report);
         if (values.json) {
           console.log(JSON.stringify(report, null, 2));
           if (report.summary.failed > 0) {
             return 1;
           }
           if (
-            report.summary.changed > 0 &&
+            needed > 0 &&
             !values['pass-on-changes'] &&
             !values['update-baseline']
           ) {
@@ -317,7 +364,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         }
 
         if (report.summary.failed > 0) {
-          console.log(
+          out(
             colors.red(
               colors.bold(
                 `Visual regression test failed: ${report.summary.failed} target(s) could not be captured.`,
@@ -328,18 +375,20 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         }
 
         if (
-          report.summary.changed > 0 &&
+          needed > 0 &&
           !values['pass-on-changes'] &&
           !values['update-baseline']
         ) {
-          console.log(
+          out(
             colors.red(
               colors.bold(
-                `Visual regression test failed with ${report.summary.changed} changed targets.`,
+                report.gate === 'collateral'
+                  ? `Visual regression test failed with ${needed} change(s) that no declared intent covers.`
+                  : `Visual regression test failed with ${needed} changed targets.`,
               ),
             ),
           );
-          console.log(
+          out(
             colors.gray(
               'Run `diffra approve` to accept changes as the new baseline.\n',
             ),
@@ -347,7 +396,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
           return 1;
         }
 
-        console.log(
+        out(
           colors.green(
             colors.bold('All visual regression tests passed cleanly.'),
           ),
@@ -363,14 +412,21 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
     }
 
     case 'approve': {
-      console.log(
-        `\n${colors.bold(colors.cyan('Diffra Baseline Approval'))}\n`,
-      );
+      out(`\n${colors.bold(colors.cyan('Diffra Baseline Approval'))}\n`);
       try {
+        const ids = positionals.slice(1);
         const result = await approveBaselines({
           configFile: values.config,
+          ids,
+          provenance: { actor: 'human', rationale: values.rationale },
         });
-        console.log(
+        if (values.json) {
+          console.log(
+            JSON.stringify({ approved: result.count, failed: result.failed }),
+          );
+          return result.failed > 0 ? 1 : 0;
+        }
+        out(
           `${colors.green(colors.bold('Successfully approved'))} ${result.count} screenshots as baseline.\n`,
         );
         return 0;
@@ -381,6 +437,196 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         );
         return 1;
       }
+    }
+
+    case 'status': {
+      try {
+        const cwd = process.cwd();
+        const config = await loadConfig(cwd, undefined, values.config);
+        const report = await loadRunReport(config, cwd);
+        if (values.json) {
+          console.log(JSON.stringify(report, null, 2));
+          return 0;
+        }
+        const { summary } = report;
+        console.log(
+          `\n${colors.bold(colors.cyan('Diffra latest run'))} ${report.runId}\n`,
+        );
+        console.log(`  ${colors.bold('Branch:')}   ${report.git.branch}`);
+        console.log(`  ${colors.bold('Changed:')}  ${summary.changed}`);
+        console.log(`  ${colors.bold('Added:')}    ${summary.added}`);
+        console.log(`  ${colors.bold('Removed:')}  ${summary.removed}`);
+        console.log(`  ${colors.bold('Failed:')}   ${summary.failed}`);
+        console.log(`  ${colors.bold('Total:')}    ${summary.total}\n`);
+        return 0;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`${colors.red(colors.bold('Error:'))} ${msg}`);
+        return 1;
+      }
+    }
+
+    case 'prove': {
+      try {
+        const id = positionals[1];
+        if (!id) throw new Error('Pass the id of the snapshot to prove.');
+        const { explanation } = await proveSnapshot({
+          configFile: values.config,
+          id,
+        });
+        if (values.json) {
+          console.log(JSON.stringify(explanation, null, 2));
+        } else {
+          out(explanation.summary);
+          if (explanation.proof) out(colors.gray(explanation.proof.note));
+        }
+        return explanation.proof?.status === 'proven' ? 0 : 1;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`${colors.red(colors.bold('Error:'))} ${msg}`);
+        return 1;
+      }
+    }
+
+    case 'verify': {
+      try {
+        const { report, verification, affected } = await verifyRun({
+          configFile: values.config,
+          affected: values.affected,
+          config: values.filter
+            ? { runner: { filter: values.filter } }
+            : undefined,
+        });
+        if (values.json) {
+          console.log(
+            JSON.stringify(
+              {
+                runId: report.runId,
+                summary: report.summary,
+                verification,
+                affected,
+              },
+              null,
+              2,
+            ),
+          );
+        } else {
+          out(verification.summary);
+          if (affected) {
+            out(
+              colors.gray(
+                `${affected.ran === 'affected' ? `Captured ${affected.ids.length} affected snapshot(s). ` : 'Captured everything. '}${affected.note}`,
+              ),
+            );
+          }
+        }
+        return verification.stillChanged.length +
+          verification.newlyChanged.length >
+          0
+          ? 1
+          : 0;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`${colors.red(colors.bold('Error:'))} ${msg}`);
+        return 1;
+      }
+    }
+
+    case 'fix': {
+      try {
+        const id = positionals[1];
+        if (!id) throw new Error('Pass the id of the snapshot to fix.');
+        const cwd = process.cwd();
+        const config = await loadConfig(cwd, undefined, values.config);
+        const report = await loadRunReport(config, cwd);
+        const result = report.results.find((r) => r.id === id);
+        if (!result) throw new Error(`No snapshot "${id}" in the latest run.`);
+        if (!result.explanation) {
+          throw new Error(
+            `"${id}" has no explanation, so there is nothing to undo.`,
+          );
+        }
+        const fixes = await suggestFixes({
+          explanation: result.explanation,
+          cwd,
+        });
+        if (values.json) {
+          console.log(JSON.stringify(fixes, null, 2));
+        } else {
+          // Standard output is only the patch, so it can be piped to git apply.
+          for (const suggestion of fixes.suggestions) {
+            if (suggestion.patch) process.stdout.write(suggestion.patch);
+            else console.error(suggestion.note);
+          }
+          if (fixes.suggestions.length === 0) console.error(fixes.note);
+        }
+        return fixes.suggestions.some((s) => s.patch) ? 0 : 1;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`${colors.red(colors.bold('Error:'))} ${msg}`);
+        return 1;
+      }
+    }
+
+    case 'intent': {
+      try {
+        const cwd = process.cwd();
+        const config = await loadConfig(cwd, undefined, values.config);
+        const file = path.resolve(
+          cwd,
+          config.agent?.intentFile ?? DEFAULT_INTENT_FILE,
+        );
+        const action = positionals[1] ?? 'list';
+
+        if (action === 'add') {
+          const intent = await addIntent(file, {
+            description: positionals.slice(2).join(' '),
+            targets: values.target,
+            sources: values.source,
+            selectors: values.selector,
+          });
+          if (values.json) console.log(JSON.stringify(intent, null, 2));
+          else out(`Declared ${colors.bold(intent.id)}: ${intent.description}`);
+          return 0;
+        }
+        if (action === 'list') {
+          const intents = await readIntents(file);
+          if (values.json) console.log(JSON.stringify(intents, null, 2));
+          else if (intents.length === 0) out('No intent is declared.');
+          else {
+            for (const intent of intents) {
+              out(`${colors.bold(intent.id)}  ${intent.description}`);
+            }
+          }
+          return 0;
+        }
+        if (action === 'clear') {
+          const ids = positionals.slice(2);
+          const removed = await clearIntents(
+            file,
+            ids.length > 0 ? ids : undefined,
+          );
+          if (values.json) console.log(JSON.stringify({ removed }));
+          else out(`Removed ${removed} intent${removed === 1 ? '' : 's'}.`);
+          return 0;
+        }
+        throw new Error(
+          `Unknown intent command "${action}". Use add, list or clear.`,
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`${colors.red(colors.bold('Error:'))} ${msg}`);
+        return 1;
+      }
+    }
+
+    case 'mcp': {
+      // Standard output belongs to the protocol from here on.
+      await startMcpServer({
+        configFile: values.config,
+        report: values.report,
+      });
+      return 0;
     }
 
     case 'merge-reports': {

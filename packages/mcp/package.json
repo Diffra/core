@@ -1,0 +1,60 @@
+{
+  "name": "@diffra/mcp",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Zero-dependency Model Context Protocol server that lets agents review, explain and approve Diffra visual changes",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "diffra-mcp": "./bin/diffra-mcp.js"
+  },
+  "author": "Diffra",
+  "license": "MIT",
+  "homepage": "https://github.com/Diffra/core/tree/main/packages/mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Diffra/core.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/Diffra/core/issues"
+  },
+  "keywords": [
+    "diffra",
+    "mcp",
+    "model-context-protocol",
+    "agents",
+    "visual-regression"
+  ],
+  "engines": {
+    "node": ">=26.0.0"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "skill"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "clean": "tsc -b --clean && rm -rf dist"
+  },
+  "dependencies": {
+    "@diffra/core": "workspace:*",
+    "@diffra/engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

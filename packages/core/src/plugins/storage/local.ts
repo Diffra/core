@@ -6,6 +6,7 @@ import type {
   StorageAdapter,
   TestRunReport,
 } from '../../types/index.js';
+import { assertDocumentName, DOCUMENTS_DIR } from './documents.js';
 import { BASELINE_KEYS_FILE, parseKeys, serializeKeys } from './keys.js';
 
 export interface LocalStorageOptions {
@@ -108,6 +109,35 @@ export class LocalFilesystemAdapter implements StorageAdapter {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         return false;
       }
+      throw err;
+    }
+  }
+
+  private documentPath(name: string): string {
+    return path.join(this.outputDir, DOCUMENTS_DIR, assertDocumentName(name));
+  }
+
+  async uploadDocument(name: string, content: Buffer): Promise<void> {
+    const file = this.documentPath(name);
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, content);
+  }
+
+  async downloadDocument(name: string): Promise<Buffer | null> {
+    try {
+      return await fs.readFile(this.documentPath(name));
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw err;
+    }
+  }
+
+  async hasDocument(name: string): Promise<boolean> {
+    try {
+      await fs.access(this.documentPath(name));
+      return true;
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return false;
       throw err;
     }
   }

@@ -66,7 +66,7 @@ describe('URL driver', () => {
     expect(ids[3]).toBe('route--dashboard_reports');
   });
 
-  it('UrlDriver propagates custom headers, auth credentials, and cookies to target metadata', async () => {
+  it('UrlDriver keeps headers, auth credentials, and cookies on the private request, out of metadata', async () => {
     const driver = createUrlDriver({
       baseUrl: 'https://auth.example.com',
       headers: { 'X-Global-Header': 'val' },
@@ -86,16 +86,19 @@ describe('URL driver', () => {
       cwd: process.cwd(),
     });
     expect(targets).toHaveLength(1);
-    expect(targets[0]?.metadata?.headers).toEqual({
+    expect(targets[0]?.request?.headers).toEqual({
       Authorization: 'Bearer token-123',
     });
-    expect(targets[0]?.metadata?.auth).toEqual({
+    expect(targets[0]?.request?.auth).toEqual({
       username: 'admin',
       password: 'secret',
     });
-    expect(targets[0]?.metadata?.cookies).toEqual([
+    expect(targets[0]?.request?.cookies).toEqual([
       { name: 'session', value: 'xyz789' },
     ]);
+    expect(JSON.stringify(targets[0]?.metadata ?? {})).not.toMatch(
+      /secret|token-123|xyz789/,
+    );
   });
 
   it('UrlDriver discovers routes from context.config when options are omitted', async () => {

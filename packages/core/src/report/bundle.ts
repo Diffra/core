@@ -13,6 +13,7 @@ import type {
 export const REPORT_FILE = 'report.json';
 export const BUNDLE_INDEX_FILE = 'index.html';
 export const IMAGES_DIR = 'images';
+export const LEDGERS_DIR = 'ledgers';
 export const VIEWER_SCRIPT_FILE = 'viewer.bundle.js';
 export const VIEWER_STYLES_FILE = 'viewer.css';
 export const RUNS_DIR = 'runs';
@@ -179,6 +180,18 @@ export class ReviewBundle {
     if (!(await exists(target))) {
       await fs.mkdir(path.dirname(target), { recursive: true });
       await fs.writeFile(target, image);
+    }
+    return relative;
+  }
+
+  /** Stores a ledger by content hash and returns its URL relative to the bundle. */
+  async addLedger(content: Buffer): Promise<string> {
+    const hash = crypto.createHash('sha256').update(content).digest('hex');
+    const relative = `${LEDGERS_DIR}/${hash}.json`;
+    const target = path.join(this.dir, relative);
+    if (!(await exists(target))) {
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, content);
     }
     return relative;
   }

@@ -4,6 +4,7 @@ import type {
   StorageAdapter,
   TestRunReport,
 } from '../../types/index.js';
+import { assertDocumentName, DOCUMENTS_DIR } from './documents.js';
 import { BASELINE_KEYS_FILE, parseKeys, serializeKeys } from './keys.js';
 import { loadSdk } from './optional-sdk.js';
 
@@ -139,6 +140,44 @@ export class S3StorageAdapter implements StorageAdapter {
       if (isS3NotFound(err)) {
         return false;
       }
+      throw err;
+    }
+  }
+
+  private documentKey(name: string): string {
+    return `${this.prefix}/${DOCUMENTS_DIR}/${assertDocumentName(name)}`;
+  }
+
+  async uploadDocument(name: string, content: Buffer): Promise<void> {
+    const { PutObjectCommand } = await this.getCommands();
+    await this.getClient().send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: this.documentKey(name),
+        Body: content,
+        ContentType: 'application/json',
+      }),
+    );
+  }
+
+  async downloadDocument(name: string): Promise<Buffer | null> {
+    if (!this.s3Client) return null;
+    return this.getObjectBuffer(this.documentKey(name));
+  }
+
+  async hasDocument(name: string): Promise<boolean> {
+    if (!this.s3Client) return false;
+    const { HeadObjectCommand } = await this.getCommands();
+    try {
+      await this.getClient().send(
+        new HeadObjectCommand({
+          Bucket: this.bucket,
+          Key: this.documentKey(name),
+        }),
+      );
+      return true;
+    } catch (err: unknown) {
+      if (isS3NotFound(err)) return false;
       throw err;
     }
   }

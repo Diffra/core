@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { TestRunReport } from '../types/index.js';
+import type { TestResult, TestRunReport } from '../types/index.js';
 
 declare global {
   interface Window {
@@ -39,6 +39,18 @@ export interface RawImageArtifact {
   url?: string;
 }
 
+/** Accepts a classification only when it says which kind it is and why. */
+function readClassification(
+  raw: { kind?: string; reason?: string } | undefined,
+): TestResult['classification'] {
+  const kind = raw?.kind;
+  const reason = raw?.reason;
+  if ((kind === 'intended' || kind === 'collateral') && reason) {
+    return { kind, reason };
+  }
+  return undefined;
+}
+
 export interface RawTestResult {
   id?: string;
   name?: string;
@@ -68,6 +80,8 @@ export interface RawTestResult {
   }>;
   /** Why the snapshot could not be produced, set when status is failed. */
   error?: string;
+  explanation?: { summary?: string };
+  classification?: { kind?: string; reason?: string };
 }
 
 export interface RawTestRunReport {
@@ -185,6 +199,8 @@ function normalizeReport(
       diffUrl,
       boundingBoxes: diff?.boundingBoxes ?? r.boundingBoxes ?? [],
       error: r.error,
+      why: r.explanation?.summary || undefined,
+      classification: readClassification(r.classification),
     };
   });
 

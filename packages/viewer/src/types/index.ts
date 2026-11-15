@@ -32,6 +32,10 @@ export interface TestResult {
   boundingBoxes?: BoundingBox[];
   /** Why the snapshot could not be produced. Set when status is failed. */
   error?: string;
+  /** One sentence on what in the page caused the change, when it is known. */
+  why?: string;
+  /** Whether the change was declared beforehand, when intents were declared. */
+  classification?: { kind: 'intended' | 'collateral'; reason: string };
 }
 
 export interface ReportSummary {

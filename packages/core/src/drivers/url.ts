@@ -148,11 +148,15 @@ export class UrlDriver implements VisualDriver {
         group: derivedGroup,
         url: fullUrl,
         snapshot: configObj?.snapshot || {},
-        metadata: {
-          ...(headers ? { headers } : {}),
-          ...(auth ? { auth } : {}),
-          ...(cookies ? { cookies } : {}),
-        },
+        ...(headers || auth || cookies
+          ? {
+              request: {
+                ...(headers ? { headers } : {}),
+                ...(auth ? { auth } : {}),
+                ...(cookies ? { cookies } : {}),
+              },
+            }
+          : {}),
       });
     }
 

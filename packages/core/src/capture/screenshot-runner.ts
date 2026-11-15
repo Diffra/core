@@ -1,4 +1,5 @@
-import type { Locator, PageScreenshotOptions } from 'playwright';
+import type { Locator, Page, PageScreenshotOptions } from 'playwright';
+import { captureLedger, type RenderLedger } from '../context/ledger.js';
 import type {
   Project,
   SnapshotConfig,
@@ -13,6 +14,11 @@ export interface CaptureTask {
   viewport: Viewport;
   project?: Project;
   driver?: VisualDriver;
+  /**
+   * Runs in the page after it has settled and just before the screenshot, for
+   * a browser capture. Used to change the page, for example to undo a style.
+   */
+  prepare?: (page: Page) => Promise<void>;
 }
 
 export interface CaptureResult {
@@ -20,6 +26,8 @@ export interface CaptureResult {
   viewport: Viewport;
   project?: Project;
   buffer: Buffer;
+  /** What was on the page, when ledgers are enabled and the capture was in a browser */
+  ledger?: RenderLedger;
 }
 
 export interface CaptureFailure {
@@ -41,6 +49,13 @@ export interface CaptureOptions {
   delay?: number;
   pauseAnimationAtEnd?: boolean;
   cwd?: string;
+  /** Record a render ledger with every browser capture (default: false) */
+  ledger?: boolean;
+  /**
+   * Called once per task before it is captured, whichever way it is captured.
+   * A throwing handler records that target as failed and skips its capture.
+   */
+  onBeforeCapture?: (target: VisualTarget, viewport: Viewport) => Promise<void>;
   /**
    * Receives each image as soon as it is captured. When set, images are not
    * kept in the outcome, so a run uses memory for the images in flight rather
@@ -120,6 +135,17 @@ export async function runCaptures(
 
   for (const task of tasks) {
     const target = task.target;
+    try {
+      await options.onBeforeCapture?.(target, task.viewport);
+    } catch (err) {
+      failures.push({
+        target,
+        viewport: task.viewport,
+        project: task.project,
+        error: `onBeforeCapture failed: ${describeError(err)}`,
+      });
+      continue;
+    }
     if (task.driver?.captureAll) {
       let group = captureAllGroups.get(task.driver);
       if (!group) {
@@ -239,10 +265,9 @@ export async function runCaptures(
 
       // Headers, credentials and cookies are applied to the page itself, so a
       // page that carries them is not reused for another target.
-      const metadata = target.metadata || {};
-      const cookieList = metadata.cookies as unknown[] | undefined;
+      const request = target.request || {};
       const isolated = Boolean(
-        metadata.headers || metadata.auth || cookieList?.length,
+        request.headers || request.auth || request.cookies?.length,
       );
 
       let captured: CaptureResult | undefined;
@@ -265,20 +290,7 @@ export async function runCaptures(
             }
           }
 
-          const headers = metadata.headers as
-            | Record<string, string>
-            | undefined;
-          const auth = metadata.auth as
-            | { username: string; password?: string }
-            | undefined;
-          const cookies = metadata.cookies as
-            | Array<{
-                name: string;
-                value: string;
-                domain?: string;
-                path?: string;
-              }>
-            | undefined;
+          const { headers, auth, cookies } = request;
 
           const pageAny = workerPage.page as unknown as {
             setExtraHTTPHeaders?: (
@@ -348,6 +360,7 @@ export async function runCaptures(
           if (waitDelay > 0) {
             await workerPage.page.waitForTimeout(waitDelay);
           }
+          await task.prepare?.(workerPage.page);
 
           // Collect mask locators (accepts CSS selector strings or Playwright Locator instances)
           const maskItems = targetParams.mask || [];
@@ -368,9 +381,11 @@ export async function runCaptures(
           };
 
           let screenshotBuffer: Buffer;
+          let ledgerRoot: string | undefined;
           if (selector) {
             const el = await workerPage.page.$(selector);
             if (el) {
+              ledgerRoot = selector;
               screenshotBuffer = await el.screenshot(screenshotOptions);
             } else {
               screenshotBuffer =
@@ -382,11 +397,27 @@ export async function runCaptures(
           }
 
           healthy = true;
+          let ledger: RenderLedger | undefined;
+          if (options.ledger) {
+            try {
+              ledger = await captureLedger(workerPage.page, {
+                selector: ledgerRoot,
+                fullPage: targetParams.fullPage,
+              });
+            } catch (err) {
+              // The ledger explains a snapshot; losing it must not lose the snapshot.
+              console.warn(
+                `[diffra] Warning: could not record the page for ${target.id}: ${describeError(err)}`,
+              );
+            }
+          }
+
           captured = {
             target,
             viewport,
             project,
             buffer: screenshotBuffer,
+            ...(ledger ? { ledger } : {}),
           };
           break;
         } catch (err) {

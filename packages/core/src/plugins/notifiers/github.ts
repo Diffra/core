@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import { decisionsNeeded } from '../../report/gate.js';
 import type { NotifierAdapter, TestRunReport } from '../../types/index.js';
 import { DIFFRA_COMMENT_MARKER, formatMarkdownSummary } from './summary.js';
 
@@ -100,13 +101,18 @@ export class GitHubNotifier implements NotifierAdapter {
     if (sha && sha !== 'uncommitted') {
       try {
         const { changed, failed } = report.summary;
-        const state = changed > 0 || failed > 0 ? 'failure' : 'success';
+        const needed = decisionsNeeded(report);
+        const state = needed > 0 || failed > 0 ? 'failure' : 'success';
         const description =
           failed > 0
             ? `${failed} target${failed === 1 ? '' : 's'} could not be captured.`
-            : changed > 0
-              ? `Found ${changed} visual diffs.`
-              : 'All visual regressions passed.';
+            : needed > 0 && report.gate === 'collateral'
+              ? `${needed} unintended visual change${needed === 1 ? '' : 's'}.`
+              : needed > 0
+                ? `Found ${needed} visual diffs.`
+                : changed > 0
+                  ? `${changed} visual change${changed === 1 ? '' : 's'}, all intended.`
+                  : 'All visual regressions passed.';
 
         const checkUrl = `${this.apiUrl}/repos/${this.repo}/statuses/${sha}`;
         await fetch(checkUrl, {

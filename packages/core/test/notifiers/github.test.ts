@@ -134,4 +134,31 @@ describe('GitHub notifier', () => {
     expect(failed?.body.state).toBe('failure');
     expect(String(failed?.body.description)).toContain('could not be captured');
   });
+  it('fails only on unintended changes when gating on collateral', async () => {
+    const gated = (collateral: number, intended: number) => ({
+      ...report({ changed: collateral + intended, intended, collateral }),
+      gate: 'collateral' as const,
+    });
+
+    await notifier().notify(gated(0, 2));
+    const passing = requests.find((r) => r.url.includes('/statuses/'));
+    expect(passing?.body.state).toBe('success');
+    expect(String(passing?.body.description)).toBe(
+      '2 visual changes, all intended.',
+    );
+
+    requests = [];
+    await notifier().notify(gated(1, 1));
+    const failing = requests.find((r) => r.url.includes('/statuses/'));
+    expect(failing?.body.state).toBe('failure');
+    expect(String(failing?.body.description)).toBe(
+      '1 unintended visual change.',
+    );
+  });
+
+  it('fails on every change when gating on collateral but no intent was declared', async () => {
+    await notifier().notify({ ...report(), gate: 'collateral' });
+    const status = requests.find((r) => r.url.includes('/statuses/'));
+    expect(status?.body.state).toBe('failure');
+  });
 });

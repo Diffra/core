@@ -3,6 +3,12 @@ import path from 'node:path';
 import type { TestRunReport } from '../types/index.js';
 
 /**
+ * Version of the report.json shape. Raised whenever a field is removed or
+ * changes meaning, so tools that read reports can tell what they are reading.
+ */
+export const REPORT_SCHEMA_VERSION = 1;
+
+/**
  * Runtime type guard verifying if an unknown data object matches the TestRunReport shape.
  */
 export function isTestRunReport(data: unknown): data is TestRunReport {

@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { BaselineResolver } from '../baselines.js';
 import type {
   CaptureFailure,
@@ -17,6 +18,8 @@ import type {
   VisualTestResult,
 } from '../types/index.js';
 import { sha256Hex } from '../utils/hash.js';
+import { explainChange } from './explain.js';
+import { loadLedger, storeLedger } from './ledgers.js';
 import { DEFAULT_BROWSER } from './plan.js';
 
 /** Group name for targets whose driver did not assign one. */
@@ -24,6 +27,10 @@ export const UNGROUPED = 'General';
 
 export interface CompareContext {
   runId: string;
+  /** The project directory, which source paths in the report are relative to. */
+  cwd: string;
+  /** Files that differ from the baseline commit, to tell whether a cause is in this branch. */
+  changedFiles?: string[];
   config: DiffraConfig;
   storage: StorageAdapter;
   diffEngine: DiffEngineAdapter;
@@ -35,14 +42,29 @@ export function browserOf(project?: Project): string {
   return project?.browser || project?.name || DEFAULT_BROWSER;
 }
 
+/**
+ * A source path as it appears in a report: relative to the project and never
+ * an address on the machine that ran the tests. A file outside the project is
+ * reduced to its name.
+ */
+export function reportablePath(filePath: string, cwd: string): string {
+  if (!path.isAbsolute(filePath)) return filePath;
+  const relative = path.relative(cwd, filePath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    return path.basename(filePath);
+  }
+  return relative.split(path.sep).join('/');
+}
+
 /** The fields every result shares, whatever its status. */
 function identify(
   target: VisualTarget,
   viewport: Viewport,
-  project?: Project,
+  project: Project | undefined,
+  cwd: string,
 ): Pick<
   VisualTestResult,
-  'id' | 'name' | 'group' | 'viewport' | 'browser' | 'metadata'
+  'id' | 'name' | 'group' | 'viewport' | 'browser' | 'filePath' | 'metadata'
 > {
   return {
     id: target.id,
@@ -50,14 +72,20 @@ function identify(
     group: target.group || UNGROUPED,
     viewport,
     browser: browserOf(project),
+    ...(target.filePath
+      ? { filePath: reportablePath(target.filePath, cwd) }
+      : {}),
     metadata: target.metadata,
   };
 }
 
 /** The result recorded for a target that produced no image. */
-export function failedResult(failure: CaptureFailure): VisualTestResult {
+export function failedResult(
+  failure: CaptureFailure,
+  cwd: string,
+): VisualTestResult {
   return {
-    ...identify(failure.target, failure.viewport, failure.project),
+    ...identify(failure.target, failure.viewport, failure.project, cwd),
     status: 'failed',
     candidate: {},
     error: failure.error,
@@ -73,8 +101,8 @@ export async function compareCapture(
   capture: CaptureResult,
 ): Promise<VisualTestResult> {
   const { target, viewport, project, buffer } = capture;
-  const { runId, config, storage, diffEngine, baselines, bundle } = ctx;
-  const base = identify(target, viewport, project);
+  const { runId, cwd, config, storage, diffEngine, baselines, bundle } = ctx;
+  const base = identify(target, viewport, project, cwd);
 
   const key: SnapshotKey = {
     targetId: target.id,
@@ -83,6 +111,12 @@ export async function compareCapture(
   };
   const candidateHash = sha256Hex(buffer);
   const candidatePath = await storage.uploadCandidate(runId, key, buffer);
+  const candidateLedger = await storeLedger(
+    storage,
+    bundle,
+    candidateHash,
+    capture.ledger,
+  );
   const baselineBuffer = await baselines.find(key);
 
   if (!baselineBuffer) {
@@ -94,6 +128,7 @@ export async function compareCapture(
         hash: candidateHash,
         url: await bundle.addImage(buffer),
       },
+      ...(candidateLedger ? { ledgers: { candidate: candidateLedger } } : {}),
     };
   }
 
@@ -151,6 +186,7 @@ export async function compareCapture(
   const diffPath = diffPng
     ? await storage.uploadDiff(runId, key, diffPng)
     : undefined;
+  const baselineLedger = await loadLedger(storage, bundle, baselineHash);
   return {
     ...base,
     status: 'changed',
@@ -167,5 +203,23 @@ export async function compareCapture(
     diffImage: diffPng
       ? { path: diffPath, url: await bundle.addImage(diffPng) }
       : undefined,
+    ...(candidateLedger || baselineLedger
+      ? {
+          ledgers: {
+            ...(baselineLedger ? { baseline: baselineLedger.url } : {}),
+            ...(candidateLedger ? { candidate: candidateLedger } : {}),
+          },
+        }
+      : {}),
+    ...(baselineLedger && capture.ledger
+      ? {
+          explanation: explainChange({
+            baseline: baselineLedger.ledger,
+            candidate: capture.ledger,
+            regions: summary.boundingBoxes,
+            changedFiles: ctx.changedFiles,
+          }),
+        }
+      : {}),
   };
 }

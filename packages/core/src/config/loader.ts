@@ -8,6 +8,13 @@ import { DiffraConfigSchema } from './schema.js';
 
 const MODULE_NAME = 'diffra';
 
+/** Config domains whose overrides are merged setting by setting. */
+const MERGED_DOMAINS = ['snapshot', 'runner', 'agent'] as const;
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 /**
  * Loads and validates diffra configuration from filesystem or overrides.
  */
@@ -89,6 +96,16 @@ export async function loadConfig(
     ...rawConfig,
     ...overrides,
   };
+
+  // An override for one setting of these domains must not discard the rest of
+  // the domain the config file defines, such as runner.projects.
+  for (const domain of MERGED_DOMAINS) {
+    const fromFile = rawConfig[domain];
+    const fromOverrides = (overrides as Record<string, unknown>)[domain];
+    if (isPlainObject(fromFile) && isPlainObject(fromOverrides)) {
+      merged[domain] = { ...fromFile, ...fromOverrides };
+    }
+  }
 
   // Explicit configuration wins; environment variables only fill the gap so
   // CI can select cloud storage without a config file.

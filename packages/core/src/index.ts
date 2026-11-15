@@ -1,14 +1,27 @@
+import path from 'node:path';
 import { createBaselineResolver } from './baselines.js';
 import { ensureBrowsers } from './capture/browser-install.js';
 import { runCaptures } from './capture/screenshot-runner.js';
 import { loadConfig } from './config/loader.js';
-import { DEFAULT_CONCURRENCY, DEFAULT_DELAY_MS } from './config/schema.js';
+import {
+  DEFAULT_AGENT_CONTEXT,
+  DEFAULT_CONCURRENCY,
+  DEFAULT_DELAY_MS,
+} from './config/schema.js';
 import { resolveDrivers } from './drivers/index.js';
 import {
+  changedFilesSince,
   DEFAULT_BASELINE_HISTORY_DEPTH,
   getBaselineHistory,
   getGitInfo,
 } from './git/baseline.js';
+import {
+  classifyResults,
+  createIntent,
+  DEFAULT_INTENT_FILE,
+  type NewIntent,
+  readIntents,
+} from './intent/index.js';
 import {
   type CompareContext,
   compareCapture,
@@ -37,6 +50,9 @@ import type {
   VisualTestResult,
 } from './types/index.js';
 
+/** What a report names as its filter when it covers only the targets given by `only`. */
+export const AFFECTED_FILTER = 'affected';
+
 export { type BrowserName, ensureBrowsers } from './capture/browser-install.js';
 export * from './config/index.js';
 export {
@@ -46,13 +62,34 @@ export {
   DEFAULT_VIEWPORTS,
   DiffraConfigSchema,
 } from './config/schema.js';
+export * from './context/ledger.js';
 export * from './drivers/index.js';
 export * from './git/baseline.js';
-export { approveBaselines } from './pipeline/approve.js';
+export * from './intent/index.js';
+export * from './intent/parse.js';
+export * from './intent/policy.js';
+export * from './pipeline/affected.js';
+export {
+  APPROVALS_FILE,
+  type ApprovalProvenance,
+  type ApprovalRecord,
+  type ApprovedSnapshot,
+  approveBaselines,
+  LATEST_REPORT_FILE,
+  loadRunReport,
+  readApprovals,
+} from './pipeline/approve.js';
+export * from './pipeline/explain.js';
+export * from './pipeline/fix.js';
+export * from './pipeline/prove.js';
+export * from './pipeline/prove-run.js';
+export * from './pipeline/verify.js';
 export * from './playwright/index.js';
 export * from './plugins/index.js';
 export * from './plugins/notifiers/summary.js';
 export * from './report/bundle.js';
+export * from './report/crop.js';
+export * from './report/gate.js';
 export * from './report/generator.js';
 export * from './report/merger.js';
 export * from './server/static.js';
@@ -71,6 +108,10 @@ export interface RunOptions {
   cwd?: string;
   /** Overrides runner.shard, for example "1/4" */
   shard?: string;
+  /** Capture only the targets with these ids, such as those a change affects */
+  only?: string[];
+  /** Intents declared for this run only, besides those in the intent file */
+  intents?: NewIntent[];
   onProgress?: (step: string, current: number, total: number) => void;
 }
 
@@ -105,8 +146,18 @@ export async function runVisualRegression(
   const runId = `run-${Date.now()}`;
   const timestamp = new Date().toISOString();
 
-  const discovered = await discoverTargets(drivers, driverContext, plugins);
+  const everything = await discoverTargets(drivers, driverContext, plugins);
+  const only = options.only ? new Set(options.only) : undefined;
+  const discovered = only
+    ? {
+        ...everything,
+        targets: everything.targets.filter((t) => only.has(t.id)),
+      }
+    : everything;
   const shard = options.shard || config.runner?.shard;
+  // A run of only some of the targets cannot tell what is gone or what a baseline holds.
+  const filter =
+    config.runner?.filter?.trim() || (only ? AFFECTED_FILTER : undefined);
   const tasks = buildTasks(discovered, config, shard);
 
   const needsBrowser = tasks.some(
@@ -123,6 +174,8 @@ export async function runVisualRegression(
   );
   const compareContext: CompareContext = {
     runId,
+    cwd,
+    changedFiles: await changedFilesSince(gitInfo.baselineCommit, cwd),
     config,
     storage,
     diffEngine,
@@ -156,6 +209,9 @@ export async function runVisualRegression(
       delay: config.snapshot?.delay ?? DEFAULT_DELAY_MS,
       pauseAnimationAtEnd: config.snapshot?.pauseAnimationAtEnd ?? true,
       cwd,
+      ledger: config.agent?.context ?? DEFAULT_AGENT_CONTEXT,
+      onBeforeCapture: (target, viewport) =>
+        plugins.hookBeforeCapture(target, viewport),
       onCapture: async (capture) => {
         const buffer = await plugins.hookAfterCapture(
           capture.target,
@@ -166,11 +222,12 @@ export async function runVisualRegression(
       },
     });
     for (const failure of outcome.failures) {
-      record(failedResult(failure));
+      record(failedResult(failure, cwd));
     }
 
-    // A shard sees only part of the targets, so it cannot tell what is gone.
-    if (!shard) {
+    // A shard or a filter sees only part of the targets, so it cannot tell
+    // what is gone.
+    if (!shard && !filter) {
       for (const gone of await findRemoved({
         storage,
         baselines: compareContext.baselines,
@@ -193,14 +250,22 @@ export async function runVisualRegression(
     }
   }
 
+  const intents = [
+    ...(await readIntents(
+      path.resolve(cwd, config.agent?.intentFile ?? DEFAULT_INTENT_FILE),
+    )),
+    ...(options.intents ?? []).map(createIntent),
+  ];
   const report = assembleReport({
     runId,
     timestamp,
     git: gitInfo,
-    results,
+    results: classifyResults(results, intents),
+    intents,
     config,
     bundle,
     shard,
+    filter,
   });
   await publishReport(report, storage, bundle);
   await notifyAll(notifiers, report);

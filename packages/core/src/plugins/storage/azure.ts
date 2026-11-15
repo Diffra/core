@@ -4,6 +4,7 @@ import type {
   StorageAdapter,
   TestRunReport,
 } from '../../types/index.js';
+import { assertDocumentName, DOCUMENTS_DIR } from './documents.js';
 import { BASELINE_KEYS_FILE, parseKeys, serializeKeys } from './keys.js';
 import { loadSdk } from './optional-sdk.js';
 
@@ -105,6 +106,38 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
       if (isAzureNotFound(err)) {
         return false;
       }
+      throw err;
+    }
+  }
+
+  private documentClient(name: string) {
+    return this.getClient().getBlockBlobClient(
+      `${this.prefix}/${DOCUMENTS_DIR}/${assertDocumentName(name)}`,
+    );
+  }
+
+  async uploadDocument(name: string, content: Buffer): Promise<void> {
+    await this.documentClient(name).upload(content, content.length, {
+      blobHTTPHeaders: { blobContentType: 'application/json' },
+    });
+  }
+
+  async downloadDocument(name: string): Promise<Buffer | null> {
+    if (!this.containerClient) return null;
+    try {
+      return await this.documentClient(name).downloadToBuffer();
+    } catch (err: unknown) {
+      if (isAzureNotFound(err)) return null;
+      throw err;
+    }
+  }
+
+  async hasDocument(name: string): Promise<boolean> {
+    if (!this.containerClient) return false;
+    try {
+      return await this.documentClient(name).exists();
+    } catch (err: unknown) {
+      if (isAzureNotFound(err)) return false;
       throw err;
     }
   }

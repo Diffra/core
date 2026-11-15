@@ -4,6 +4,7 @@ import type {
   StorageAdapter,
   TestRunReport,
 } from '../../types/index.js';
+import { assertDocumentName, DOCUMENTS_DIR } from './documents.js';
 import { BASELINE_KEYS_FILE, parseKeys, serializeKeys } from './keys.js';
 import { loadSdk } from './optional-sdk.js';
 
@@ -100,6 +101,40 @@ export class GCSStorageAdapter implements StorageAdapter {
       if (isGCSNotFound(err)) {
         return false;
       }
+      throw err;
+    }
+  }
+
+  private documentFile(name: string) {
+    return this.getClient()
+      .bucket(this.bucket)
+      .file(`${this.prefix}/${DOCUMENTS_DIR}/${assertDocumentName(name)}`);
+  }
+
+  async uploadDocument(name: string, content: Buffer): Promise<void> {
+    await this.documentFile(name).save(content, {
+      contentType: 'application/json',
+    });
+  }
+
+  async downloadDocument(name: string): Promise<Buffer | null> {
+    if (!this.gcsStorage) return null;
+    try {
+      const [contents] = await this.documentFile(name).download();
+      return contents;
+    } catch (err: unknown) {
+      if (isGCSNotFound(err)) return null;
+      throw err;
+    }
+  }
+
+  async hasDocument(name: string): Promise<boolean> {
+    if (!this.gcsStorage) return false;
+    try {
+      const [exists] = await this.documentFile(name).exists();
+      return exists;
+    } catch (err: unknown) {
+      if (isGCSNotFound(err)) return false;
       throw err;
     }
   }

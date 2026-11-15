@@ -1,4 +1,5 @@
-import type { TestRunReport } from '../../types/index.js';
+import { decisionsNeeded } from '../../report/gate.js';
+import type { TestRunReport, VisualTestResult } from '../../types/index.js';
 
 export const DIFFRA_COMMENT_MARKER = '<!-- diffra-visual-report -->';
 
@@ -11,13 +12,21 @@ export function formatMarkdownSummary(
 ): string {
   const { summary, results, git } = report;
   const hasFailures = summary.failed > 0;
-  const hasChanges = summary.changed > 0 || summary.removed > 0;
+  const needed = decisionsNeeded(report);
+  const hasChanges = needed > 0 || summary.removed > 0;
+  const classified = summary.collateral !== undefined;
+  const plural = (n: number, word: string) =>
+    `${n} ${word}${n === 1 ? '' : 's'}`;
   const statusIcon = hasFailures ? '❌' : hasChanges ? '⚠️' : '✅';
   const statusTitle = hasFailures
-    ? `${summary.failed} target${summary.failed === 1 ? '' : 's'} could not be captured`
-    : hasChanges
-      ? `Visual Regression Detected (${summary.changed} changed)`
-      : `All Visual Tests Passed (${summary.total} targets)`;
+    ? `${plural(summary.failed, 'target')} could not be captured`
+    : classified && report.gate === 'collateral' && needed > 0
+      ? `${plural(needed, 'unintended visual change')}${summary.intended ? ` (${summary.intended} intended)` : ''}`
+      : classified && !hasChanges && summary.changed > 0
+        ? `${plural(summary.changed, 'visual change')}, all intended`
+        : hasChanges
+          ? `Visual Regression Detected (${summary.changed} changed)`
+          : `All Visual Tests Passed (${summary.total} targets)`;
 
   let md = `${DIFFRA_COMMENT_MARKER}\n`;
   md += `## ${statusIcon} Diffra Visual Regression: ${statusTitle}\n\n`;
@@ -38,6 +47,8 @@ export function formatMarkdownSummary(
   if (interactiveUrl) {
     md += `👉 **[View Interactive Visual Report](${interactiveUrl})**\n\n`;
   }
+
+  md += formatCauses(report);
 
   const changedStories = results.filter(
     (r) =>
@@ -83,5 +94,55 @@ export function formatMarkdownSummary(
   }
 
   md += `*Generated automatically by [Diffra](https://github.com/Diffra/core) at ${report.timestamp}*`;
+  return md;
+}
+
+const CHANGE_ICON: Record<string, string> = {
+  changed: '🟠',
+  added: '🟢',
+  removed: '🔴',
+};
+
+function causeLine(result: VisualTestResult): string {
+  const kind = result.classification?.kind;
+  const label = kind ? ` _(${kind})_` : '';
+  const why =
+    result.explanation?.summary ??
+    result.classification?.reason ??
+    `Snapshot ${result.status}; no page context was recorded for it.`;
+  const icon =
+    kind === 'intended' ? '✅' : (CHANGE_ICON[result.status] ?? '🟠');
+  return `- ${icon} **${result.group || 'Component'} / ${result.name}**${label}: ${why}`;
+}
+
+/**
+ * What changed and why, in words, before any table: the declared intent, then
+ * each change with its cause, unintended changes first.
+ */
+export function formatCauses(report: TestRunReport): string {
+  const changes = report.results.filter(
+    (r) =>
+      r.status === 'changed' || r.status === 'added' || r.status === 'removed',
+  );
+  const explained = changes.filter((r) => r.explanation || r.classification);
+  let md = '';
+
+  if (report.intents && report.intents.length > 0) {
+    md += `### Declared intent\n\n`;
+    for (const intent of report.intents) {
+      md += `- ${intent.description} _(${intent.author})_\n`;
+    }
+    md += `\n`;
+  }
+
+  if (explained.length > 0) {
+    const order = (r: VisualTestResult) =>
+      r.classification?.kind === 'collateral' ? 0 : 1;
+    md += `### What changed\n\n`;
+    for (const result of [...explained].sort((a, b) => order(a) - order(b))) {
+      md += `${causeLine(result)}\n`;
+    }
+    md += `\n`;
+  }
   return md;
 }
