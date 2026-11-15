@@ -1,6 +1,6 @@
 # Getting started with Diffra
 
-Diffra is an automated visual regression platform designed to run natively inside your GitHub Actions CI/CD pipeline.
+Diffra is an automated visual regression platform designed to run natively inside your GitHub Actions CI/CD pipeline. For the model behind a run, read [How Diffra works](../concepts/how-diffra-works.md).
 
 ---
 
@@ -107,3 +107,5 @@ Select the quickstart guide that matches your framework:
 * **[Web applications quickstart](web-apps-quickstart.md)**: Automated CI/CD setup for Next.js, Remix, Vite, Astro, Nuxt, or any running server.
 * **[Playwright test runner quickstart](playwright-quickstart.md)**: Visual assertions inside Playwright test suites using `toMatchVisualBaseline`.
 * **[GitHub Actions workflow guide](../ci-cd/github-actions.md)**: Advanced CI/CD configuration, secret masking, and sharding.
+
+After setup, see the [guides](../guides/index.md) for specific tasks and [troubleshooting](../troubleshooting.md) if a run does not behave as expected.

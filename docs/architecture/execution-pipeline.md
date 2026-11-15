@@ -30,5 +30,6 @@ flowchart TD
 3. **Headless browser capture**: Launches parallel workers in the `BrowserPool`. Injects deterministic CSS rules to pause animations, hides carets, applies locator masks, and captures PNG screenshots.
 4. **Git merge-base & CAS matching**: Computes `git merge-base HEAD <baselineBranch>` using auto-discovered baseline branch (or explicit override). Checks if the candidate SHA-256 hash matches the baseline SHA-256 hash ($O(1)$ fast-path).
 5. **Pixel diffing & clustering**: Runs the YIQ perceptual comparison for images whose hashes differ and computes bounding boxes, using the native engine when it is built.
-6. **Manifest compilation**: Compiles a structured `report.json` with branch URLs and links to images.
-7. **Notifications & review**: Emits GitHub commit checks, posts/updates sticky PR comments, and sends Slack webhook alerts.
+6. **Page context and explanation**: For browser captures, records a render ledger of what was on the page: each visible element with its box, its computed visual styles, and the stylesheet rules that set them. The ledger is stored under the hash of the image, so an approved candidate's ledger is already stored when it becomes a baseline. For a changed snapshot, the ledgers of both sides are compared and the changed regions are matched to the changes in the page. See [Explained changes](../agents/explained-changes.md).
+7. **Manifest compilation**: Compiles a structured `report.json` with branch URLs and links to images.
+8. **Notifications & review**: Emits GitHub commit checks, posts/updates sticky PR comments, and sends Slack webhook alerts.

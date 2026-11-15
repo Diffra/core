@@ -68,7 +68,8 @@ const customAuditPlugin: DiffraPlugin = {
   },
 
   async onBeforeCapture(target: VisualTarget, viewport: Viewport) {
-    // Hook called before each screenshot
+    // Called once per target before it is captured, whichever driver captures it.
+    // Throwing records the target as failed.
   },
 
   async onAfterCapture(target: VisualTarget, viewport: Viewport, buffer: Buffer) {

@@ -103,6 +103,7 @@ Configures parallel browser worker execution and CI integration:
 | `concurrency` | `number` | `4` | Number of parallel browser workers. |
 | `baselineBranch` | `string` | `undefined` (auto) | Optional target branch override. When omitted, automatically discovered via CI PR target (`GITHUB_BASE_REF`), upstream tracking ref, `origin/HEAD`, or topological nearest-neighbor DAG merge base. |
 | `shard` | `string` | `undefined` | Shard coordinate (e.g. `"1/4"`). |
+| `filter` | `string` | `undefined` | Captures only targets whose id, name or group contains this text, ignoring case. A filtered run does not report the other snapshots as removed. Also set by `diffra --filter`. |
 | `projects` | `Project[]` | `[{ name: 'chromium', browser: 'chromium' }]` | Playwright projects and browser engines (`chromium`, `firefox`, `webkit`). |
 | `launchOptions` | `LaunchOptions` | `undefined` | Custom Playwright browser launch options. |
 
@@ -112,6 +113,16 @@ Two more top-level options apply to a whole run:
 | :--- | :--- | :--- | :--- |
 | `reportBaseUrl` | `string` | `undefined` | Public URL under which the output directory is published. Also read from `DIFFRA_REPORT_BASE_URL`. |
 | `runner.captureAttempts` | `number` | `2` | Capture attempts per target before it is reported as failed. |
+
+### Agent context: `agent`
+Controls the context recorded for reviewers and AI agents:
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `agent.intentFile` | `string` | `.diffra/intent.json` | Where declared intents are kept, relative to the project. |
+| `agent.autoApprove` | `'never' \| 'intended' \| 'proven' \| 'any'` | `'intended'` | What an agent may approve without a person. See [Approvals](../agents/approvals.md). |
+| `agent.gate` | `'any' \| 'collateral'` | `'any'` | What fails a run: every changed snapshot, or only those that no declared intent covers. |
+| `agent.context` | `boolean` | `true` | Records a render ledger with every browser snapshot and explains changed snapshots from it. Image, Figma and custom drivers that return images record none. |
 
 ### Domain 4: `storage`
 Configures baseline and candidate storage:

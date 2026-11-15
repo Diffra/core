@@ -1,161 +1,107 @@
+<div align="center">
+
 # Diffra
 
-Automated visual regression testing natively integrated into your GitHub Actions CI/CD pipeline.
+**See every pixel your pull request changes. Ship only the ones you meant to.**
 
-Diffra protects your web applications, design systems, and component libraries from unintended layout shifts and visual breakage on every pull request. It runs directly inside your existing GitHub Actions workflow with zero subscription fees, unlimited snapshots, and complete data privacy in your own cloud storage.
+Self-hosted visual regression testing for web apps, design systems and component libraries. Built for CI, and for the agents that work in it.
+
+[![CI](https://github.com/Diffra/core/actions/workflows/ci.yml/badge.svg)](https://github.com/Diffra/core/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%E2%89%A526-339933.svg)](package.json)
+[![Engine: Rust](https://img.shields.io/badge/engine-Rust-b7410e.svg)](docs/architecture/core-engine.md)
+[![MCP ready](https://img.shields.io/badge/agents-MCP-6e56cf.svg)](docs/agents/overview.md)
+[![Self-hosted](https://img.shields.io/badge/data-your%20bucket-0a7ea4.svg)](docs/storage-and-plugins/storage-adapters.md)
+
+[Documentation](docs/index.md) · [Get started](docs/getting-started/index.md) · [AI agents](docs/agents/overview.md) · [Reference](docs/reference/index.md) · [Troubleshooting](docs/troubleshooting.md)
+
+</div>
 
 ---
 
-## Automated GitHub Actions workflow
+## Every change, reviewed where you already work
 
-Add Diffra to `.github/workflows/visual-regression.yml` to enable automated pull request visual checks in seconds:
+Diffra runs inside your pull request workflow. It captures your UI, compares it with what your base branch accepted, and puts a status check and a link to the review on the pull request. When the pull request merges, what you approved becomes the new baseline. There is no dashboard to log in to and no service to trust with your source.
 
-```yaml
-name: Visual Regression Testing
-
-on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
-
-jobs:
-  visual-test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0 # Needed for Git merge-base baseline resolution
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24.x
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build Storybook
-        run: pnpm build-storybook
-
-      - name: Run Diffra Action
-        uses: Diffra/core@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          storybookBuildDir: 'storybook-static'
-          autoAcceptChanges: 'main'
-          exitZeroOnChanges: 'true'
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          DIFFRA_STORAGE_BUCKET: 'my-team-visual-baselines'
-          DIFFRA_STORAGE_REGION: 'us-east-1'
+```mermaid
+flowchart LR
+    A[Push] --> B[Capture]
+    B --> C[Compare]
+    C --> D[Review link on the pull request]
+    D --> E[Merge]
+    E --> F[Baseline updated]
 ```
 
-### How the automated pull request workflow works
+Read how a run works in [How Diffra works](docs/concepts/how-diffra-works.md), or set up the [GitHub Action](docs/ci-cd/github-actions.md).
 
-```
- ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
- │ Developer opens │ ────► │ GitHub Action   │ ────► │ Diff against    │
- │ Pull Request    │       │ builds assets   │       │ Cloud Baselines │
- └─────────────────┘       └─────────────────┘       └────────┬────────┘
-                                                              │
- ┌─────────────────┐       ┌─────────────────┐                │
- │ PR merged into  │ ◄──── │ Developer views │ ◄──────────────┘
- │ main: Baselines │       │ review link on  │   PR Comment & Check
- │ auto-promoted   │       │ Pull Request    │   posted automatically
- └─────────────────┘       └─────────────────┘
-```
+## Why teams pick Diffra
 
-1. **Pull Request trigger**: Every push or PR automatically triggers your GitHub Actions runner.
-2. **Deterministic baseline diffing**: Diffra determines the exact common Git ancestor (`git merge-base`) and streams baseline snapshots on demand from your private cloud bucket (S3, Cloudflare R2, Google Cloud Storage, Azure Blob).
-3. **Automated PR review comment**: Diffra posts a status check and rich sticky comment with a direct link to inspect visual changes in the Scandinavian review UI (the [review bundle](docs/architecture/review-bundle.md), hosted at your `reportBaseUrl` or attached as a workflow artifact).
-4. **Auto-approval on merge**: When pull requests merge into `main`, candidate snapshots are automatically promoted as the authoritative baseline for future branches.
+| | |
+| :--- | :--- |
+| **Runs in your pipeline** | An official [GitHub Action](docs/ci-cd/github-actions.md) with status checks, sticky comments and annotations. Any other CI runs the same [CLI](docs/ci-cd/other-ci-providers.md). |
+| **Your data stays yours** | Baselines and reports live on local disk or in your own [S3, R2, Google Cloud or Azure bucket](docs/storage-and-plugins/storage-adapters.md). |
+| **Unlimited snapshots** | No per-screenshot pricing, no seat licenses, no quotas. Your runner is the only limit. |
+| **Fast by design** | A [Rust comparison engine](docs/architecture/core-engine.md) runs off the main thread. Identical images are skipped by hash, so an unchanged UI costs almost nothing. |
+| **Reviews people finish** | A calm [review interface](docs/review-ui/overview.md) with four comparison modes, and every change described in plain language. |
+| **Reaches what you ship** | Storybook, any URL, Playwright tests, Figma frames and plain image sets, in Chromium, Firefox and WebKit. |
+| **Scales with the repo** | [Sharding](docs/ci-cd/parallel-sharding.md) splits a run across jobs. [Monorepo](docs/guides/monorepos-and-workspaces.md) support keeps each package on its own configuration. |
+| **Deterministic** | Animations are frozen, regions can be masked, and baselines come from the [merge-base](docs/guides/baseline-management.md), so unrelated changes on main never fail your branch. |
 
----
+## Built for agents
 
-## Why choose Diffra?
+A screenshot diff tells an agent where pixels moved. Diffra also tells it why, and checks the answer.
 
-Traditional cloud-hosted visual testing platforms charge monthly subscription fees per screenshot, throttle concurrency, and transmit proprietary UI source code and customer data to external servers.
+* **Explained.** Every changed region is tied to the element, style and stylesheet rule behind it. See [explained changes](docs/agents/explained-changes.md).
+* **Proven.** Diffra can undo a suspected cause in the live page and confirm the pixels return to the baseline. See [proof](docs/agents/proof.md).
+* **Judged against intent.** Declare what a change should alter, and each difference is classified as intended or collateral. CI can fail only on collateral. See [intent contracts](docs/agents/intent-contracts.md).
+* **Fixed and verified.** A proven cause comes with a patch that undoes it, and a re-run shows what is resolved. See [fixes and verification](docs/agents/fixes-and-verification.md).
+* **Approved with a record.** Approval names snapshots, follows a policy you set, and logs who approved, why and on what evidence. See [approvals](docs/agents/approvals.md).
 
-Diffra gives you full control and ownership of your visual regression testing pipeline:
+All of it is reachable through a [Model Context Protocol server](docs/agents/mcp-reference.md) and a `--json` flag on every command that prints a report. Diffra never calls a model: it supplies evidence, and your agent supplies judgment. Start with the [agent overview](docs/agents/overview.md).
 
-* **Automated CI/CD first**: Designed specifically to run seamlessly in GitHub Actions and modern CI providers without manual coordination.
-* **Zero vendor subscription costs**: Run unlimited visual regression tests without screenshot quotas, per-seat licensing, or tier limits.
-* **Complete data privacy**: Screenshots and baselines stay entirely within your infrastructure (local disk or your private cloud storage bucket).
-* **Universal testing scope**: Test live web applications, local development servers, staging routes, custom image sets, or Storybook components with first-class pluggable drivers.
-* **Native comparison engine**: Perceptual pixel comparison written in Rust, running off the main thread so several comparisons proceed at once.
-* **Interactive review UI**: Flat, Scandinavian minimalism with four instant comparison modes (movement highlight, side-by-side, split slider, onion skin).
+## Works with
 
----
-
-## Getting started
-
-Explore the step-by-step CI/CD setup guides for your framework:
-
-* [Storybook quickstart](docs/getting-started/storybook-quickstart.md): Automated CI/CD setup for Storybook 7/8/9.
-* [Web applications quickstart](docs/getting-started/web-apps-quickstart.md): Automated CI/CD setup for Next.js, Remix, Vite, and Astro.
-* [Playwright test runner quickstart](docs/getting-started/playwright-quickstart.md): Visual assertions in Playwright test suites using `toMatchVisualBaseline`.
-* [GitHub Actions workflow guide](docs/ci-cd/github-actions.md): Complete configuration, secret management, and sharding.
-
----
+| | |
+| :--- | :--- |
+| **Targets** | [Storybook](docs/getting-started/storybook-quickstart.md), [web apps and routes](docs/getting-started/web-apps-quickstart.md), [Playwright tests](docs/getting-started/playwright-quickstart.md), [Figma](docs/guides/figma-design-qa.md), [image sets](docs/guides/static-images-and-canvas.md) |
+| **Storage** | Local disk, Amazon S3 and compatible stores, Google Cloud Storage, Azure Blob. See [storage adapters](docs/storage-and-plugins/storage-adapters.md) |
+| **CI** | [GitHub Actions](docs/ci-cd/github-actions.md), [GitLab CI, CircleCI, Bitbucket Pipelines](docs/ci-cd/other-ci-providers.md) |
+| **Notifications** | GitHub checks and comments, Slack, or [your own](docs/storage-and-plugins/notifiers.md) |
+| **Extensions** | [Custom drivers, storage and lifecycle plugins](docs/storage-and-plugins/custom-plugins-and-drivers.md) |
 
 ## Documentation
 
-Explore the complete [Diffra documentation hub](docs/index.md):
+The [documentation hub](docs/index.md) lists every page. The main entry points:
 
-* **Guides**:
-  * [Testing Storybook components](docs/guides/testing-storybook-components.md)
-  * [Testing web applications and routes](docs/guides/testing-web-applications.md)
-  * [Playwright matcher integration](docs/guides/playwright-integration.md)
-  * [Figma design parity and QA](docs/guides/figma-design-qa.md)
-  * [Static images and canvas diffing](docs/guides/static-images-and-canvas.md)
-  * [Monorepos and workspaces](docs/guides/monorepos-and-workspaces.md)
-  * [Baseline management and Git merge-base](docs/guides/baseline-management.md)
-  * [Flakiness and determinism](docs/guides/flakiness-and-determinism.md)
-* **CI/CD & Production**:
-  * [GitHub Actions workflow](docs/ci-cd/github-actions.md)
-  * [Parallel CI sharding and report merger](docs/ci-cd/parallel-sharding.md)
-  * [Self-hosted report deployment](docs/ci-cd/hosting-reports.md)
-  * [Other CI providers (GitLab, CircleCI, Bitbucket)](docs/ci-cd/other-ci-providers.md)
-* **Review UI & Inspection**:
-  * [Review interface overview](docs/review-ui/overview.md)
-  * [Comparison inspection modes](docs/review-ui/inspection-modes.md)
-  * [Keyboard shortcuts and navigation](docs/review-ui/keyboard-shortcuts.md)
-* **Storage & Plugins**:
-  * [Storage adapters (S3, R2, GCS, Azure, Local)](docs/storage-and-plugins/storage-adapters.md)
-  * [Notification adapters (GitHub, Slack)](docs/storage-and-plugins/notifiers.md)
-  * [Custom drivers and lifecycle plugins](docs/storage-and-plugins/custom-plugins-and-drivers.md)
-* **Reference & Architecture**:
-  * [Configuration reference](docs/reference/configuration.md)
-  * [Command-line interface (CLI)](docs/reference/cli.md)
-  * [Storybook snapshot parameters](docs/reference/story-parameters.md)
-  * [GitHub Action reference](docs/reference/action-reference.md)
-  * [Core comparison engine](docs/architecture/core-engine.md)
-  * [Execution pipeline](docs/architecture/execution-pipeline.md)
-  * [Review bundle](docs/architecture/review-bundle.md)
+| I want to | Go to |
+| :--- | :--- |
+| Set it up for my project | [Getting started](docs/getting-started/index.md) |
+| Understand how it works | [Concepts](docs/concepts/index.md) |
+| Do a specific task | [Guides](docs/guides/index.md) |
+| Run it in CI | [CI/CD](docs/ci-cd/index.md) |
+| Review changes | [Review interface](docs/review-ui/index.md) |
+| Let an agent handle regressions | [AI agents](docs/agents/index.md) |
+| Look up an option or flag | [Reference](docs/reference/index.md) |
+| Understand the internals | [Architecture](docs/architecture/index.md) |
+| Fix a problem | [Troubleshooting](docs/troubleshooting.md) |
 
----
+## Packages
 
-## Monorepo packages
-
-| Package | Directory | Description |
+| Package | Directory | Role |
 | :--- | :--- | :--- |
-| `@diffra/cli` | `packages/cli` | Zero-dependency command-line binary (`diffra`) |
-| `@diffra/core` | `packages/core` | Core test runner, Playwright matcher, pluggable drivers, and report generator |
-| `@diffra/engine` | `packages/engine` | Perceptual pixel comparison in Rust, loaded through Node-API |
-| `@diffra/viewer` | `packages/viewer` | Standalone interactive review UI bundle |
-| `@diffra/action` | `packages/action` | GitHub Action runner for CI/CD pipelines |
-| `@diffra/demo-storybook` | `packages/demo-storybook` | Real working demo of Storybook 10 with Diffra visual regression |
-| `@diffra/demo-app` | `packages/demo-app` | Real working demo of a Vite TypeScript web app with Diffra configured |
+| `@diffra/cli` | [packages/cli](packages/cli) | The `diffra` command. |
+| `@diffra/core` | [packages/core](packages/core) | Runner, drivers, storage, report generation. |
+| `@diffra/engine` | [packages/engine](packages/engine) | Rust comparison engine, loaded through Node-API. |
+| `@diffra/viewer` | [packages/viewer](packages/viewer) | The review interface. |
+| `@diffra/action` | [packages/action](packages/action) | The GitHub Action runner. |
+| `@diffra/mcp` | [packages/mcp](packages/mcp) | The agent server and skill. |
+| `@diffra/demo-storybook` | [packages/demo-storybook](packages/demo-storybook) | A working Storybook demo. |
+| `@diffra/demo-app` | [packages/demo-app](packages/demo-app) | A working web app demo. |
 
----
+## Project
 
-## License
-
-MIT
+* [Contributing](CONTRIBUTING.md): set up the repository and open a pull request.
+* [Security](SECURITY.md): report a vulnerability.
+* [Code of conduct](CODE_OF_CONDUCT.md)
+* [Issues](https://github.com/Diffra/core/issues): bugs and feature requests.
+* [MIT license](LICENSE)

@@ -55,6 +55,7 @@ A snapshot gets the whole screen.
 ```
 
 * **Top bar**: back to the overview, the snapshot title, position, previous and next, and a button that copies a link to this exact snapshot and mode.
+* **Why**: when the cause of a change is known, one sentence under the title says what in the page changed and where it is set. When intents were declared, it begins with whether the change was intended. See [Explained changes](../agents/explained-changes.md).
 * **Switcher**: the title is a button. Click it, or press `/`, to search and jump to any snapshot without going back.
 * **Floating controls**: changed areas on the left, the [comparison modes](inspection-modes.md) in the middle, and zoom on the right. They float over the canvas so the image can use the whole screen.
 

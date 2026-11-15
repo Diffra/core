@@ -8,8 +8,8 @@ Thank you for your interest in contributing to Diffra. We welcome contributions,
 
 ### Prerequisites
 
-* **Node.js**: `^20.18.0` or `^22.0.0`
-* **pnpm**: `^10.0.0` or `^11.0.0`
+* **Node.js**: `>=26.0.0`
+* **pnpm**: `>=12.0.0`
 * **Rust toolchain**: `cargo` and `rustc` `^1.97.0`. The pixel comparison engine is written in Rust and `pnpm build` compiles it.
 
 ### Repository setup

@@ -29,11 +29,16 @@ This document records architectural principles, conventions, and operational lea
 * **Headings**: Use sentence case (e.g. `# Architecture and core engine`, `## Available options`). Avoid title casing where every word is capitalized.
 * **Formatting**: Avoid emojis, decorative symbols, or unnecessary formatting in documentation and comments.
 * **Naming**: Do not reference external commercial brand names or competitors. Keep terminology vendor-neutral and component-centric.
+* **Structure**: `docs/` is organized by what the reader is doing, one directory per section: `getting-started` (set up), `concepts` (understand), `guides` (do a task), `ci-cd`, `review-ui`, `agents`, `storage-and-plugins`, `reference` (look up) and `architecture` (internals), plus `troubleshooting.md` at the root.
+  * Every section has an `index.md` that lists its pages in a table. A new page is linked from its section index, and `docs/index.md` links to section indexes, not to every page.
+  * A page does one job. Explain in guides and concepts, list exact options only in reference, and link instead of repeating. Put a new page in the section that matches the reader's goal, not the package that implements it.
+  * The top-level `README.md` is the product overview. It stays high level, carries no code examples, and links into the documentation.
 
 ### 4. Monorepo structure and package boundaries
 * `packages/core`: Core test runner, Playwright coordinator, Git merge-base resolver, report inliner, pluggable drivers.
 * `packages/engine`: Pixel comparison engine in Rust, built with napi-rs and loaded through Node-API. There is no TypeScript implementation and no fallback: every platform runs the Rust engine.
 * `packages/cli`: Zero-dependency command-line binary (`diffra`).
+* `packages/mcp`: Zero-dependency Model Context Protocol server (`diffra-mcp`, also `diffra mcp`) and the agent skill file.
 * `packages/viewer`: Static Web Components review UI bundled via Vite as a standalone IIFE bundle (`dist/viewer.bundle.js`).
 * `packages/action`: GitHub Action runner with path traversal protection and secret masking.
 * `packages/demo-storybook`: Real working demo of Storybook 10 with Diffra visual regression.
@@ -78,3 +83,11 @@ This document records architectural principles, conventions, and operational lea
 ### 10. CI/CD first product narrative
 * **Automated workflow over manual CLI**: Diffra is engineered primarily as an automated visual regression engine embedded directly in GitHub Actions and CI/CD pipelines. All documentation, quickstarts, and promotional material must lead with the automated CI/CD lifecycle (GitHub Action, automated PR status checks, PR comments with review links, cloud storage baselines, auto-accept on merge).
 * **CLI as supporting utility**: Position local CLI execution as a secondary, supporting utility for debugging or local approvals, never as the primary day-to-day workflow.
+
+### 11. Agent surface: deterministic evidence, agent reasoning
+* **Diffra never calls a model.** It captures, compares, and applies decisions. Reasoning about whether a change is intended belongs to the agent or the reviewer that uses the tools.
+* **Machine output is pure.** With `--json`, standard output carries only JSON and human-readable text goes to standard error. An MCP server writes only protocol messages to standard output.
+* **Approval is explicit and recorded.** There is no tool or flag path that accepts a whole run on behalf of an agent. Approval names snapshot ids, and a server connected to a published bundle is read-only. What an agent may approve is set by `agent.autoApprove` (default: only changes a declared intent covers), and every approval appends who, why and on what evidence to `approvals.jsonl`.
+* **Reports stay shareable.** Credentials and machine paths never enter `report.json`: target credentials live on a private `request` field, and source paths are relative to the project.
+* **Say how sure an explanation is.** A cause is `attributed` when a change in the page lines up with the changed pixels. Only a cause that was reverted in the page and made the pixels return to the baseline may be called `proven`. Never present an attributed cause as a fact.
+* **Intent vocabulary.** A change is `intended` when a declared intent covers it and `collateral` when none does. With no intent declared, nothing is classified, and a gate on collateral changes still fails on every change. An intent is the author's own statement and is not a security control.

@@ -52,6 +52,8 @@ export interface RunnerConfig {
   concurrency?: number;
   baselineBranch?: string;
   shard?: string;
+  /** Case-insensitive text that a target id, name or group must contain */
+  filter?: string;
   projects?: Project[];
   launchOptions?: LaunchOptions;
 }
@@ -83,6 +85,12 @@ export interface VisualTestResult {
   baseline?: ImageArtifact;
   candidate: ImageArtifact;
   diffImage?: ImageArtifact;
+  /** Source file that defines the snapshot, relative to the project. */
+  filePath?: string;
+  /** Render ledgers of both sides, relative to the review bundle. */
+  ledgers?: { baseline?: string; candidate?: string };
+  /** What in the page accounts for the change. */
+  explanation?: Explanation;
   metadata?: Record<string, unknown>;
 }
 ```
