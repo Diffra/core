@@ -36,7 +36,7 @@ pnpm test
 | Command | Action |
 | :--- | :--- |
 | `pnpm build` | Compiles all TypeScript packages, diff bindings, and viewer bundle |
-| `pnpm bundle` | Rebuilds the self-contained GitHub Action in `dist/`. Commit the result whenever the action or core sources change, because the action runs from it |
+| `pnpm bundle` | Rebuilds the self-contained GitHub Action in `dist/`. The bundle is not committed: the release workflow builds it with every engine binary and commits it to the release tag |
 | `pnpm test` | Runs all unit and integration test suites via Vitest |
 | `pnpm typecheck` | Validates TypeScript types across all workspace packages |
 | `pnpm storybook` | Starts the showcase Storybook 10 design system dev server |

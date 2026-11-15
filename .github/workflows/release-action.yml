@@ -123,8 +123,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git checkout --detach
-          git add dist
-          git add --force dist/*.node
+          git add --force dist
           git commit --message "release: ${VERSION}"
           git tag "${VERSION}"
           git push origin "refs/tags/${VERSION}"

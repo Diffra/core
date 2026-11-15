@@ -1,7 +1,7 @@
 node_modules/
 dist/
-# The GitHub Action runs from this committed bundle (pnpm --filter @diffra/action bundle)
-!/dist/
+# The action bundle in /dist is built by pnpm bundle. Only a release commits it,
+# with the engine binaries of every platform (see the release workflow).
 target/
 .diffra/
 .pnpm-store
@@ -14,5 +14,3 @@ coverage/
 packages/engine/*.node
 packages/engine/index.js
 packages/engine/index.d.ts
-# Engine binaries in the action bundle are added by the release workflow
-/dist/*.node

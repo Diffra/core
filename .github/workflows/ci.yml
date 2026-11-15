@@ -63,22 +63,8 @@ jobs:
       - name: Run test suite
         run: pnpm test
 
-      # The action runs from the committed dist/ bundle, so it must match the
-      # source. Engine binaries are git-ignored there and added at release.
-      - name: Verify the action bundle is up to date
+      # The bundle is not committed. A release builds it with every engine
+      # binary, so here it only has to build.
+      - name: Bundle the action
         if: matrix.os == 'ubuntu-latest'
-        run: |
-          pnpm bundle
-          if ! git diff --quiet -- dist; then
-            # Name where each file first differs, so the cause shows up in the annotations.
-            for file in $(git diff --name-only -- dist); do
-              git show "HEAD:${file}" > "${RUNNER_TEMP}/committed"
-              offset=$(cmp "${file}" "${RUNNER_TEMP}/committed" | sed -E 's/.*byte ([0-9]+).*/\1/')
-              start=$(( offset > 160 ? offset - 160 : 1 ))
-              built=$(tail -c +"${start}" "${file}" | head -c 320 | tr '\n%' '  ')
-              committed=$(tail -c +"${start}" "${RUNNER_TEMP}/committed" | head -c 320 | tr '\n%' '  ')
-              echo "::error title=${file} differs at byte ${offset}::built: ${built} || committed: ${committed}"
-            done
-            echo "dist/ is stale: run pnpm bundle and commit the result"
-            exit 1
-          fi
+        run: pnpm bundle
