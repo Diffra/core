@@ -50,6 +50,8 @@ Before editing, declare what you are about to change with `diffra_declare_intent
 * A server connected to a published bundle cannot run tests or approve anything.
 * Images are read only from inside the bundle. A path that leaves it is refused.
 * Images over a fixed size limit are refused with a hint to request a region.
+* A published bundle is read with a timeout and a size limit, redirects are followed only within the report's own host, and a file that is a symbolic link out of the bundle is refused.
+* An approval is made against the report the policy was checked on, and is an error if it cannot be recorded in `approvals.jsonl`.
 
 ## Reading reports without the server
 

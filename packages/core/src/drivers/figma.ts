@@ -45,6 +45,12 @@ export class BoundedLruCache<K, V> {
   }
 }
 
+/** Longest wait honoured between retries, whatever the server asks for. */
+const MAX_RETRY_DELAY_MS = 60_000;
+
+/** Longest a single request may take before it is abandoned. */
+const FIGMA_REQUEST_TIMEOUT_MS = 60_000;
+
 async function fetchFigmaWithRetry(
   url: string,
   options: RequestInit,
@@ -52,7 +58,10 @@ async function fetchFigmaWithRetry(
 ): Promise<Response> {
   let attempt = 0;
   while (true) {
-    const res = await fetch(url, options);
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(FIGMA_REQUEST_TIMEOUT_MS),
+      ...options,
+    });
     if ((res.status === 429 || res.status === 503) && attempt < maxRetries) {
       attempt++;
       const retryAfterHeader = res.headers.get('retry-after');
@@ -63,7 +72,9 @@ async function fetchFigmaWithRetry(
           delayMs = parsed * 1000;
         }
       }
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.min(delayMs, MAX_RETRY_DELAY_MS)),
+      );
       continue;
     }
     return res;

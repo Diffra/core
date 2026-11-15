@@ -29,7 +29,7 @@ Schema and configuration options reference for the official Diffra GitHub Action
 | `concurrency` | No | `4` | Number of parallel browser workers. |
 | `gate` | No | `'any'` | `'any'` fails the step on every changed snapshot. `'collateral'` fails only on changes that no declared intent covers. Intents are declared in the pull request description. See [Intent contracts](../agents/intent-contracts.md). |
 | `exitZeroOnChanges`| No | `'true'` | Pass the action step (exit `0`) even if visual differences are detected, or specify a branch name (e.g. `main` or `true`). |
-| `autoAcceptChanges`| No | `'default-branch'` | Automatically promote candidate screenshots as the new baseline on the default branch, or on a named branch. |
+| `autoAcceptChanges`| No | `'default-branch'` | Automatically promote candidate screenshots as the new baseline on the default branch, or on a named branch. Never done for `pull_request` or `pull_request_target` events, whatever the setting, because their candidates are not reviewed yet. |
 | `exitOnceUploaded` | No | `false` | Exit with code `0` immediately after snapshots are saved. |
 | `workingDir` | No | `.` | Working directory for monorepo setups. |
 | `uploadReport` | No | `'true'` | Upload the review bundle as the `diffra-report` workflow artifact when no `reportBaseUrl` is set. |

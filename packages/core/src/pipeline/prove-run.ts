@@ -8,6 +8,7 @@ import { resolveDiffEngine } from '../plugins/diff/index.js';
 import { PluginRunner } from '../plugins/runner.js';
 import {
   ReviewBundle,
+  readFileWithin,
   resolveOutputDir,
   runDirectory,
 } from '../report/bundle.js';
@@ -29,16 +30,6 @@ export interface ProveOptions {
   browser?: string;
   width?: number;
   height?: number;
-}
-
-/** Reads a file of a review bundle and refuses a path that leaves it. */
-async function readFromBundle(dir: string, relative: string): Promise<Buffer> {
-  const base = path.resolve(dir);
-  const resolved = path.resolve(base, relative);
-  if (!resolved.startsWith(base + path.sep)) {
-    throw new Error(`File leaves the review bundle: ${relative}`);
-  }
-  return fs.readFile(resolved);
 }
 
 /** Every copy of a run's report, so that the proof is seen wherever it is read from. */
@@ -131,11 +122,11 @@ export async function proveSnapshot(
   }
 
   const runDir = runDirectory(outputDir, report.runId);
-  const baselineImage = await readFromBundle(runDir, result.baseline.url);
+  const baselineImage = await readFileWithin(runDir, result.baseline.url);
   let root: string | undefined;
   if (result.ledgers?.candidate) {
     const ledger = JSON.parse(
-      (await readFromBundle(runDir, result.ledgers.candidate)).toString(
+      (await readFileWithin(runDir, result.ledgers.candidate)).toString(
         'utf-8',
       ),
     ) as RenderLedger;

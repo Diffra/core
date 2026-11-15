@@ -7,8 +7,8 @@ import {
 import type { DiffEngineAdapter } from '../types/index.js';
 import type { Cause, Explanation, Proof } from './explain.js';
 
-/** Page loads one proof may use: the causes together, then each one alone. */
-export const PROVE_MAX_CAPTURES = 6;
+/** Page loads one proof may use: one control, the causes together, then each one alone. */
+export const PROVE_MAX_CAPTURES = 7;
 
 /** Undoes one cause: the styles of one element, by its path in the ledger. */
 interface Revert {
@@ -161,6 +161,17 @@ export async function proveExplanation(
     );
     return { remaining: diff.hasDiff ? diff.boundingBoxes.length : 0, missing };
   };
+
+  // Without undoing anything, a page that already matches the baseline proves
+  // nothing: the change was fixed meanwhile, or never appeared reliably.
+  const control = await regionsLeft([]);
+  if (control.remaining === 0) {
+    return withProof(explanation, {
+      status: 'unproven',
+      reverted: 0,
+      note: 'The page already matches the baseline without undoing anything, so there is no change left to prove. It may have been fixed since the run, or it may not appear reliably.',
+    });
+  }
 
   const together = await regionsLeft(reverts.map((entry) => entry.revert));
   const allUndoable =

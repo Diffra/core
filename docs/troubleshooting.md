@@ -26,6 +26,10 @@ The comparison engine has no binary for this platform. Release builds cover Linu
 
 `approve`, `status`, `intent`, `prove`, `fix`, `verify` and the MCP server read the report of the latest run from the output directory. Run `diffra test` first, and pass the same `--output-dir` to both commands. See the [CLI reference](reference/cli.md).
 
+## `Images are too large to compare`
+
+The baseline and candidate together cover more than 100,000,000 pixels, measured on the larger width and the larger height. The snapshot is reported as failed and the run continues. A full-page capture of a very long page, or a candidate of a very different shape from its baseline, are the usual causes. See [core engine](architecture/core-engine.md).
+
 ## Snapshots differ between machines
 
 Different operating systems render fonts differently. Capture baselines in the same environment that runs your checks, usually the CI runner. See [flakiness and determinism](guides/flakiness-and-determinism.md).

@@ -4,6 +4,7 @@ import {
   isTestRunReport,
   LATEST_REPORT_FILE,
   REPORT_FILE,
+  readFileWithin,
   runDirectory,
   type TestRunReport,
 } from '@diffra/core';
@@ -18,6 +19,33 @@ export interface ReviewSource {
 }
 
 const HTTP_URL = /^https?:\/\//i;
+
+/** Longest wait for one request to a published bundle. */
+const FETCH_TIMEOUT_MS = 30_000;
+
+/** Most redirects followed within the report's host. */
+const MAX_REDIRECTS = 3;
+
+/** Largest body read from a published bundle. */
+const MAX_BODY_BYTES = 32 * 1024 * 1024;
+
+/** Reads a response body, stopping at the size limit instead of buffering all of it. */
+async function readLimited(response: Response, url: URL): Promise<Buffer> {
+  const tooLarge = () =>
+    new Error(`${url.href} is larger than ${MAX_BODY_BYTES} bytes.`);
+  const declared = Number(response.headers.get('content-length'));
+  if (declared > MAX_BODY_BYTES) throw tooLarge();
+  if (!response.body) return Buffer.alloc(0);
+
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for await (const chunk of response.body) {
+    total += chunk.byteLength;
+    if (total > MAX_BODY_BYTES) throw tooLarge();
+    chunks.push(Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
 
 function parseReport(text: string, origin: string): TestRunReport {
   let parsed: unknown;
@@ -65,7 +93,9 @@ export class DirectorySource implements ReviewSource {
   }
 
   async readImage(url: string): Promise<Buffer> {
-    return fs.readFile(resolveWithin(this.dir, url));
+    // Checked lexically first for a clear message, then through symbolic links.
+    resolveWithin(this.dir, url);
+    return readFileWithin(this.dir, url);
   }
 }
 
@@ -118,12 +148,38 @@ export class UrlSource implements ReviewSource {
     this.reportUrl = url;
   }
 
-  private async fetchBytes(url: URL): Promise<Buffer> {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`${url.href} answered ${response.status}.`);
+  /**
+   * Fetches a file of the bundle. Redirects are followed only within the
+   * report's own host, the wait is bounded, and so is the size of the body, so
+   * a hostile or broken host cannot send the reader elsewhere, hold it, or
+   * exhaust its memory.
+   */
+  private async fetchBytes(start: URL): Promise<Buffer> {
+    let url = start;
+    for (let hop = 0; ; hop++) {
+      const response = await fetch(url, {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location');
+        if (!location || hop >= MAX_REDIRECTS) {
+          throw new Error(`${url.href} redirected too many times.`);
+        }
+        const next = new URL(location, url);
+        if (next.origin !== this.reportUrl.origin) {
+          throw new Error(
+            `${url.href} redirected to another host: ${next.origin}`,
+          );
+        }
+        url = next;
+        continue;
+      }
+      if (!response.ok) {
+        throw new Error(`${url.href} answered ${response.status}.`);
+      }
+      return readLimited(response, url);
     }
-    return Buffer.from(await response.arrayBuffer());
   }
 
   async readReport(): Promise<TestRunReport> {

@@ -15,7 +15,7 @@ export interface SnapshotRef {
 export interface Verification {
   /** Changed or failed before, unchanged now. */
   resolved: SnapshotRef[];
-  /** Changed before and still changed. */
+  /** Changed or failed before, and not unchanged now: still changed, or now failed, removed or added. */
   stillChanged: SnapshotRef[];
   /** Not changed before, and changed, added, removed or failed now. */
   newlyChanged: SnapshotRef[];
@@ -54,7 +54,8 @@ export function compareRuns(
     const was = before.get(key);
     const wasOpen = was ? OPEN.has(was.status) : false;
     if (wasOpen && result.status === 'unchanged') resolved.push(refOf(result));
-    else if (wasOpen && result.status === 'changed') {
+    else if (wasOpen) {
+      // Still changed, or now failed or gone: either way it is not resolved.
       stillChanged.push(refOf(result));
     } else if (!wasOpen && NEEDS_DECISION.has(result.status)) {
       // A snapshot that was new in the last run and still is, has not changed.

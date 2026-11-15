@@ -9,6 +9,15 @@ use std::io::Cursor;
 #[napi]
 pub const DEFAULT_THRESHOLD: f64 = 0.063;
 
+/// Largest comparison, in pixels, that is attempted when no limit is given.
+/// The comparison covers the larger of the two images in each dimension, so
+/// two small images with different shapes can still ask for a huge canvas.
+#[napi]
+pub const DEFAULT_MAX_PIXELS: u32 = 100_000_000;
+
+/// Edge length, in pixels, of the tiles that changed pixels are grouped into
+const TILE_SIZE: u32 = 32;
+
 /// Options for configuring pixel comparison
 #[napi(object)]
 #[derive(Debug, Clone)]
@@ -28,6 +37,10 @@ pub struct DiffOptions {
     /// Whether to encode and return a PNG diff image when the images differ.
     /// Identical images return none, since there is nothing to show. Default: true
     pub generate_diff_image: Option<bool>,
+    /// The most pixels a comparison may cover, measured on the larger of the
+    /// two images in each dimension. Larger comparisons are refused with an
+    /// error before anything is allocated. Default: 100,000,000
+    pub max_pixels: Option<u32>,
 }
 
 impl Default for DiffOptions {
@@ -40,6 +53,7 @@ impl Default for DiffOptions {
             diff_color: Some(vec![255, 0, 85, 255]),
             diff_mask: Some(false),
             generate_diff_image: Some(true),
+            max_pixels: Some(DEFAULT_MAX_PIXELS),
         }
     }
 }
@@ -200,25 +214,45 @@ fn is_antialiased(
     d1 < 1.0 || d2 < 1.0
 }
 
-/// Cluster changed pixel coordinates into bounding boxes
-fn cluster_bounding_boxes(
-    changed_coords: &[(u32, u32)],
+/// Records which tiles of an image contain a changed pixel
+struct TileGrid {
     width: u32,
     height: u32,
-) -> Vec<BoundingBox> {
-    if changed_coords.is_empty() {
-        return Vec::new();
+    grid_w: u32,
+    grid_h: u32,
+    tiles: Vec<bool>,
+}
+
+impl TileGrid {
+    fn new(width: u32, height: u32) -> Self {
+        let grid_w = width.div_ceil(TILE_SIZE);
+        let grid_h = height.div_ceil(TILE_SIZE);
+        Self {
+            width,
+            height,
+            grid_w,
+            grid_h,
+            tiles: vec![false; grid_w as usize * grid_h as usize],
+        }
     }
 
-    const TILE_SIZE: u32 = 32;
-    let grid_w = width.div_ceil(TILE_SIZE);
-    let grid_h = height.div_ceil(TILE_SIZE);
-    let mut grid = vec![false; (grid_w * grid_h) as usize];
+    fn mark(&mut self, x: u32, y: u32) {
+        let index = (y / TILE_SIZE) as usize * self.grid_w as usize + (x / TILE_SIZE) as usize;
+        self.tiles[index] = true;
+    }
+}
 
-    for &(x, y) in changed_coords {
-        let gx = x / TILE_SIZE;
-        let gy = y / TILE_SIZE;
-        grid[(gy * grid_w + gx) as usize] = true;
+/// Group neighbouring changed tiles into bounding boxes
+fn cluster_bounding_boxes(tiles: TileGrid) -> Vec<BoundingBox> {
+    let TileGrid {
+        width,
+        height,
+        grid_w,
+        grid_h,
+        tiles: grid,
+    } = tiles;
+    if !grid.iter().any(|&changed| changed) {
+        return Vec::new();
     }
 
     let mut visited = vec![false; (grid_w * grid_h) as usize];
@@ -284,13 +318,26 @@ pub fn compare_rgba_images(
     baseline: &RgbaImage,
     candidate: &RgbaImage,
     options: DiffOptions,
-) -> DiffResult {
+) -> Result<DiffResult> {
     let (bw, bh) = baseline.dimensions();
     let (cw, ch) = candidate.dimensions();
 
     let is_same_dimensions = bw == cw && bh == ch;
     let width = bw.max(cw);
     let height = bh.max(ch);
+
+    // The diff covers the larger image in each dimension, so it can be far
+    // bigger than either input. Refuse before allocating it.
+    let max_pixels = u64::from(options.max_pixels.unwrap_or(DEFAULT_MAX_PIXELS));
+    let canvas_pixels = u64::from(width) * u64::from(height);
+    if canvas_pixels > max_pixels {
+        return Err(Error::new(
+            Status::InvalidArg,
+            format!(
+                "Images are too large to compare: baseline {bw}x{bh} and candidate {cw}x{ch} cover {width}x{height}, over the limit of {max_pixels} pixels"
+            ),
+        ));
+    }
 
     let threshold = options
         .diff_threshold
@@ -320,7 +367,7 @@ pub fn compare_rgba_images(
 
     let mut diff_img: RgbaImage = ImageBuffer::new(width, height);
     let mut diff_count: u32 = 0;
-    let mut changed_pixels: Vec<(u32, u32)> = Vec::new();
+    let mut changed_tiles = TileGrid::new(width, height);
 
     for y in 0..height {
         for x in 0..width {
@@ -347,7 +394,7 @@ pub fn compare_rgba_images(
 
                     if !is_aa {
                         diff_count += 1;
-                        changed_pixels.push((x, y));
+                        changed_tiles.mark(x, y);
                         if generate_image {
                             diff_img.put_pixel(x, y, diff_pixel);
                         }
@@ -373,7 +420,7 @@ pub fn compare_rgba_images(
                 }
             } else {
                 diff_count += 1;
-                changed_pixels.push((x, y));
+                changed_tiles.mark(x, y);
                 if generate_image {
                     diff_img.put_pixel(x, y, diff_pixel);
                 }
@@ -381,14 +428,14 @@ pub fn compare_rgba_images(
         }
     }
 
-    let total_pixels = (width * height) as f64;
+    let total_pixels = canvas_pixels as f64;
     let diff_percentage = if total_pixels > 0.0 {
         (diff_count as f64 / total_pixels) * 100.0
     } else {
         0.0
     };
 
-    let bounding_boxes = cluster_bounding_boxes(&changed_pixels, width, height);
+    let bounding_boxes = cluster_bounding_boxes(changed_tiles);
 
     let diff_image = if generate_image && diff_count > 0 {
         let mut bytes: Vec<u8> = Vec::new();
@@ -401,7 +448,7 @@ pub fn compare_rgba_images(
         None
     };
 
-    DiffResult {
+    Ok(DiffResult {
         diff_count,
         diff_percentage,
         is_same_dimensions,
@@ -410,7 +457,7 @@ pub fn compare_rgba_images(
         bounding_boxes,
         diff_image,
         has_diff: diff_count > 0,
-    }
+    })
 }
 
 /// Decodes an encoded image into RGBA pixels, naming which input failed
@@ -459,11 +506,7 @@ impl Task for CompareImagesTask {
     fn compute(&mut self) -> Result<DiffResult> {
         let baseline = decode("baseline", &self.baseline)?;
         let candidate = decode("candidate", &self.candidate)?;
-        Ok(compare_rgba_images(
-            &baseline,
-            &candidate,
-            self.options.clone(),
-        ))
+        compare_rgba_images(&baseline, &candidate, self.options.clone())
     }
 
     fn resolve(&mut self, _env: Env, output: DiffResult) -> Result<DiffResult> {
@@ -495,11 +538,11 @@ pub fn compare_raw_rgba(
     height: u32,
     options: Option<DiffOptions>,
 ) -> Result<DiffResult> {
-    Ok(compare_rgba_images(
+    compare_rgba_images(
         &rgba_image("baseline", &baseline, width, height)?,
         &rgba_image("candidate", &candidate, width, height)?,
         options.unwrap_or_default(),
-    ))
+    )
 }
 
 /// A decoded image as RGBA, 8 bits per channel

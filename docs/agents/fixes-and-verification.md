@@ -32,7 +32,7 @@ An agent calls `diffra_verify`. It runs the tests again and compares with the ru
 | Field | Meaning |
 | :--- | :--- |
 | `resolved` | Changed or failed before, unchanged now. |
-| `stillChanged` | Changed before and still changed. |
+| `stillChanged` | Changed or failed before, and not unchanged now: still changed, or now failed, removed or added. |
 | `newlyChanged` | Not changed before, and changed, added, removed or failed now. |
 | `notChecked` | Open before but not captured in this run, for example because of a filter. |
 

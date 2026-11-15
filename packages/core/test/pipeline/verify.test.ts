@@ -55,6 +55,24 @@ describe('compareRuns', () => {
     );
   });
 
+  it('does not call a change resolved when its snapshot now fails or is gone', () => {
+    const v = compareRuns(
+      report(
+        result('a', 'changed'),
+        result('b', 'failed'),
+        result('c', 'changed'),
+      ),
+      report(
+        result('a', 'failed'),
+        result('b', 'removed'),
+        result('c', 'unchanged'),
+      ),
+    );
+    expect(v.resolved.map((r) => r.id)).toEqual(['c']);
+    expect(v.stillChanged.map((r) => r.id)).toEqual(['a', 'b']);
+    expect(v.summary).not.toMatch(/Nothing was open/);
+  });
+
   it('says so when nothing was open and nothing changed', () => {
     expect(
       compareRuns(undefined, report(result('a', 'unchanged'))).summary,

@@ -339,11 +339,17 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
         }
 
         if (values['update-baseline'] && report.summary.changed > 0) {
-          await approveBaselines({
+          const approval = await approveBaselines({
             config: Object.keys(overrides).length > 0 ? overrides : undefined,
             configFile: values.config,
             report,
           });
+          if (approval.failed > 0) {
+            console.error(
+              `${colors.red(colors.bold('Error:'))} ${approval.failed} baseline(s) could not be promoted.`,
+            );
+            return 1;
+          }
           out(
             colors.green(
               colors.bold(
@@ -431,6 +437,12 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
             JSON.stringify({ approved: result.count, failed: result.failed }),
           );
           return result.failed > 0 ? 1 : 0;
+        }
+        if (result.failed > 0) {
+          console.error(
+            `${colors.red(colors.bold('Error:'))} ${result.failed} baseline(s) could not be promoted, and ${result.count} were.\n`,
+          );
+          return 1;
         }
         out(
           `${colors.green(colors.bold('Successfully approved'))} ${result.count} screenshots as baseline.\n`,

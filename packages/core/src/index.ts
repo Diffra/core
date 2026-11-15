@@ -139,105 +139,7 @@ export async function runVisualRegression(
   const drivers = resolveDrivers(config, cwd);
 
   const driverContext = { config, cwd };
-  for (const driver of drivers) {
-    await driver.setup?.(driverContext);
-  }
-
-  const runId = `run-${Date.now()}`;
-  const timestamp = new Date().toISOString();
-
-  const everything = await discoverTargets(drivers, driverContext, plugins);
-  const only = options.only ? new Set(options.only) : undefined;
-  const discovered = only
-    ? {
-        ...everything,
-        targets: everything.targets.filter((t) => only.has(t.id)),
-      }
-    : everything;
-  const shard = options.shard || config.runner?.shard;
-  // A run of only some of the targets cannot tell what is gone or what a baseline holds.
-  const filter =
-    config.runner?.filter?.trim() || (only ? AFFECTED_FILTER : undefined);
-  const tasks = buildTasks(discovered, config, shard);
-
-  const needsBrowser = tasks.some(
-    (t) => !t.driver?.capture && !t.driver?.captureAll,
-  );
-  if (config.runner?.installBrowsers && needsBrowser) {
-    await ensureBrowsers(
-      resolveProjects(config).map((p) => p.browser ?? 'chromium'),
-    );
-  }
-
-  const bundle = new ReviewBundle(
-    runDirectory(resolveOutputDir(config, cwd), runId),
-  );
-  const compareContext: CompareContext = {
-    runId,
-    cwd,
-    changedFiles: await changedFilesSince(gitInfo.baselineCommit, cwd),
-    config,
-    storage,
-    diffEngine,
-    bundle,
-    baselines: createBaselineResolver(
-      storage,
-      await getBaselineHistory(
-        gitInfo.baselineCommit,
-        config.runner?.baselineHistoryDepth ?? DEFAULT_BASELINE_HISTORY_DEPTH,
-        cwd,
-      ),
-    ),
-  };
-
-  const results: VisualTestResult[] = [];
-  const record = (result: VisualTestResult) => {
-    results.push(result);
-    options.onProgress?.(
-      `${result.status === 'failed' ? 'Failed' : 'Compared'} ${result.group ?? UNGROUPED} / ${result.name} [${result.browser}]`,
-      results.length,
-      tasks.length,
-    );
-  };
-
-  try {
-    // Captures are compared as they finish, so the run holds only the images
-    // in flight rather than every screenshot at once.
-    const outcome = await runCaptures(tasks, undefined, {
-      attempts: config.runner?.captureAttempts,
-      concurrency: config.runner?.concurrency ?? DEFAULT_CONCURRENCY,
-      delay: config.snapshot?.delay ?? DEFAULT_DELAY_MS,
-      pauseAnimationAtEnd: config.snapshot?.pauseAnimationAtEnd ?? true,
-      cwd,
-      ledger: config.agent?.context ?? DEFAULT_AGENT_CONTEXT,
-      onBeforeCapture: (target, viewport) =>
-        plugins.hookBeforeCapture(target, viewport),
-      onCapture: async (capture) => {
-        const buffer = await plugins.hookAfterCapture(
-          capture.target,
-          capture.viewport,
-          capture.buffer,
-        );
-        record(await compareCapture(compareContext, { ...capture, buffer }));
-      },
-    });
-    for (const failure of outcome.failures) {
-      record(failedResult(failure, cwd));
-    }
-
-    // A shard or a filter sees only part of the targets, so it cannot tell
-    // what is gone.
-    if (!shard && !filter) {
-      for (const gone of await findRemoved({
-        storage,
-        baselines: compareContext.baselines,
-        bundle,
-        results,
-      })) {
-        record(gone);
-      }
-    }
-  } finally {
+  const teardownDrivers = async () => {
     for (const driver of drivers) {
       try {
         await driver.teardown?.(driverContext);
@@ -248,28 +150,135 @@ export async function runVisualRegression(
         );
       }
     }
+  };
+
+  // A driver may start a server while it sets up or discovers targets, so
+  // everything after setup runs under the teardown, or a failure anywhere
+  // would leave the process waiting on it.
+  try {
+    for (const driver of drivers) {
+      await driver.setup?.(driverContext);
+    }
+
+    const runId = `run-${Date.now()}`;
+    const timestamp = new Date().toISOString();
+
+    const everything = await discoverTargets(drivers, driverContext, plugins);
+    const only = options.only ? new Set(options.only) : undefined;
+    const discovered = only
+      ? {
+          ...everything,
+          targets: everything.targets.filter((t) => only.has(t.id)),
+        }
+      : everything;
+    const shard = options.shard || config.runner?.shard;
+    // A run of only some of the targets cannot tell what is gone or what a baseline holds.
+    const filter =
+      config.runner?.filter?.trim() || (only ? AFFECTED_FILTER : undefined);
+    const tasks = buildTasks(discovered, config, shard);
+
+    const needsBrowser = tasks.some(
+      (t) => !t.driver?.capture && !t.driver?.captureAll,
+    );
+    if (config.runner?.installBrowsers && needsBrowser) {
+      await ensureBrowsers(
+        resolveProjects(config).map((p) => p.browser ?? 'chromium'),
+      );
+    }
+
+    const bundle = new ReviewBundle(
+      runDirectory(resolveOutputDir(config, cwd), runId),
+    );
+    const compareContext: CompareContext = {
+      runId,
+      cwd,
+      changedFiles: await changedFilesSince(gitInfo.baselineCommit, cwd),
+      config,
+      storage,
+      diffEngine,
+      bundle,
+      baselines: createBaselineResolver(
+        storage,
+        await getBaselineHistory(
+          gitInfo.baselineCommit,
+          config.runner?.baselineHistoryDepth ?? DEFAULT_BASELINE_HISTORY_DEPTH,
+          cwd,
+        ),
+      ),
+    };
+
+    const results: VisualTestResult[] = [];
+    const record = (result: VisualTestResult) => {
+      results.push(result);
+      options.onProgress?.(
+        `${result.status === 'failed' ? 'Failed' : 'Compared'} ${result.group ?? UNGROUPED} / ${result.name} [${result.browser}]`,
+        results.length,
+        tasks.length,
+      );
+    };
+
+    {
+      // Captures are compared as they finish, so the run holds only the images
+      // in flight rather than every screenshot at once.
+      const outcome = await runCaptures(tasks, undefined, {
+        attempts: config.runner?.captureAttempts,
+        concurrency: config.runner?.concurrency ?? DEFAULT_CONCURRENCY,
+        delay: config.snapshot?.delay ?? DEFAULT_DELAY_MS,
+        pauseAnimationAtEnd: config.snapshot?.pauseAnimationAtEnd ?? true,
+        cwd,
+        ledger: config.agent?.context ?? DEFAULT_AGENT_CONTEXT,
+        onBeforeCapture: (target, viewport) =>
+          plugins.hookBeforeCapture(target, viewport),
+        onCapture: async (capture) => {
+          const buffer = await plugins.hookAfterCapture(
+            capture.target,
+            capture.viewport,
+            capture.buffer,
+          );
+          record(await compareCapture(compareContext, { ...capture, buffer }));
+        },
+      });
+      for (const failure of outcome.failures) {
+        record(failedResult(failure, cwd));
+      }
+
+      // A shard or a filter sees only part of the targets, so it cannot tell
+      // what is gone.
+      if (!shard && !filter) {
+        for (const gone of await findRemoved({
+          storage,
+          baselines: compareContext.baselines,
+          bundle,
+          results,
+        })) {
+          record(gone);
+        }
+      }
+    }
+
+    const intents = [
+      ...(await readIntents(
+        path.resolve(cwd, config.agent?.intentFile ?? DEFAULT_INTENT_FILE),
+      )),
+      ...(options.intents ?? []).map(createIntent),
+    ];
+    const report = assembleReport({
+      runId,
+      timestamp,
+      git: gitInfo,
+      results: classifyResults(results, intents),
+      intents,
+      config,
+      bundle,
+      shard,
+      filter,
+    });
+    await publishReport(report, storage, bundle);
+    await notifyAll(notifiers, report);
+    await plugins.hookTestComplete(report);
+
+    return { ...report, reviewDir: bundle.dir };
+  } finally {
+    await teardownDrivers();
   }
-
-  const intents = [
-    ...(await readIntents(
-      path.resolve(cwd, config.agent?.intentFile ?? DEFAULT_INTENT_FILE),
-    )),
-    ...(options.intents ?? []).map(createIntent),
-  ];
-  const report = assembleReport({
-    runId,
-    timestamp,
-    git: gitInfo,
-    results: classifyResults(results, intents),
-    intents,
-    config,
-    bundle,
-    shard,
-    filter,
-  });
-  await publishReport(report, storage, bundle);
-  await notifyAll(notifiers, report);
-  await plugins.hookTestComplete(report);
-
-  return { ...report, reviewDir: bundle.dir };
 }

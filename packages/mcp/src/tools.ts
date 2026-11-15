@@ -52,6 +52,8 @@ export interface Actions {
   approve(options: {
     ids: string[];
     rationale: string;
+    /** The report the policy was checked against, so no other run is promoted. */
+    report: TestRunReport;
   }): Promise<{ count: number; failed: number }>;
   declareIntent(input: NewIntent): Promise<Intent>;
   verify(options: {
@@ -606,7 +608,12 @@ export function createTools(deps: ToolDependencies): ToolDefinition[] {
               )}\nLook at a change with diffra_explain. If it is intended, declare an intent that covers it with diffra_declare_intent and run again. Otherwise a person approves it with diffra approve.`,
           );
         }
-        const outcome = await actions.approve({ ids, rationale });
+        const outcome = await actions.approve({ ids, rationale, report });
+        if (outcome.failed > 0) {
+          return failed(
+            `${outcome.failed} snapshot(s) could not be promoted, and ${outcome.count} were. Run diffra approve to see why.`,
+          );
+        }
         return json({ approved: outcome.count, failed: outcome.failed, ids });
       },
     },

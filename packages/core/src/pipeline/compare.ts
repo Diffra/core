@@ -75,8 +75,17 @@ function identify(
     ...(target.filePath
       ? { filePath: reportablePath(target.filePath, cwd) }
       : {}),
-    metadata: target.metadata,
+    metadata: reportableMetadata(target.metadata, cwd),
   };
+}
+
+/** Target metadata for a report: a path on the machine becomes one in the project. */
+function reportableMetadata(
+  metadata: VisualTarget['metadata'],
+  cwd: string,
+): VisualTarget['metadata'] {
+  if (!metadata || typeof metadata.imagePath !== 'string') return metadata;
+  return { ...metadata, imagePath: reportablePath(metadata.imagePath, cwd) };
 }
 
 /** The result recorded for a target that produced no image. */

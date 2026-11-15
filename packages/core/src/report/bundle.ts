@@ -22,6 +22,27 @@ export const RUNS_DIR = 'runs';
 export const VIEWER_DIR_ENV = 'DIFFRA_VIEWER_DIR';
 
 /** Where run output (reports, images, local baselines) is written. */
+/**
+ * Reads a file of a review bundle. A path that leaves the bundle is refused,
+ * whether by `..` or by a symbolic link that points elsewhere.
+ */
+export async function readFileWithin(
+  root: string,
+  relative: string,
+): Promise<Buffer> {
+  const base = await fs.realpath(path.resolve(root));
+  const inside = (file: string) => file.startsWith(base + path.sep);
+  const resolved = path.resolve(base, relative);
+  if (!inside(resolved)) {
+    throw new Error(`File leaves the review bundle: ${relative}`);
+  }
+  const real = await fs.realpath(resolved);
+  if (!inside(real)) {
+    throw new Error(`File leaves the review bundle: ${relative}`);
+  }
+  return fs.readFile(real);
+}
+
 export function resolveOutputDir(config: DiffraConfig, cwd: string): string {
   const storage = config.storage;
   const configured =

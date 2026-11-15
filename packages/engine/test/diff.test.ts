@@ -143,4 +143,29 @@ describe('@diffra/engine', () => {
     expect(diff.height).toBe(40);
     expect(diff.hasDiff).toBe(true);
   });
+  it('refuses a comparison whose union canvas is far larger than either image', async () => {
+    const wide = encodePng(Buffer.alloc(30000 * 4, 255), 30000, 1);
+    const tall = encodePng(Buffer.alloc(30000 * 4, 255), 1, 30000);
+    await expect(compareImages(wide, tall)).rejects.toThrow(
+      /too large to compare.*30000x30000/,
+    );
+  });
+
+  it('honours a custom pixel limit', async () => {
+    const image = encodePng(Buffer.alloc(100 * 100 * 4, 255), 100, 100);
+    await expect(
+      compareImages(image, image, { maxPixels: 9999 }),
+    ).rejects.toThrow(/too large to compare/);
+    const ok = await compareImages(image, image, { maxPixels: 10000 });
+    expect(ok.hasDiff).toBe(false);
+  });
+
+  it('counts pixels outside the shared area on a normal size mismatch', async () => {
+    const small = encodePng(Buffer.alloc(10 * 10 * 4, 255), 10, 10);
+    const large = encodePng(Buffer.alloc(20 * 10 * 4, 255), 20, 10);
+    const result = await compareImages(small, large);
+    expect(result.isSameDimensions).toBe(false);
+    expect(result.diffCount).toBe(100);
+    expect(result.boundingBoxes).toHaveLength(1);
+  });
 });

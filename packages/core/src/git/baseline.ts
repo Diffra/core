@@ -39,6 +39,8 @@ async function runGit(
 
 /**
  * Converts SSH or HTTPS remote URLs into a standard HTTPS web URL.
+ * Credentials embedded in a remote, such as a CI job token, are dropped: the
+ * result is written into reports that are shared.
  */
 export function parseGitRemoteUrl(rawUrl: string): string | undefined {
   if (!rawUrl) return undefined;
@@ -49,16 +51,15 @@ export function parseGitRemoteUrl(rawUrl: string): string | undefined {
     return `https://${sshMatch[1]}/${sshMatch[2]}/${sshMatch[3]}`;
   }
 
-  // Handle https://host/owner/repo.git
-  const httpMatch = rawUrl.match(
-    /^https?:\/\/([^/]+)\/([^/]+)\/(.+?)(\.git)?$/,
-  );
-  if (httpMatch) {
-    return `https://${httpMatch[1]}/${httpMatch[2]}/${httpMatch[3]}`;
-  }
-
-  if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-    return rawUrl.replace(/\.git$/, '');
+  // Handle http(s)://[credentials@]host/owner/repo[.git]
+  if (/^https?:\/\//i.test(rawUrl)) {
+    try {
+      const url = new URL(rawUrl);
+      const repository = url.pathname.replace(/\.git$/, '').replace(/\/+$/, '');
+      return `https://${url.host}${repository}`;
+    } catch {
+      return undefined;
+    }
   }
 
   return undefined;

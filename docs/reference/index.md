@@ -10,3 +10,4 @@ Exact options, flags and types. For explanations, see [guides](../guides/index.m
 | [GitHub Action](action-reference.md) | Inputs and outputs. |
 | [TypeScript types](types-reference.md) | Public interfaces, including the report. |
 | [MCP server](../agents/mcp-reference.md) | Tools, arguments, resources and errors. |
+| [Compatibility](compatibility.md) | Agents, targets, browsers, storage, CI and runtime support. |

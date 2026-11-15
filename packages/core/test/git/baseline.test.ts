@@ -30,8 +30,29 @@ describe('git baseline resolution', () => {
       );
     });
 
+    it('drops credentials embedded in a remote', () => {
+      expect(
+        parseGitRemoteUrl(
+          'https://gitlab-ci-token:glcbt-secret@gitlab.com/org/repo.git',
+        ),
+      ).toBe('https://gitlab.com/org/repo');
+      expect(
+        parseGitRemoteUrl('https://x-access-token:ghs_secret@github.com/o/r'),
+      ).toBe('https://github.com/o/r');
+      expect(parseGitRemoteUrl('https://token@host.example/a/b/')).toBe(
+        'https://host.example/a/b',
+      );
+    });
+
+    it('keeps a port and a nested group path', () => {
+      expect(
+        parseGitRemoteUrl('https://git.example.com:8443/group/sub/repo.git'),
+      ).toBe('https://git.example.com:8443/group/sub/repo');
+    });
+
     it('handles empty or invalid inputs', () => {
       expect(parseGitRemoteUrl('')).toBeUndefined();
+      expect(parseGitRemoteUrl('https://')).toBeUndefined();
     });
   });
 

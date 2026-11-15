@@ -243,7 +243,7 @@ export class AzureBlobStorageAdapter implements StorageAdapter {
   async saveReport(report: TestRunReport): Promise<string> {
     const blobName = `${this.prefix}/runs/${report.runId}/report.json`;
     const blockBlobClient = this.getClient().getBlockBlobClient(blobName);
-    const content = JSON.stringify(report, null, 2);
+    const content = Buffer.from(JSON.stringify(report, null, 2), 'utf-8');
     await blockBlobClient.upload(content, content.length, {
       blobHTTPHeaders: { blobContentType: 'application/json' },
     });

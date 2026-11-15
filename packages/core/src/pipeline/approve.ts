@@ -191,7 +191,10 @@ export async function approveBaselines(
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[diffra] Could not record the approval: ${msg}`);
+      // An approval nobody can trace defeats the log, so it is an error.
+      throw new Error(
+        `Baselines were promoted, but the approval could not be recorded: ${msg}`,
+      );
     }
   }
 

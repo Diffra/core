@@ -91,11 +91,12 @@ export async function startMcpServer(
           configFile,
           config: filter ? { runner: { filter } } : undefined,
         }),
-      approve: ({ ids, rationale }) =>
+      approve: ({ ids, rationale, report }) =>
         approveBaselines({
           cwd,
           configFile,
           ids,
+          report,
           provenance: { actor: 'agent', rationale },
         }),
       prove: (options) => proveSnapshot({ cwd, configFile, ...options }),

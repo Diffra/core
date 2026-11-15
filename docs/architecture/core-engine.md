@@ -27,6 +27,7 @@ A pixel difference is registered only when $\Delta E$ exceeds the configured per
 * `compareImages` decodes both images and compares them on the libuv thread pool, so it does not block the event loop and several comparisons run at once. Each comparison is a single-threaded loop; it does not use SIMD instructions.
 * `pnpm build` compiles the engine for the current platform with napi-rs. The release workflow builds it for Linux (x64 and arm64), macOS (x64 and arm64) and Windows (x64) and ships every binary with the GitHub Action.
 * There is no fallback implementation. On a platform without a binary, importing the engine throws "Cannot find native binding", with the paths it tried as the cause.
+* A comparison covers the larger of the two images in each dimension, so two small images of different shapes can ask for a huge canvas. The engine refuses one over 100,000,000 pixels with an error before allocating anything. The `maxPixels` option changes the limit. The snapshot is reported as failed and the run continues.
 * An image that cannot be decoded rejects with an error naming the baseline or candidate; the run records that snapshot as failed and continues.
 
 ---

@@ -31,6 +31,9 @@ export {
 const MAX_CONCURRENCY = 16;
 const DEFAULT_EXIT_ZERO_ON_CHANGES = 'true';
 const DEFAULT_AUTO_ACCEPT = 'default-branch';
+
+/** Events whose code has not been reviewed or merged yet. */
+const PULL_REQUEST_EVENTS = new Set(['pull_request', 'pull_request_target']);
 const PULL_REQUEST_REF = /^refs\/pull\/(\d+)\/(merge|head)$/;
 
 /** Splits a comma separated list or JSON array input into trimmed entries. */
@@ -178,11 +181,11 @@ export async function run(): Promise<void> {
       currentRef,
       defaultBranch,
     );
-    const shouldAutoAccept = matchesBranchOrBool(
-      autoAcceptInput,
-      currentRef,
-      defaultBranch,
-    );
+    // Candidates from a pull request are not yet reviewed, so they never
+    // become baselines, even when the event runs on the default branch's ref.
+    const shouldAutoAccept =
+      !PULL_REQUEST_EVENTS.has(github.context.eventName) &&
+      matchesBranchOrBool(autoAcceptInput, currentRef, defaultBranch);
     const shouldExitOnceUploaded = matchesBranchOrBool(
       core.getInput('exitOnceUploaded'),
       currentRef,
@@ -293,6 +296,9 @@ export async function run(): Promise<void> {
         token,
         repo: repoSlug,
         prNumber: pullRequestNumber(),
+        // The checked-out commit of a pull request is a merge commit that the
+        // pull request does not show, so the status goes on its head.
+        commitSha: github.context.payload.pull_request?.head?.sha,
         reportUrl,
       }).notify(report);
     }

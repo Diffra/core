@@ -597,7 +597,13 @@ describe('intent tools', () => {
         rationale,
       });
       expect(intended.isError).toBeUndefined();
-      expect(actions.approve).toHaveBeenCalledWith({ ids: ['a'], rationale });
+      // The report the policy was checked against travels with the approval,
+      // so a run that finishes meanwhile cannot be promoted instead.
+      expect(actions.approve).toHaveBeenCalledWith({
+        ids: ['a'],
+        rationale,
+        report: expect.objectContaining({ results: expect.any(Array) }),
+      });
     });
 
     it('refuses everything when agents may not approve', async () => {

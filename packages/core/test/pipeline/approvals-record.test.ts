@@ -46,6 +46,14 @@ describe('approval record', () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
+  it('fails loudly when the approval cannot be recorded', async () => {
+    // A directory in the place of the log makes the append fail.
+    await fs.mkdir(path.join(outputDir, APPROVALS_FILE), { recursive: true });
+    await expect(
+      approveBaselines({ cwd: dir, config, report, ids: ['icon--search'] }),
+    ).rejects.toThrow(/could not be recorded/);
+  });
+
   it('writes one record for an approval of chosen snapshots', async () => {
     const result = await approveBaselines({
       cwd: dir,
